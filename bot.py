@@ -6,26 +6,24 @@ from playwright.sync_api import sync_playwright, TimeoutError
 USER_DATA_DIR = os.path.join(os.getcwd(), 'whatsapp_session_data')
 NOME_DO_ARQUIVO_DE_IMAGEM = "imagem_enviar.jpg"
 TEXTO_DA_LEGENDA = """
-🚨 *PARE DE PAGAR CARO NO SEGURO!* 🚨
-👉 Carro | Moto
+🔒 SEGURANÇA NO VOLANTE COMEÇA AQUI!
+🚗 Seguro de carro, moto e casa
 
-💰 *ECONOMIZE ATÉ 50% AGORA!*
-✅ As melhores taxas do mercado
-✅ Cotações rápidas, sem enrolação
+💵REDUZA SEU SEGURO EM ATÉ 50%, GARANTIMOS AS MELHORES TAXAS DO MERCADO
 
-📋 *Aceitamos:*
-• Drivh
-• CNH brasileira
-• Passaporte
-• Habilitação estrangeira
+📲 COTAÇÃO RÁPIDA E SEM BUROCRACIA!
+Aceitamos: 
+* CNH 
+* Passaporte 
+* Habilitação estrangeira
 
-🧑‍💼 Thiago | Seu Corretor de Confiança
-Fale comigo no WhatsApp e receba sua cotação em minutos:
-👉 https://wa.me/message/BMDAOE4YSM7HN1
+👩🏻‍💼Débora | Corretora de Seguros
+📞 Clique aqui e peça sua cotação:
+https://wa.me/message/X4X7FBTDBF7RH1
 """
 DELAY_ENTRE_MENSAGENS = 2
 LIMITE_DE_ENVIOS = 20
-QUANTIDADE_LOOP = 10
+QUANTIDADE_LOOP = 15
 
 def enviar_mensagens_com_rolagem_continua():
     with sync_playwright() as p:
@@ -41,7 +39,7 @@ def enviar_mensagens_com_rolagem_continua():
             print("Seção de Arquivadas aberta com sucesso.")
 
             print("\nRolando até o meio da lista para começar...")
-            for _ in range(30):
+            for _ in range(40):
                 page.keyboard.press('PageDown')
                 time.sleep(0.5)
             print("Posicionado. Iniciando o processo de envio...")
