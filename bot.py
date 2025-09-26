@@ -46,10 +46,22 @@ def enviar_mensagens_com_rolagem_continua():
                 time.sleep(0.5)
             print("Posicionado. Iniciando o processo de envio...")
             
+            # Controle global de chats processados para evitar repetições
+            chats_processados_globalmente = set()
             
             # Loop principal que continua até atingir o limite de envios
-            for _ in range(0, QUANTIDADE_LOOP):
-                parte_mensagens(page)
+            for iteracao in range(1, QUANTIDADE_LOOP + 1):
+                if len(chats_processados_globalmente) >= LIMITE_DE_ENVIOS:
+                    print(f"\nLimite de {LIMITE_DE_ENVIOS} envios atingido. Encerrando loops.")
+                    break
+                
+                print(f"\n--- ITERAÇÃO {iteracao}/{QUANTIDADE_LOOP} - Chats já processados: {len(chats_processados_globalmente)} ---")
+                parte_mensagens(page, chats_processados_globalmente)
+                
+                if len(chats_processados_globalmente) >= LIMITE_DE_ENVIOS:
+                    print(f"Meta de {LIMITE_DE_ENVIOS} envios alcançada!")
+                    break
+                    
                 time.sleep(5)
             
             print("\n" + "="*30)
@@ -62,8 +74,7 @@ def enviar_mensagens_com_rolagem_continua():
             input("\nPressione Enter para fechar...")
             context.close()
 
-def parte_mensagens(page):
-    chats_processados = set()
+def parte_mensagens(page, chats_processados):
     while len(chats_processados) < LIMITE_DE_ENVIOS:
         chats_visiveis = page.get_by_role("listitem").all()
         if not chats_visiveis:
@@ -121,7 +132,7 @@ def parte_mensagens(page):
             break
         
         if novos_chats_encontrados_nesta_tela == 0:
-            print("\nNenhum chat novo encontrado na tela. Atingimos o fim da lista visível.")
+            print("\nNenhum chat novo encontrado na tela. Atingimos o fim da lista visível ou todos os chats já foram processados.")
             break
 if __name__ == "__main__":
     enviar_mensagens_com_rolagem_continua()
