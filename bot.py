@@ -4,7 +4,7 @@ from playwright.sync_api import sync_playwright, TimeoutError
 
 # --- CONFIGURAÇÕES ---
 USER_DATA_DIR = os.path.join(os.getcwd(), 'whatsapp_session_data')
-NOME_DO_ARQUIVO_DE_IMAGEM = "imagem_enviar.jpg"
+NOME_DO_ARQUIVO_DE_IMAGEM = "imagem_enviar2.jpg"
 TEXTO_DA_LEGENDA = """
 🔒 SEGURANÇA NO VOLANTE COMEÇA AQUI!
 🚗 Seguro de carro, moto e casa
