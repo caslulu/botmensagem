@@ -22,8 +22,8 @@ Aceitamos:
 https://wa.me/message/X4X7FBTDBF7RH1
 """
 DELAY_ENTRE_MENSAGENS = 2
-LIMITE_DE_ENVIOS = 20
-QUANTIDADE_LOOP = 15
+LIMITE_DE_ENVIOS = 500
+QUANTIDADE_LOOP = 20
 
 def enviar_mensagens_com_rolagem_continua():
     with sync_playwright() as p:
