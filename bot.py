@@ -24,7 +24,7 @@ Fale comigo no WhatsApp e receba sua cotação em minutos:
 👉 https://wa.me/message/BMDAOE4YSM7HN1
 """
 DELAY_ENTRE_MENSAGENS = 2
-LIMITE_DE_ENVIOS = 20
+LIMITE_DE_ENVIOS = 200
 QUANTIDADE_LOOP = 10
 
 def enviar_mensagens_com_rolagem_continua():

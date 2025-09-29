@@ -1,6 +1,0 @@
-2025/09/22-14:11:43.912 fc12 Reusing MANIFEST /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_data/Default/Local Storage/leveldb/MANIFEST-000001
-2025/09/22-14:11:43.914 fc12 Recovering log #91
-2025/09/22-14:11:43.914 fc12 Reusing old log /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_data/Default/Local Storage/leveldb/000091.log 
-2025/09/22-14:16:44.680 fc17 Level-0 table #96: started
-2025/09/22-14:16:44.681 fc17 Level-0 table #96: 29250 bytes OK
-2025/09/22-14:16:44.682 fc17 Delete type=0 #91
