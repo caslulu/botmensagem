@@ -3,3 +3,8 @@ dist/
 out/
 .npmrc
 playwright-report/
+whatsapp_session*/
+data/
+*.log
+.DS_Store
+.env

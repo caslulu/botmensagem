@@ -1,5 +1,5 @@
 const path = require('path');
-const { getSelectedMessage } = require('./database');
+const { getSelectedMessage, getProfileSettings } = require('./database');
 
 const profiles = [
   {
@@ -31,14 +31,24 @@ function findProfileById(id) {
     // Get the selected message from database
     const selectedMessage = getSelectedMessage(id);
     
+    // Get profile settings
+    const settings = getProfileSettings(id);
+    
+    const result = { ...profile };
+    
     if (selectedMessage) {
       // Override with database values
-      return {
-        ...profile,
-        message: selectedMessage.text,
-        imagePath: selectedMessage.image_path || profile.imagePath
-      };
+      result.message = selectedMessage.text;
+      result.imagePath = selectedMessage.image_path || profile.imagePath;
     }
+    
+    if (settings) {
+      result.sendLimit = settings.send_limit || 200;
+    } else {
+      result.sendLimit = 200;
+    }
+    
+    return result;
   }
   
   return profile;

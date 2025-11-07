@@ -1,7 +1,7 @@
 {
   "name": "botmensagem",
   "version": "1.0.0",
-  "description": "",
+  "description": "Central de Disparos WhatsApp",
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
@@ -9,14 +9,55 @@
     "build:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --minify",
     "dev:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --watch",
     "playwright:install": "playwright install chromium",
+    "build": "npm run build:css && electron-builder --win --x64",
+    "build:linux": "npm run build:css && electron-builder --linux",
+    "build:dir": "npm run build:css && electron-builder --win --x64 --dir",
+    "publish": "npm run build:css && electron-builder --win --x64 --publish always",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "build": {
+    "appId": "com.caslulu.botmensagem",
+    "productName": "Central de Disparos WhatsApp",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "imagem_thiago.jpg",
+      "imagem_debora.jpg"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "caslulu",
+      "repo": "botmensagem",
+      "releaseType": "release"
+    }
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/caslulu/botmensagem.git"
   },
   "keywords": [],
-  "author": "",
+  "author": "caslulu",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
@@ -26,10 +67,13 @@
   "devDependencies": {
     "autoprefixer": "^10.4.19",
     "electron": "^39.1.1",
+    "electron-builder": "^26.0.12",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.14"
   },
   "dependencies": {
+    "electron-log": "^5.4.3",
+    "electron-updater": "^6.6.2",
     "playwright": "^1.56.1",
     "sql.js": "^1.13.0"
   }

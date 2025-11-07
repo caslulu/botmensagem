@@ -142,19 +142,20 @@ class AutomationController extends EventEmitter {
       }
 
       const processedChats = new Set();
+      const sendLimit = profile.sendLimit || 200;
 
       for (let iteration = 1; iteration <= LOOP_QUANTITY; iteration += 1) {
         await this.ensureRunning();
 
-        if (processedChats.size >= SEND_LIMIT) {
-          this.log(`Limite de ${SEND_LIMIT} envios atingido. Encerrando.`);
+        if (processedChats.size >= sendLimit) {
+          this.log(`Limite de ${sendLimit} envios atingido. Encerrando.`);
           break;
         }
 
         this.log(`Iniciando iteração ${iteration}/${LOOP_QUANTITY} — Chats enviados: ${processedChats.size}`);
-        await this.processVisibleChats(page, processedChats);
+        await this.processVisibleChats(page, processedChats, sendLimit);
 
-        if (processedChats.size >= SEND_LIMIT) {
+        if (processedChats.size >= sendLimit) {
           break;
         }
 
@@ -187,8 +188,8 @@ class AutomationController extends EventEmitter {
     }
   }
 
-  async processVisibleChats(page, processedChats) {
-    while (processedChats.size < SEND_LIMIT) {
+  async processVisibleChats(page, processedChats, sendLimit) {
+    while (processedChats.size < sendLimit) {
       await this.ensureRunning();
 
       const chatLocators = await page.getByRole('listitem').all();
@@ -201,7 +202,7 @@ class AutomationController extends EventEmitter {
 
       for (const chat of chatLocators) {
         await this.ensureRunning();
-        if (processedChats.size >= SEND_LIMIT) {
+        if (processedChats.size >= sendLimit) {
           break;
         }
 
@@ -251,7 +252,7 @@ class AutomationController extends EventEmitter {
         }
       }
 
-      if (processedChats.size >= SEND_LIMIT || newChatsOnScreen === 0) {
+      if (processedChats.size >= sendLimit || newChatsOnScreen === 0) {
         if (newChatsOnScreen === 0) {
           this.log('Nenhum chat novo encontrado nesta tela.');
         }

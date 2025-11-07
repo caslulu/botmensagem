@@ -9,14 +9,23 @@ Cada perfil agora pode ter até **5 mensagens salvas**, permitindo maior flexibi
 ### ✅ Adicionar Mensagem
 - Clique no botão **"+ Adicionar mensagem"** no painel de controle
 - Digite o texto da mensagem
-- Opcionalmente, especifique um caminho para uma imagem diferente
+- **Selecione uma imagem**:
+  - Clique no botão **"📁 Selecionar"** para escolher uma imagem do seu computador
+  - OU cole o caminho completo manualmente
+  - OU deixe vazio para usar a imagem padrão do perfil
 - Salve a mensagem
+
+**Formatos de imagem suportados**: JPG, JPEG, PNG, GIF, BMP, WEBP
 
 **Limite**: Máximo de 5 mensagens por perfil
 
 ### ✏️ Editar Mensagem
 - Clique no ícone de lápis (✎) na mensagem que deseja editar
-- Modifique o texto ou o caminho da imagem
+- Modifique o texto
+- **Modifique a imagem** (opcional):
+  - Clique em **"📁 Selecionar"** para escolher uma nova imagem
+  - OU edite o caminho manualmente
+  - OU limpe o campo para usar a imagem padrão
 - Salve as alterações
 
 ### 🗑️ Deletar Mensagem
@@ -67,7 +76,7 @@ Na primeira execução, as mensagens padrão dos perfis são automaticamente imp
 
 ### Modal de Edição
 - Campo de texto para a mensagem (suporta múltiplas linhas)
-- Campo para especificar caminho da imagem
+- Campo para imagem com **botão "📁 Selecionar"** para escolher arquivos do computador
 - Botões Cancelar e Salvar
 
 ## Tecnologias Utilizadas

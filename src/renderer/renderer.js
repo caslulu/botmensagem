@@ -21,6 +21,11 @@ const cancelModalBtn = document.getElementById('cancelModalBtn');
 const saveMessageBtn = document.getElementById('saveMessageBtn');
 const messageText = document.getElementById('messageText');
 const messageImage = document.getElementById('messageImage');
+const selectImageBtn = document.getElementById('selectImageBtn');
+
+// Profile settings elements
+const sendLimitInput = document.getElementById('sendLimitInput');
+const saveSendLimitBtn = document.getElementById('saveSendLimitBtn');
 
 // Verificar se todos os elementos foram encontrados
 console.log('Elementos DOM carregados:', {
@@ -48,6 +53,7 @@ let selectionEnabled = true;
 let automationRunning = false;
 let currentMessages = [];
 let editingMessageId = null;
+let currentSendLimit = 200;
 
 startButton.disabled = true;
 selectionView.classList.remove('hidden');
@@ -133,8 +139,9 @@ function selectProfile(profileId) {
     setStatus('Pronto para iniciar os envios.');
     updateStatusBadge('stopped');
     
-    // Load messages for this profile
+    // Load messages and settings for this profile
     loadMessages(profileId);
+    loadProfileSettings(profileId);
   } else {
     startButton.disabled = true;
     setStatus('Selecione um operador para começar.');
@@ -359,6 +366,44 @@ async function loadMessages(profileId) {
   }
 }
 
+async function loadProfileSettings(profileId) {
+  if (!profileId) return;
+  
+  try {
+    const settings = await window.profile.getSettings(profileId);
+    currentSendLimit = settings.send_limit || 200;
+    sendLimitInput.value = currentSendLimit;
+    appendLog(`Configuração carregada: ${currentSendLimit} grupos`);
+  } catch (error) {
+    console.error('Erro ao carregar configurações:', error);
+    sendLimitInput.value = 200;
+    currentSendLimit = 200;
+  }
+}
+
+async function saveSendLimit() {
+  if (!selectedProfileId) {
+    appendLog('Nenhum perfil selecionado');
+    return;
+  }
+  
+  const limit = parseInt(sendLimitInput.value);
+  
+  if (isNaN(limit) || limit < 1 || limit > 1000) {
+    appendLog('Por favor, insira um número válido entre 1 e 1000');
+    return;
+  }
+  
+  try {
+    await window.profile.updateSendLimit(selectedProfileId, limit);
+    currentSendLimit = limit;
+    appendLog(`✓ Configuração salva: ${limit} grupos`);
+  } catch (error) {
+    console.error('Erro ao salvar configuração:', error);
+    appendLog(`Erro ao salvar configuração: ${error.message}`);
+  }
+}
+
 function renderMessages() {
   messagesList.innerHTML = '';
   
@@ -535,6 +580,23 @@ addMessageBtn.addEventListener('click', openAddModal);
 closeModalBtn.addEventListener('click', closeModal);
 cancelModalBtn.addEventListener('click', closeModal);
 saveMessageBtn.addEventListener('click', saveMessage);
+
+// Image selection
+selectImageBtn.addEventListener('click', async () => {
+  try {
+    const result = await window.fileSystem.selectImage();
+    if (result.success && result.path) {
+      messageImage.value = result.path;
+      appendLog(`Imagem selecionada: ${result.path}`);
+    }
+  } catch (error) {
+    console.error('Erro ao selecionar imagem:', error);
+    appendLog(`Erro ao selecionar imagem: ${error.message}`);
+  }
+});
+
+// Profile settings
+saveSendLimitBtn.addEventListener('click', saveSendLimit);
 
 // Close modal when clicking outside
 messageModal.addEventListener('click', (e) => {

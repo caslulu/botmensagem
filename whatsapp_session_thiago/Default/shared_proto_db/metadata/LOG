@@ -1,2 +1,3 @@
-2025/11/07-10:53:09.323 28ab2 Creating DB /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/shared_proto_db/metadata since it was missing.
-2025/11/07-10:53:09.325 28ab2 Reusing MANIFEST /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/shared_proto_db/metadata/MANIFEST-000001
+2025/11/07-11:30:48.989 4883 Reusing MANIFEST /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/shared_proto_db/metadata/MANIFEST-000001
+2025/11/07-11:30:48.990 4883 Recovering log #3
+2025/11/07-11:30:48.990 4883 Reusing old log /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/shared_proto_db/metadata/000003.log 

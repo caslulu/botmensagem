@@ -1,9 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
 const automation = require('./automation');
 const { getProfiles, findProfileById } = require('./profiles');
+const { setupAutoUpdater } = require('./updater');
 const { 
   initDatabase,
   getMessages, 
@@ -12,7 +13,9 @@ const {
   updateMessage, 
   deleteMessage, 
   selectMessage,
-  seedInitialMessages 
+  seedInitialMessages,
+  getProfileSettings,
+  updateProfileSettings
 } = require('./database');
 
 const isDev = process.env.NODE_ENV === 'development';
@@ -33,6 +36,9 @@ function createMainWindow() {
 
   if (isDev) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
+  } else {
+    // Configurar auto-update apenas em produção
+    setupAutoUpdater(mainWindow);
   }
 
   mainWindow.on('closed', () => {
@@ -189,6 +195,49 @@ ipcMain.handle('messages:select', async (_event, messageId) => {
     return { success };
   } catch (error) {
     console.error('Erro ao selecionar mensagem:', error);
+    throw error;
+  }
+});
+
+// File selection handler
+ipcMain.handle('file:select-image', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openFile'],
+      filters: [
+        { name: 'Imagens', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }
+      ],
+      title: 'Selecione uma imagem'
+    });
+    
+    if (result.canceled || result.filePaths.length === 0) {
+      return { success: false, path: null };
+    }
+    
+    return { success: true, path: result.filePaths[0] };
+  } catch (error) {
+    console.error('Erro ao selecionar imagem:', error);
+    throw error;
+  }
+});
+
+// Profile settings handlers
+ipcMain.handle('profile:get-settings', async (_event, profileId) => {
+  try {
+    const settings = getProfileSettings(profileId);
+    return settings;
+  } catch (error) {
+    console.error('Erro ao buscar configurações do perfil:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('profile:update-send-limit', async (_event, profileId, sendLimit) => {
+  try {
+    const success = updateProfileSettings(profileId, sendLimit);
+    return { success };
+  } catch (error) {
+    console.error('Erro ao atualizar limite de envios:', error);
     throw error;
   }
 });

@@ -1,2 +1,3 @@
-2025/11/07-10:53:09.233 28ab2 Creating DB /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/Sync Data/LevelDB since it was missing.
-2025/11/07-10:53:09.235 28ab2 Reusing MANIFEST /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/Sync Data/LevelDB/MANIFEST-000001
+2025/11/07-11:30:48.815 4884 Reusing MANIFEST /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/Sync Data/LevelDB/MANIFEST-000001
+2025/11/07-11:30:48.823 4884 Recovering log #3
+2025/11/07-11:30:48.823 4884 Reusing old log /home/caslulu/dev/github.com/caslulu/botmensagem/whatsapp_session_thiago/Default/Sync Data/LevelDB/000003.log 

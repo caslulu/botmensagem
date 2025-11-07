@@ -37,6 +37,15 @@ async function initDatabase() {
     )
   `);
 
+  // Profile settings table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS profile_settings (
+      profile_id TEXT PRIMARY KEY,
+      send_limit INTEGER DEFAULT 200,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Create index for faster queries
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_profile_id ON messages(profile_id)
@@ -253,6 +262,62 @@ function seedInitialMessages(profiles) {
   }
 }
 
+// Get profile settings
+function getProfileSettings(profileId) {
+  if (!db) return null;
+  
+  const stmt = db.prepare('SELECT * FROM profile_settings WHERE profile_id = ?');
+  stmt.bind([profileId]);
+  
+  let settings = null;
+  if (stmt.step()) {
+    settings = stmt.getAsObject();
+  }
+  stmt.free();
+  
+  // Return default if not found
+  if (!settings) {
+    return { profile_id: profileId, send_limit: 200 };
+  }
+  
+  return settings;
+}
+
+// Update profile settings
+function updateProfileSettings(profileId, sendLimit) {
+  if (!db) throw new Error('Database not initialized');
+  
+  // Check if settings exist
+  const checkStmt = db.prepare('SELECT profile_id FROM profile_settings WHERE profile_id = ?');
+  checkStmt.bind([profileId]);
+  const exists = checkStmt.step();
+  checkStmt.free();
+  
+  if (exists) {
+    // Update existing
+    const updateStmt = db.prepare(`
+      UPDATE profile_settings 
+      SET send_limit = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE profile_id = ?
+    `);
+    updateStmt.bind([sendLimit, profileId]);
+    updateStmt.step();
+    updateStmt.free();
+  } else {
+    // Insert new
+    const insertStmt = db.prepare(`
+      INSERT INTO profile_settings (profile_id, send_limit)
+      VALUES (?, ?)
+    `);
+    insertStmt.bind([profileId, sendLimit]);
+    insertStmt.step();
+    insertStmt.free();
+  }
+  
+  saveDatabase();
+  return true;
+}
+
 module.exports = {
   initDatabase,
   getMessages,
@@ -261,5 +326,7 @@ module.exports = {
   updateMessage,
   deleteMessage,
   selectMessage,
-  seedInitialMessages
+  seedInitialMessages,
+  getProfileSettings,
+  updateProfileSettings
 };

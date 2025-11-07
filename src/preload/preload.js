@@ -17,3 +17,12 @@ contextBridge.exposeInMainWorld('messages', {
   delete: (messageId) => ipcRenderer.invoke('messages:delete', messageId),
   select: (messageId) => ipcRenderer.invoke('messages:select', messageId)
 });
+
+contextBridge.exposeInMainWorld('fileSystem', {
+  selectImage: () => ipcRenderer.invoke('file:select-image')
+});
+
+contextBridge.exposeInMainWorld('profile', {
+  getSettings: (profileId) => ipcRenderer.invoke('profile:get-settings', profileId),
+  updateSendLimit: (profileId, sendLimit) => ipcRenderer.invoke('profile:update-send-limit', profileId, sendLimit)
+});

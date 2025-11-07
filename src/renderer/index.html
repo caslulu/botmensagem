@@ -11,19 +11,15 @@
     <div class="min-h-screen px-6 py-10">
       <div class="mx-auto flex max-w-6xl flex-col gap-8">
         <header class="flex flex-col gap-2 text-slate-100">
-          <span class="tag w-fit">Bot Mensagem • Playwright + Electron</span>
           <h1 class="text-3xl font-semibold md:text-4xl">Central de disparos WhatsApp</h1>
-          <p class="max-w-2xl text-slate-300">Escolha o operador para carregar a sessão do WhatsApp correspondente e, em seguida, controle os envios de forma segura em um só lugar.</p>
         </header>
 
         <section id="selectionView" class="flex flex-col gap-6">
           <div class="card">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div class="space-y-2">
-                <h2 class="text-2xl font-semibold text-white">Selecione quem vai disparar as mensagens</h2>
-                <p class="max-w-2xl text-sm text-slate-300">Cada operador possui sessão, imagem e mensagem personalizadas. No futuro, você poderá ativar senha individual a partir desta mesma tela.</p>
+                <h2 class="text-2xl font-semibold text-white">Selecione quem vai disparar</h2>
               </div>
-              <span class="tag">Passo 1 de 2</span>
             </div>
           </div>
 
@@ -61,6 +57,26 @@
               <button id="addMessageBtn" class="btn-secondary w-full">
                 <span aria-hidden="true">+</span> Adicionar mensagem
               </button>
+              
+              <div class="pt-4 border-t border-slate-700">
+                <p class="text-sm uppercase tracking-wide text-slate-400 mb-2">Configurações</p>
+                <div class="space-y-2">
+                  <label for="sendLimitInput" class="block text-sm font-medium text-slate-300">
+                    Número de grupos para enviar
+                  </label>
+                  <input 
+                    type="number" 
+                    id="sendLimitInput" 
+                    min="1" 
+                    max="1000" 
+                    class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                    placeholder="200"
+                  />
+                  <button id="saveSendLimitBtn" class="btn-secondary w-full text-sm">
+                    💾 Salvar configuração
+                  </button>
+                </div>
+              </div>
               
               <div class="pt-4 border-t border-slate-700">
                 <p class="text-sm uppercase tracking-wide text-slate-400 mb-2">Mensagem selecionada</p>
@@ -108,13 +124,22 @@
             </div>
             
             <div>
-              <label for="messageImage" class="block text-sm font-medium text-slate-300 mb-2">Caminho da imagem (opcional)</label>
-              <input 
-                type="text" 
-                id="messageImage" 
-                class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                placeholder="/caminho/para/imagem.jpg"
-              />
+              <label for="messageImage" class="block text-sm font-medium text-slate-300 mb-2">Imagem (opcional)</label>
+              <div class="flex gap-2">
+                <input 
+                  type="text" 
+                  id="messageImage" 
+                  class="flex-1 rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                  placeholder="Clique em 'Selecionar' ou cole o caminho completo"
+                />
+                <button 
+                  type="button"
+                  id="selectImageBtn" 
+                  class="btn-secondary whitespace-nowrap"
+                >
+                  📁 Selecionar
+                </button>
+              </div>
               <p class="text-xs text-slate-400 mt-1">Deixe vazio para usar a imagem padrão do perfil</p>
             </div>
           </div>
