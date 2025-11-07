@@ -1,0 +1,36 @@
+{
+  "name": "botmensagem",
+  "version": "1.0.0",
+  "description": "",
+  "main": "src/main/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "NODE_ENV=development electron .",
+    "build:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --minify",
+    "dev:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --watch",
+    "playwright:install": "playwright install chromium",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/caslulu/botmensagem.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/caslulu/botmensagem/issues"
+  },
+  "homepage": "https://github.com/caslulu/botmensagem#readme",
+  "devDependencies": {
+    "autoprefixer": "^10.4.19",
+    "electron": "^39.1.1",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.14"
+  },
+  "dependencies": {
+    "playwright": "^1.56.1",
+    "sql.js": "^1.13.0"
+  }
+}
