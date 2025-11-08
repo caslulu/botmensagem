@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 
@@ -15,8 +15,14 @@ const {
   selectMessage,
   seedInitialMessages,
   getProfileSettings,
-  updateProfileSettings
+  updateProfileSettings,
+  seedInitialProfiles,
+  getAllProfiles
 } = require('./database');
+
+// Serviços migrados do auto-rta (Python -> Node)
+const rtaService = require('./auto-rta/services/rtaService');
+const trelloService = require('./auto-rta/services/trelloService');
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
@@ -54,8 +60,15 @@ app.on('ready', async () => {
   // Initialize database
   await initDatabase();
   
-  // Seed initial messages
-  seedInitialMessages(getProfiles());
+  // Seed initial profiles (Thiago/Debora) if empty, then seed messages for them
+  seedInitialProfiles();
+  const existingProfiles = getAllProfiles();
+  seedInitialMessages(existingProfiles.map(p => ({
+    id: p.id,
+    name: p.name,
+    imagePath: p.image_path,
+    message: p.default_message
+  })));
 
   createMainWindow();
 
@@ -156,6 +169,94 @@ ipcMain.handle('messages:get', async (_event, profileId) => {
   } catch (error) {
     console.error('Erro ao buscar mensagens:', error);
     throw error;
+  }
+});
+
+// ===== Serviços e RTA (sem API externa) =====
+
+ipcMain.handle('services:list', async () => {
+  return [
+    { id: 'mensagens', name: 'Enviar mensagem automática', icon: '💬' },
+    { id: 'rta', name: 'RTA automático', icon: '📄' },
+    { id: 'trello', name: 'Integração Trello', icon: '📌' }
+  ];
+});
+
+ipcMain.handle('rta:generate', async (_event, data) => {
+  try {
+    const output = await rtaService.preencherRtaAndSave(data || {});
+    return { success: true, output };
+  } catch (error) {
+    console.error('Erro no RTA:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('trello:auth-check', async () => {
+  try {
+    const ok = trelloService.trelloAuthCheck();
+    return { authenticated: ok };
+  } catch (error) {
+    return { authenticated: false, error: error.message };
+  }
+});
+
+ipcMain.handle('trello:create-card', async (_event, data) => {
+  try {
+    const card = trelloService.createTrelloCard(data || {});
+    return { success: true, card };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ===== Arquivos (baixar / abrir) =====
+ipcMain.handle('file:save-to-downloads', async (_event, srcPath, suggestedName) => {
+  try {
+    if (!srcPath || !fs.existsSync(srcPath)) {
+      throw new Error('Arquivo origem inexistente');
+    }
+    const downloads = app.getPath('downloads');
+    const baseName = suggestedName || path.basename(srcPath);
+    let target = path.join(downloads, baseName);
+    // Evita sobrescrever
+    if (fs.existsSync(target)) {
+      const parsed = path.parse(baseName);
+      let i = 1;
+      while (fs.existsSync(target)) {
+        target = path.join(downloads, `${parsed.name}(${i})${parsed.ext}`);
+        i++;
+      }
+    }
+    fs.copyFileSync(srcPath, target);
+    return { success: true, path: target };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:show-in-folder', async (_event, targetPath) => {
+  try {
+    if (targetPath && fs.existsSync(targetPath)) {
+      shell.showItemInFolder(targetPath);
+      return { success: true };
+    }
+    throw new Error('Caminho inválido');
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('file:open-path', async (_event, targetPath) => {
+  try {
+    if (targetPath && fs.existsSync(targetPath)) {
+      const res = await shell.openPath(targetPath);
+      if (res) throw new Error(res);
+      return { success: true };
+    }
+    throw new Error('Caminho inválido');
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 });
 

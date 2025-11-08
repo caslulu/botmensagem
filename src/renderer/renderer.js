@@ -1,4 +1,13 @@
 // DOM Elements
+const servicesNav = document.getElementById('servicesNav');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const sidebarOpenToggle = document.getElementById('sidebarOpenToggle');
+const rtaView = document.getElementById('rtaView');
+const rtaStatus = document.getElementById('rtaStatus');
+const rtaOutput = document.getElementById('rtaOutput');
+const rtaActions = document.getElementById('rtaActions');
+const rtaOpenBtn = document.getElementById('rtaOpenBtn');
+const rtaDownloadBtn = document.getElementById('rtaDownloadBtn');
 const profilesContainer = document.getElementById('profilesContainer');
 const selectionView = document.getElementById('selectionView');
 const controlView = document.getElementById('controlView');
@@ -54,10 +63,35 @@ let automationRunning = false;
 let currentMessages = [];
 let editingMessageId = null;
 let currentSendLimit = 200;
+let activeServiceId = 'mensagens';
+let lastGeneratedRtaPath = null;
 
 startButton.disabled = true;
-selectionView.classList.remove('hidden');
-controlView.classList.add('hidden');
+// Inicializar views usando style.display ao invés de classes
+if (selectionView) {
+  selectionView.style.display = 'flex';
+}
+if (controlView) {
+  controlView.style.display = 'none';
+}
+if (rtaView) rtaView.style.display = 'none';
+
+if (servicesNav) {
+  servicesNav.addEventListener('click', (event) => {
+    const button = event.target.closest('button[data-service-id]');
+    if (!button || !servicesNav.contains(button)) {
+      return;
+    }
+
+    const { serviceId } = button.dataset;
+    if (!serviceId || serviceId === activeServiceId) {
+      return;
+    }
+
+    event.preventDefault();
+    selectService(serviceId);
+  });
+}
 
 function appendLog(message) {
   const timestamp = new Date().toLocaleTimeString('pt-BR', { hour12: false });
@@ -134,8 +168,8 @@ function selectProfile(profileId) {
     activeProfileNameEl.textContent = profile.name;
     activeProfileMessageEl.textContent = profile.message;
     startButton.disabled = false;
-    selectionView.classList.add('hidden');
-    controlView.classList.remove('hidden');
+    selectionView.style.display = 'none';
+    controlView.style.display = 'flex';
     setStatus('Pronto para iniciar os envios.');
     updateStatusBadge('stopped');
     
@@ -341,8 +375,8 @@ backToProfilesButton.addEventListener('click', () => {
   activeProfileMessageEl.textContent = '';
   startButton.disabled = true;
   stopButton.disabled = true;
-  controlView.classList.add('hidden');
-  selectionView.classList.remove('hidden');
+  controlView.style.display = 'none';
+  selectionView.style.display = 'flex';
   setStatus('Selecione um operador para começar.');
   updateStatusBadge('idle');
   setSelectionEnabled(true);
@@ -350,6 +384,171 @@ backToProfilesButton.addEventListener('click', () => {
 });
 
 loadProfiles();
+
+// ===== Serviços (Sidebar) =====
+const FALLBACK_SERVICES = [
+  { id: 'mensagens', name: 'Enviar mensagem automática', icon: 'chat' },
+  { id: 'rta', name: 'RTA automático', icon: 'doc' },
+  { id: 'trello', name: 'Integração Trello', icon: 'board' }
+];
+
+function createServiceIcon(iconKey) {
+  const key = iconKey || 'chat';
+  const svgIcons = ['chat', 'doc', 'board'];
+
+  if (!svgIcons.includes(key)) {
+    const emoji = document.createElement('span');
+    emoji.className = 'service-btn-emoji';
+    emoji.textContent = key;
+    return emoji;
+  }
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('fill', 'none');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('stroke', 'currentColor');
+  svg.setAttribute('aria-hidden', 'true');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('stroke-linecap', 'round');
+  path.setAttribute('stroke-linejoin', 'round');
+  path.setAttribute('stroke-width', '2');
+
+  switch (key) {
+    case 'chat':
+      path.setAttribute('d', 'M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z');
+      break;
+    case 'doc':
+      path.setAttribute('d', 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z');
+      break;
+    case 'board':
+    default:
+      path.setAttribute('d', 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2');
+      break;
+  }
+
+  svg.appendChild(path);
+  return svg;
+}
+
+function renderServiceButtons(services) {
+  if (!servicesNav) {
+    return;
+  }
+
+  servicesNav.innerHTML = '';
+  const fragment = document.createDocumentFragment();
+
+  services.forEach((service) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'service-btn';
+    button.dataset.serviceId = service.id;
+
+    const icon = createServiceIcon(service.icon);
+    icon.classList.add('service-btn-icon');
+    button.appendChild(icon);
+
+    const label = document.createElement('span');
+    label.textContent = service.name;
+    button.appendChild(label);
+
+    fragment.appendChild(button);
+  });
+
+  servicesNav.appendChild(fragment);
+  updateActiveServiceButton();
+}
+
+function updateActiveServiceButton() {
+  if (!servicesNav) {
+    return;
+  }
+
+  const buttons = servicesNav.querySelectorAll('.service-btn');
+  buttons.forEach((button) => {
+    const isActive = button.dataset.serviceId === activeServiceId;
+    button.classList.toggle('active', isActive);
+  });
+}
+
+async function loadServices() {
+  let servicesToRender = [...FALLBACK_SERVICES];
+
+  if (window.services?.list) {
+    try {
+      const response = await window.services.list();
+      if (Array.isArray(response) && response.length > 0) {
+        servicesToRender = response.map((service) => ({
+          id: service.id,
+          name: service.name,
+          icon: service.icon || FALLBACK_SERVICES.find((item) => item.id === service.id)?.icon || 'chat'
+        }));
+      }
+    } catch (error) {
+      console.error('Erro ao carregar lista de serviços:', error);
+    }
+  }
+
+  renderServiceButtons(servicesToRender);
+}
+
+function selectService(id) {
+  activeServiceId = id;
+
+  if (selectionView) {
+    selectionView.style.display = 'none';
+  }
+  if (controlView) {
+    controlView.style.display = 'none';
+  }
+  if (rtaView) {
+    rtaView.style.display = 'none';
+  }
+
+  if (id === 'mensagens') {
+    if (!selectedProfileId && selectionView) {
+      selectionView.style.display = 'flex';
+    } else if (controlView) {
+      controlView.style.display = 'flex';
+    }
+  } else if (id === 'rta') {
+    if (rtaView) {
+      rtaView.style.display = 'flex';
+    }
+  } else if (id === 'trello') {
+    if (logContainer) {
+      appendLog('Trello: view ainda não implementada.');
+    }
+  }
+
+  updateActiveServiceButton();
+}
+
+loadServices();
+selectService('mensagens');
+
+// ===== Sidebar toggle =====
+function applySidebarState() {
+  const collapsed = localStorage.getItem('sidebarCollapsed') === '1';
+  document.body.classList.toggle('sidebar-collapsed', collapsed);
+}
+
+applySidebarState();
+
+if (sidebarToggle) {
+  sidebarToggle.addEventListener('click', () => {
+    const collapsed = !(localStorage.getItem('sidebarCollapsed') === '1');
+    localStorage.setItem('sidebarCollapsed', collapsed ? '1' : '0');
+    applySidebarState();
+  });
+}
+
+if (sidebarOpenToggle) {
+  sidebarOpenToggle.addEventListener('click', () => {
+    localStorage.setItem('sidebarCollapsed', '0');
+    applySidebarState();
+  });
+}
 
 // ===== MESSAGE MANAGEMENT =====
 
@@ -604,3 +803,129 @@ messageModal.addEventListener('click', (e) => {
     closeModal();
   }
 });
+
+// ===== RTA FORM HANDLER =====
+const rtaForm = document.getElementById('rtaForm');
+if (rtaForm) {
+  rtaForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!window.rta) return;
+    rtaStatus.textContent = 'Gerando...';
+
+    // Coleta de campos do formulário
+    const getVal = (id) => {
+      const el = document.getElementById(id);
+      return el ? el.value : '';
+    };
+
+    const data = {
+      insurance_company: getVal('insurance_company'),
+      purchase_date: getVal('purchase_date'),
+      insurance_effective_date: getVal('insurance_effective_date'),
+  insurance_policy_change_date: getVal('insurance_policy_change_date'),
+      seller_name: getVal('seller_name'),
+      seller_street: getVal('seller_street'),
+      seller_city: getVal('seller_city'),
+      seller_state: getVal('seller_state'),
+      seller_zipcode: getVal('seller_zipcode'),
+      gross_sale_price: getVal('gross_sale_price'),
+      owner_name: getVal('owner_name'),
+      owner_dob: getVal('owner_dob'),
+      owner_license: getVal('owner_license'),
+      owner_street: getVal('owner_street'),
+      owner_city: getVal('owner_city'),
+      owner_state: getVal('owner_state'),
+      owner_zipcode: getVal('owner_zipcode'),
+      vin: getVal('vin'),
+      body_style: getVal('body_style'),
+      year: getVal('year'),
+      make: getVal('make'),
+      model: getVal('model'),
+      cylinders: getVal('cylinders'),
+      passengers: getVal('passengers'),
+      doors: getVal('doors'),
+      odometer: getVal('odometer'),
+      previous_title_number: getVal('previous_title_number'),
+      previous_title_state: getVal('previous_title_state'),
+      previous_title_country: getVal('previous_title_country'),
+      color: getVal('color')
+    };
+
+    try {
+      const res = await window.rta.generate(data);
+      if (res.success) {
+        rtaStatus.textContent = 'Gerado';
+        const { path: outPath, template } = res.output;
+        lastGeneratedRtaPath = outPath;
+        rtaOutput.textContent = `Template: ${template}\nSaída: ${outPath}`;
+        appendLog(`RTA gerado: ${outPath}`);
+
+        // Mostrar botões de ação
+        if (rtaActions) {
+          rtaActions.classList.remove('hidden');
+        }
+
+        if (window.files?.saveToDownloads) {
+          const suggested = (outPath?.split('/')?.pop()) || 'rta.pdf';
+          const dl = await window.files.saveToDownloads(outPath, suggested);
+          if (dl?.success) {
+            appendLog(`Arquivo salvo em Downloads: ${dl.path}`);
+            rtaOutput.textContent += `\nBaixado: ${dl.path}`;
+            await window.files.showInFolder(dl.path);
+          } else if (dl?.error) {
+            appendLog(`Falha ao baixar automaticamente: ${dl.error}`);
+          }
+        }
+      } else {
+        rtaStatus.textContent = 'Erro';
+        rtaOutput.textContent = res.error || 'Falha desconhecida';
+        if (rtaActions) rtaActions.classList.add('hidden');
+      }
+    } catch (error) {
+      rtaStatus.textContent = 'Erro';
+      rtaOutput.textContent = error.message;
+      if (rtaActions) rtaActions.classList.add('hidden');
+    }
+  });
+}
+
+// RTA Action Buttons
+if (rtaOpenBtn) {
+  rtaOpenBtn.addEventListener('click', async () => {
+    if (!lastGeneratedRtaPath) {
+      appendLog('Nenhum PDF gerado ainda');
+      return;
+    }
+    try {
+      const res = await window.files.openPath(lastGeneratedRtaPath);
+      if (res?.success) {
+        appendLog(`Abrindo PDF: ${lastGeneratedRtaPath}`);
+      } else {
+        appendLog(`Erro ao abrir PDF: ${res?.error || 'Desconhecido'}`);
+      }
+    } catch (error) {
+      appendLog(`Erro ao abrir PDF: ${error.message}`);
+    }
+  });
+}
+
+if (rtaDownloadBtn) {
+  rtaDownloadBtn.addEventListener('click', async () => {
+    if (!lastGeneratedRtaPath) {
+      appendLog('Nenhum PDF gerado ainda');
+      return;
+    }
+    try {
+      const suggested = (lastGeneratedRtaPath?.split('/')?.pop()) || 'rta.pdf';
+      const dl = await window.files.saveToDownloads(lastGeneratedRtaPath, suggested);
+      if (dl?.success) {
+        appendLog(`Arquivo copiado para Downloads: ${dl.path}`);
+        await window.files.showInFolder(dl.path);
+      } else {
+        appendLog(`Erro ao copiar: ${dl?.error || 'Desconhecido'}`);
+      }
+    } catch (error) {
+      appendLog(`Erro ao copiar: ${error.message}`);
+    }
+  });
+}

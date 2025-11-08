@@ -26,3 +26,24 @@ contextBridge.exposeInMainWorld('profile', {
   getSettings: (profileId) => ipcRenderer.invoke('profile:get-settings', profileId),
   updateSendLimit: (profileId, sendLimit) => ipcRenderer.invoke('profile:update-send-limit', profileId, sendLimit)
 });
+
+// Serviços gerais e RTA (migrados do Python)
+contextBridge.exposeInMainWorld('services', {
+  list: () => ipcRenderer.invoke('services:list')
+});
+
+contextBridge.exposeInMainWorld('rta', {
+  generate: (data) => ipcRenderer.invoke('rta:generate', data)
+});
+
+contextBridge.exposeInMainWorld('trello', {
+  authCheck: () => ipcRenderer.invoke('trello:auth-check'),
+  createCard: (data) => ipcRenderer.invoke('trello:create-card', data)
+});
+
+// Arquivos (salvar/abrir)
+contextBridge.exposeInMainWorld('files', {
+  saveToDownloads: (srcPath, suggestedName) => ipcRenderer.invoke('file:save-to-downloads', srcPath, suggestedName),
+  showInFolder: (targetPath) => ipcRenderer.invoke('file:show-in-folder', targetPath),
+  openPath: (targetPath) => ipcRenderer.invoke('file:open-path', targetPath)
+});

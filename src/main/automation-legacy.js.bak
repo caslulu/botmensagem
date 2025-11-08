@@ -1,0 +1,8 @@
+/**
+ * ARQUIVO DE COMPATIBILIDADE
+ * 
+ * A nova implementação modular está em: ./automation/
+ * Este arquivo apenas reexporta o novo módulo para manter compatibilidade.
+ */
+
+module.exports = require('./automation');

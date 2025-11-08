@@ -5,16 +5,117 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Bot Mensagem</title>
-    <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="rta-form.css" />
+    <style>
+      /* Sidebar collapse */
+      body.sidebar-collapsed #sidebar {
+        width: 64px;
+      }
+      body.sidebar-collapsed #sidebar h2,
+      body.sidebar-collapsed #sidebar .service-btn span {
+        display: none;
+      }
+      body.sidebar-collapsed #sidebar .service-btn {
+        justify-content: center;
+        padding: 12px;
+      }
+      body.sidebar-collapsed #sidebarToggle {
+        display: none;
+      }
+      body.sidebar-collapsed #sidebarOpenToggle {
+        display: block !important;
+      }
+
+      /* Botões de serviço */
+      .service-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        background: rgba(15, 23, 42, 0.5);
+        color: rgb(148, 163, 184);
+        border: 1px solid rgba(51, 65, 85, 0.5);
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 14px;
+        font-weight: 500;
+        width: 100%;
+        text-align: left;
+        pointer-events: auto;
+        position: relative;
+        z-index: 10;
+      }
+      .service-btn:hover {
+        background: rgba(30, 41, 59, 0.7);
+        color: rgb(226, 232, 240);
+        border-color: rgba(71, 85, 105, 0.8);
+      }
+      .service-btn.active {
+        background: rgba(59, 130, 246, 0.2);
+        color: rgb(96, 165, 250);
+        border-color: rgba(59, 130, 246, 0.5);
+      }
+      .service-btn-icon {
+        width: 20px;
+        height: 20px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        pointer-events: none;
+      }
+      .service-btn svg {
+        width: 20px;
+        height: 20px;
+        pointer-events: none;
+      }
+      .service-btn span {
+        pointer-events: none;
+      }
+      .service-btn-emoji {
+        font-size: 18px;
+      }
+
+      /* Views */
+      .service-view {
+        display: none;
+      }
+      .service-view.active-view {
+        display: block;
+      }
+    </style>
   </head>
   <body class="antialiased">
-    <div class="min-h-screen px-6 py-10">
-      <div class="mx-auto flex max-w-6xl flex-col gap-8">
-        <header class="flex flex-col gap-2 text-slate-100">
-          <h1 class="text-3xl font-semibold md:text-4xl">Central de disparos WhatsApp</h1>
+    <div class="min-h-screen flex">
+      <!-- Sidebar à esquerda -->
+      <aside id="sidebar" class="w-64 bg-slate-900/50 border-r border-slate-800 flex flex-col p-4 gap-4">
+        <div class="flex items-center justify-between mb-2">
+          <h2 class="text-lg font-semibold text-white">Serviços</h2>
+          <button id="sidebarToggle" class="text-slate-400 hover:text-white text-2xl leading-none" title="Minimizar sidebar">‹</button>
+        </div>
+        <nav id="servicesNav" class="flex flex-col gap-2">
+          <!-- Itens de serviços são renderizados via renderer.js -->
+        </nav>
+      </aside>
+
+      <!-- Conteúdo principal -->
+      <div class="flex-1 flex flex-col">
+        <header class="bg-slate-900/30 border-b border-slate-800 px-6 py-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <button id="sidebarOpenToggle" class="hidden text-slate-400 hover:text-white text-2xl leading-none" title="Mostrar sidebar">☰</button>
+              <h1 class="text-3xl font-semibold text-white">Central de disparos WhatsApp</h1>
+            </div>
+            <p class="text-sm text-slate-400">Use os botões de serviços para trocar de módulo.</p>
+          </div>
         </header>
 
-        <section id="selectionView" class="flex flex-col gap-6">
+        <main class="flex-1 overflow-auto px-6 py-8">
+          <div class="mx-auto max-w-7xl">
+
+          <section id="selectionView" class="flex flex-col gap-6" style="display: flex;">
           <div class="card">
             <div class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div class="space-y-2">
@@ -28,7 +129,7 @@
           </div>
         </section>
 
-        <section id="controlView" class="hidden flex-col gap-6">
+          <section id="controlView" class="flex-col gap-6" style="display: none;">
           <div class="card flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <button id="backToProfiles" class="btn-secondary mb-4 md:mb-2"><span aria-hidden="true">←</span> Trocar operador</button>
@@ -99,7 +200,240 @@
               </div>
             </section>
           </div>
-        </section>
+          </section>
+
+          <!-- Conteúdo do RTA -->
+          <section id="rtaView" class="flex-col gap-6" style="display: none;">
+            <div class="card space-y-4">
+              <header class="space-y-1">
+                <p class="text-sm uppercase tracking-wide text-slate-400">RTA Automático</p>
+                <h3 class="text-lg font-semibold text-white">Gerar RTA</h3>
+              </header>
+                <form id="rtaForm" class="rta-form">
+                  <section class="rta-section" aria-labelledby="rta-insurance">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">🛡️</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-insurance">Seguro e Datas</h4>
+                        <p class="rta-section-description">Selecione a seguradora e informe as datas conforme o RTA original.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-auto">
+                      <div class="input-group">
+                        <label for="insurance_company">Seguradora (insurance_company)</label>
+                        <select id="insurance_company" name="insurance_company" class="input-control">
+                          <option value="allstate">Allstate</option>
+                          <option value="progressive">Progressive</option>
+                          <option value="geico">Geico</option>
+                          <option value="liberty">Liberty</option>
+                        </select>
+                      </div>
+                      <div class="input-group">
+                        <label for="purchase_date">Purchase Date (purchase_date)</label>
+                        <input id="purchase_date" name="purchase_date" type="date" class="input-control" />
+                      </div>
+                      <div class="input-group">
+                        <label for="insurance_effective_date">Insurance Effective (insurance_effective_date)</label>
+                        <input id="insurance_effective_date" name="insurance_effective_date" type="date" class="input-control" />
+                      </div>
+                      <div class="input-group">
+                        <label for="insurance_policy_change_date">Policy Change Date (insurance_policy_change_date)</label>
+                        <input id="insurance_policy_change_date" name="insurance_policy_change_date" type="date" class="input-control" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-seller">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">🏪</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-seller">Vendedor (Seller)</h4>
+                        <p class="rta-section-description">Informe os dados do vendedor exatamente como no formulário legado.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-wide">
+                      <div class="input-group">
+                        <label for="seller_name">Nome completo (seller_name)</label>
+                        <input id="seller_name" name="seller_name" class="input-control" placeholder="Ex: Nome completo" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_street">Rua (seller_street)</label>
+                        <input id="seller_street" name="seller_street" class="input-control" placeholder="Ex: 123 Main St" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_city">Cidade (seller_city)</label>
+                        <input id="seller_city" name="seller_city" class="input-control" placeholder="Ex: Boston" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_state">Estado (seller_state)</label>
+                        <input id="seller_state" name="seller_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_zipcode">CEP/ZIP (seller_zipcode)</label>
+                        <input id="seller_zipcode" name="seller_zipcode" class="input-control" placeholder="Ex: 02101" />
+                      </div>
+                      <div class="input-group">
+                        <label for="gross_sale_price">Preço bruto (gross_sale_price)</label>
+                        <input id="gross_sale_price" name="gross_sale_price" type="number" step="0.01" class="input-control" placeholder="Ex: 25000.00" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-owner">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">👤</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-owner">Proprietário (Owner)</h4>
+                        <p class="rta-section-description">Preencha o bloco do proprietário seguindo a ordem do RTA web original.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-wide">
+                      <div class="input-group">
+                        <label for="owner_name">Nome completo (owner_name)</label>
+                        <input id="owner_name" name="owner_name" class="input-control" placeholder="Sobrenome, Nome, Nome do meio" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_dob">Nascimento (owner_dob)</label>
+                        <input id="owner_dob" name="owner_dob" type="date" class="input-control" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_license">Licença / ID / SSN (owner_license)</label>
+                        <input id="owner_license" name="owner_license" class="input-control" placeholder="Documento do proprietário" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_street">Rua (owner_street)</label>
+                        <input id="owner_street" name="owner_street" class="input-control" placeholder="Ex: 456 Oak Ave" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_city">Cidade (owner_city)</label>
+                        <input id="owner_city" name="owner_city" class="input-control" placeholder="Ex: Miami" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_state">Estado (owner_state)</label>
+                        <input id="owner_state" name="owner_state" maxlength="2" class="input-control" placeholder="Ex: FL" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_zipcode">CEP/ZIP (owner_zipcode)</label>
+                        <input id="owner_zipcode" name="owner_zipcode" class="input-control" placeholder="Ex: 33101" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-vehicle">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">🚗</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-vehicle">Veículo</h4>
+                        <p class="rta-section-description">Detalhes do veículo exatamente na mesma sequência do sistema legado.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-compact">
+                      <div class="input-group">
+                        <label for="vin">VIN (vin)</label>
+                        <input id="vin" name="vin" maxlength="17" class="input-control" placeholder="17 caracteres" />
+                        <span class="input-hint">Use letras maiúsculas e números, sem espaços.</span>
+                      </div>
+                      <div class="input-group">
+                        <label for="body_style">Body Style (body_style)</label>
+                        <input id="body_style" name="body_style" class="input-control" placeholder="Ex: Sedan" />
+                      </div>
+                      <div class="input-group">
+                        <label for="year">Ano (year)</label>
+                        <input id="year" name="year" type="number" class="input-control" placeholder="Ex: 2024" />
+                      </div>
+                      <div class="input-group">
+                        <label for="make">Marca (make)</label>
+                        <input id="make" name="make" class="input-control" placeholder="Ex: Toyota" />
+                      </div>
+                      <div class="input-group">
+                        <label for="model">Modelo (model)</label>
+                        <input id="model" name="model" class="input-control" placeholder="Ex: Corolla" />
+                      </div>
+                      <div class="input-group">
+                        <label for="color">Cor (color)</label>
+                        <select id="color" name="color" class="input-control">
+                          <option value="">Selecione</option>
+                          <option>Black</option>
+                          <option>White</option>
+                          <option>Brown</option>
+                          <option>Blue</option>
+                          <option>Yellow</option>
+                          <option>Gray</option>
+                          <option>Purple</option>
+                          <option>Green</option>
+                          <option>Orange</option>
+                          <option>Red</option>
+                          <option>Silver</option>
+                          <option>Gold</option>
+                        </select>
+                      </div>
+                      <div class="input-group">
+                        <label for="cylinders">Cilindros (cylinders)</label>
+                        <input id="cylinders" name="cylinders" type="number" class="input-control" placeholder="Ex: 4" />
+                      </div>
+                      <div class="input-group">
+                        <label for="passengers">Passageiros (passengers)</label>
+                        <input id="passengers" name="passengers" type="number" class="input-control" placeholder="Ex: 5" />
+                      </div>
+                      <div class="input-group">
+                        <label for="doors">Portas (doors)</label>
+                        <input id="doors" name="doors" type="number" class="input-control" placeholder="Ex: 4" />
+                      </div>
+                      <div class="input-group">
+                        <label for="odometer">Odômetro em milhas (odometer)</label>
+                        <input id="odometer" name="odometer" type="number" step="0.1" class="input-control" placeholder="Ex: 25000" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-previous-title">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">📄</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-previous-title">Título Anterior</h4>
+                        <p class="rta-section-description">Obrigatório para veículos quitados, seguindo a ordem do bloco C3.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-auto">
+                      <div class="input-group">
+                        <label for="previous_title_number">Número (previous_title_number)</label>
+                        <input id="previous_title_number" name="previous_title_number" class="input-control" placeholder="Ex: CN539192" />
+                      </div>
+                      <div class="input-group">
+                        <label for="previous_title_state">Estado (previous_title_state)</label>
+                        <input id="previous_title_state" name="previous_title_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
+                      </div>
+                      <div class="input-group">
+                        <label for="previous_title_country">País (previous_title_country)</label>
+                        <input id="previous_title_country" name="previous_title_country" class="input-control" placeholder="Ex: USA" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <div class="rta-section">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">⚙️</div>
+                      <div>
+                        <h4 class="rta-section-title">Ações</h4>
+                        <p class="rta-section-description">Gere o PDF e limpe o formulário quando necessário.</p>
+                      </div>
+                    </div>
+                    <div class="rta-actions">
+                      <button type="submit" class="btn-primary">Gerar PDF</button>
+                      <button type="reset" class="btn-secondary">Limpar</button>
+                      <span id="rtaStatus" class="rta-status-chip">Pronto</span>
+                    </div>
+                  </div>
+                </form>
+              
+              <div id="rtaActions" class="hidden flex gap-2">
+                <button id="rtaOpenBtn" class="btn-secondary">📄 Abrir PDF</button>
+                <button id="rtaDownloadBtn" class="btn-secondary">💾 Download novamente</button>
+              </div>
+              
+              <pre id="rtaOutput" class="max-h-72 overflow-y-auto rounded-xl bg-slate-950/60 p-4 text-xs text-slate-300"></pre>
+        </div>
+      </div>
       </div>
     </div>
 

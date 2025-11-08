@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Central de Disparos WhatsApp",
   "main": "src/main/main.js",
   "scripts": {
@@ -74,6 +74,7 @@
   "dependencies": {
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
+    "pdf-lib": "^1.17.1",
     "playwright": "^1.56.1",
     "sql.js": "^1.13.0"
   }

@@ -1,60 +1,66 @@
-const path = require('path');
-const { getSelectedMessage, getProfileSettings } = require('./database');
+// New profile access layer backed by database tables
+const {
+  getSelectedMessage,
+  getProfileSettings,
+  getAllProfiles,
+  getProfileById,
+  getProfileSession,
+  updateProfileSessionUsage
+} = require('./database');
 
-const profiles = [
-  {
-    id: 'thiago',
-    name: 'Thiago',
-    sessionDir: path.join(process.cwd(), 'whatsapp_session_thiago'),
-    imagePath: path.join(process.cwd(), 'imagem_thiago.jpg'),
-    thumbnail: null,
-    message: `🚨 *PARE DE PAGAR CARO NO SEGURO!* 🚨\n👉 Carro | Moto\n\n💰 *ECONOMIZE ATÉ 50% AGORA!*\n✅ As melhores taxas do mercado\n✅ Cotações rápidas, sem enrolação\n\n📋 *Aceitamos:*\n• Drivh\n• CNH brasileira\n• Passaporte\n• Habilitação estrangeira\n\n🧑‍💼 Thiago | Seu Corretor de Confiança\nFale comigo no WhatsApp e receba sua cotação em minutos:\n👉 https://wa.me/message/BMDAOE4YSM7HN1`
-  },
-  {
-    id: 'debora',
-    name: 'Debora',
-    sessionDir: path.join(process.cwd(), 'whatsapp_session_debora'),
-    imagePath: path.join(process.cwd(), 'imagem_debora.jpg'),
-    thumbnail: null,
-    message: `🔒 SEGURANÇA NO VOLANTE COMEÇA AQUI!\n� Seguro de carro, moto e casa\n\n�REDUZA SEU SEGURO EM ATÉ 50%, GARANTIMOS AS MELHORES TAXAS DO MERCADO\n\n� COTAÇÃO RÁPIDA E SEM BUROCRACIA!\nAceitamos: \n* CNH \n* Passaporte \n* Habilitação estrangeira\n\n👩🏻‍💼Débora | Corretora de Seguros\n📞 Clique aqui e peça sua cotação:\nhttps://wa.me/message/X4X7FBTDBF7RH1`
-  }
-];
+/**
+ * Shape returned:
+ * {
+ *   id, name, imagePath, sessionDir, message, sendLimit
+ * }
+ */
+function mapDbProfile(rawProfile) {
+  if (!rawProfile) return null;
 
-function getProfiles() {
-  return profiles;
-}
+  // Base properties from profiles table
+  const profile = {
+    id: rawProfile.id,
+    name: rawProfile.name,
+    imagePath: rawProfile.image_path,
+    message: rawProfile.default_message,
+    sendLimit: 200,
+    sessionDir: null
+  };
 
-function findProfileById(id) {
-  const profile = profiles.find((p) => p.id === id);
-  
-  if (profile) {
-    // Get the selected message from database
-    const selectedMessage = getSelectedMessage(id);
-    
-    // Get profile settings
-    const settings = getProfileSettings(id);
-    
-    const result = { ...profile };
-    
-    if (selectedMessage) {
-      // Override with database values
-      result.message = selectedMessage.text;
-      result.imagePath = selectedMessage.image_path || profile.imagePath;
+  // Override message & image from selected message (messages table)
+  const selectedMessage = getSelectedMessage(rawProfile.id);
+  if (selectedMessage) {
+    profile.message = selectedMessage.text;
+    if (selectedMessage.image_path) {
+      profile.imagePath = selectedMessage.image_path;
     }
-    
-    if (settings) {
-      result.sendLimit = settings.send_limit || 200;
-    } else {
-      result.sendLimit = 200;
-    }
-    
-    return result;
   }
-  
+
+  // Load profile settings (send limit)
+  const settings = getProfileSettings(rawProfile.id);
+  if (settings && settings.send_limit) {
+    profile.sendLimit = settings.send_limit;
+  }
+
+  // Session info
+  const sessionInfo = getProfileSession(rawProfile.id);
+  if (sessionInfo) {
+    profile.sessionDir = sessionInfo.session_dir;
+    // Update last used timestamp opportunistically
+    updateProfileSessionUsage(rawProfile.id);
+  }
+
   return profile;
 }
 
-module.exports = {
-  getProfiles,
-  findProfileById
-};
+function getProfiles() {
+  const dbProfiles = getAllProfiles();
+  return dbProfiles.map(mapDbProfile);
+}
+
+function findProfileById(id) {
+  const raw = getProfileById(id);
+  return mapDbProfile(raw);
+}
+
+module.exports = { getProfiles, findProfileById };

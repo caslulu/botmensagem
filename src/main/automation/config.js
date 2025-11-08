@@ -1,0 +1,28 @@
+/**
+ * Configurações da automação
+ */
+
+module.exports = {
+  // Delays e timeouts
+  MESSAGE_DELAY_MS: 2000,
+  INITIAL_WAIT_MS: 30000,
+  SCROLL_DELAY_MS: 500,
+  BACK_BUTTON_TIMEOUT_MS: 5000,
+  ATTACHMENT_TIMEOUT_MS: 10000,
+  MESSAGE_BOX_TIMEOUT_MS: 20000,
+  WHATSAPP_TIMEOUT_MS: 90000,
+
+  // Limites
+  DEFAULT_SEND_LIMIT: 200,
+  LOOP_QUANTITY: 10,
+  SCROLL_ITERATIONS: 30,
+  SCROLL_AFTER_SENDS: 2,
+  SCROLL_DISTANCE: 12,
+
+  // Browser
+  BROWSER_VIEWPORT: { width: 1280, height: 800 },
+  BROWSER_SLOW_MO: 50,
+
+  // WhatsApp
+  WHATSAPP_URL: 'https://web.whatsapp.com',
+};

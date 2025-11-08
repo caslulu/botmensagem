@@ -29,7 +29,8 @@ Sistema desktop para gerenciar e enviar mensagens automatizadas no WhatsApp Web.
 
 ### 1. Selecionar Perfil
 - Escolha entre "Thiago" ou "Débora" na tela inicial
-- Cada perfil tem suas próprias mensagens e sessão do WhatsApp
+- Perfis agora são carregados do banco de dados (tabela `profiles`)
+- Cada perfil tem suas próprias mensagens, limite de envio e diretório de sessão persistente
 
 ### 2. Configurar Mensagens
 - Clique em "Adicionar Nova Mensagem" para criar uma mensagem
@@ -49,6 +50,49 @@ Sistema desktop para gerenciar e enviar mensagens automatizadas no WhatsApp Web.
 - Clique em "Iniciar Automação"
 - Escaneie o QR Code do WhatsApp Web (primeira vez)
 - O sistema enviará automaticamente para os grupos configurados
+
+## 🗄️ Perfis e Sessões (Banco de Dados)
+
+Desde a versão 1.0.1 os dados de perfis e sessões foram migrados para o banco SQLite. Estrutura:
+
+Tabela `profiles`:
+```
+id TEXT PRIMARY KEY
+name TEXT
+image_path TEXT
+default_message TEXT
+created_at DATETIME
+updated_at DATETIME
+```
+
+Tabela `profile_sessions`:
+```
+profile_id TEXT PRIMARY KEY
+session_dir TEXT
+last_used_at DATETIME
+created_at DATETIME
+updated_at DATETIME
+```
+
+Benefícios:
+- Facilita adicionar novos perfis sem alterar código
+- Sessões gerenciadas por perfil (persistência Playwright)
+- Possível integrar no futuro com painel de administração
+
+### Local dos diretórios de sessão
+Os diretórios de sessão do WhatsApp agora ficam em:
+```
+<userData>/sessions/<profileId>
+```
+Onde `<userData>` (produção) é o diretório retornado por `app.getPath('userData')` do Electron.
+Em desenvolvimento (fallback) usa `./data/sessions/<profileId>`.
+
+Migração automática: diretórios antigos no formato `./whatsapp_session_<id>` são movidos ou reapontados na primeira inicialização.
+
+Para adicionar manualmente um novo perfil (avançado):
+1. Inserir linha em `profiles`
+2. Inserir linha correspondente em `profile_sessions`
+3. Reiniciar aplicação
 
 ## 🔄 Atualizações
 

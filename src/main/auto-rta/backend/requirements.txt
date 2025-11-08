@@ -1,0 +1,16 @@
+Flask==2.3.2
+Flask-CORS==4.0.0
+python-dotenv==1.0.0
+pypdf==3.15.4
+# Requisição HTTP para Trello
+requests==2.31.0
+# Removidas dependências não necessárias para RTA:
+# Flask-SQLAlchemy==3.0.5 - banco de dados
+# Flask-Migrate==4.0.4 - migrações
+# SQLAlchemy==2.0.15 - ORM
+# Pillow==9.5.0 - processamento de imagens
+# requests==2.31.0 - requisições HTTP para APIs
+# playwright==1.36.0 - automação web
+
+# WSGI server para produção
+gunicorn>=21.2.0
