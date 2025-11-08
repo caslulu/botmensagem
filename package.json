@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Central de Disparos WhatsApp",
   "main": "src/main/main.js",
   "scripts": {

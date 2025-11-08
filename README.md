@@ -16,6 +16,7 @@ Sistema desktop para gerenciar e enviar mensagens automatizadas no WhatsApp Web.
 - Windows 7 ou superior (64-bit)
 - Conexão com internet
 - Conta WhatsApp ativa
+- **Google Chrome instalado** (recomendado) - o sistema usará seu Chrome ou Chromium automático
 
 ## 🔧 Instalação
 
@@ -71,6 +72,11 @@ Para desenvolvedores e informações técnicas, consulte a pasta `docs/`:
 - [Arquitetura](docs/ARQUITETURA.md) - Estrutura do projeto e tecnologias
 
 ## 🐛 Problemas Conhecidos
+
+### Chrome não detectado
+- O sistema tentará usar o Google Chrome instalado automaticamente
+- Se não encontrar, usará o Chromium embutido (funciona da mesma forma)
+- Para garantir o uso do Chrome, instale em: `C:\Program Files\Google\Chrome\`
 
 ### WhatsApp desconecta
 - Solução: Escaneie o QR Code novamente

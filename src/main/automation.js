@@ -118,11 +118,57 @@ class AutomationController extends EventEmitter {
       }
 
       await fs.promises.mkdir(profile.sessionDir, { recursive: true });
-      this.context = await chromium.launchPersistentContext(profile.sessionDir, {
+      
+      // Detectar caminho do Chrome instalado no sistema
+      const { execSync } = require('child_process');
+      let chromePath;
+      
+      try {
+        if (process.platform === 'win32') {
+          // Windows: tentar encontrar Chrome em locais comuns
+          const possiblePaths = [
+            'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+            'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+            process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
+          ];
+          
+          chromePath = possiblePaths.find(p => fs.existsSync(p));
+          
+          if (!chromePath) {
+            // Tentar encontrar via registro do Windows
+            try {
+              const regQuery = execSync('reg query "HKEY_CURRENT_USER\\Software\\Google\\Chrome\\BLBeacon" /v version', { encoding: 'utf8' });
+              const chromeDir = process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe';
+              if (fs.existsSync(chromeDir)) {
+                chromePath = chromeDir;
+              }
+            } catch (e) {
+              // Ignorar erro de registro
+            }
+          }
+        } else if (process.platform === 'linux') {
+          chromePath = execSync('which google-chrome || which google-chrome-stable', { encoding: 'utf8' }).trim();
+        } else if (process.platform === 'darwin') {
+          chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+        }
+      } catch (error) {
+        this.log('Chrome não detectado automaticamente. Usando Chromium do Playwright.');
+      }
+      
+      const launchOptions = {
         headless: false,
         slowMo: 50,
         viewport: { width: 1280, height: 800 }
-      });
+      };
+      
+      if (chromePath && fs.existsSync(chromePath)) {
+        this.log(`Usando Google Chrome: ${chromePath}`);
+        launchOptions.executablePath = chromePath;
+      } else {
+        this.log('Usando Chromium do Playwright (Chrome não encontrado)');
+      }
+      
+      this.context = await chromium.launchPersistentContext(profile.sessionDir, launchOptions);
 
       const page = this.context.pages()[0] ?? await this.context.newPage();
       this.log(`Abrindo o WhatsApp Web para ${profile.name}…`);
