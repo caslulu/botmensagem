@@ -1,4 +1,5 @@
 // DOM Elements
+const sidebarEl = document.getElementById('sidebar');
 const servicesNav = document.getElementById('servicesNav');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebarOpenToggle = document.getElementById('sidebarOpenToggle');
@@ -10,6 +11,8 @@ const rtaOpenBtn = document.getElementById('rtaOpenBtn');
 const rtaDownloadBtn = document.getElementById('rtaDownloadBtn');
 const profilesContainer = document.getElementById('profilesContainer');
 const selectionView = document.getElementById('selectionView');
+const moduleSelectionView = document.getElementById('moduleSelectionView');
+const moduleCardsContainer = document.getElementById('moduleCards');
 const controlView = document.getElementById('controlView');
 const backToProfilesButton = document.getElementById('backToProfiles');
 const activeProfileNameEl = document.getElementById('activeProfileName');
@@ -168,9 +171,24 @@ function selectProfile(profileId) {
     activeProfileNameEl.textContent = profile.name;
     activeProfileMessageEl.textContent = profile.message;
     startButton.disabled = false;
-    selectionView.style.display = 'none';
-    controlView.style.display = 'flex';
-    setStatus('Pronto para iniciar os envios.');
+    if (selectionView) {
+      selectionView.style.display = 'none';
+    }
+    if (controlView) {
+      controlView.style.display = 'none';
+    }
+    if (rtaView) {
+      rtaView.style.display = 'none';
+    }
+    if (moduleSelectionView) {
+      moduleSelectionView.style.display = 'flex';
+    }
+    if (sidebarEl) {
+      sidebarEl.classList.add('hidden');
+    }
+    activeServiceId = null;
+    updateActiveServiceButton();
+    setStatus('Escolha o módulo que deseja utilizar.');
     updateStatusBadge('stopped');
     
     // Load messages and settings for this profile
@@ -179,6 +197,9 @@ function selectProfile(profileId) {
   } else {
     startButton.disabled = true;
     setStatus('Selecione um operador para começar.');
+    if (moduleSelectionView) {
+      moduleSelectionView.style.display = 'none';
+    }
   }
 }
 
@@ -375,8 +396,23 @@ backToProfilesButton.addEventListener('click', () => {
   activeProfileMessageEl.textContent = '';
   startButton.disabled = true;
   stopButton.disabled = true;
-  controlView.style.display = 'none';
-  selectionView.style.display = 'flex';
+  if (controlView) {
+    controlView.style.display = 'none';
+  }
+  if (rtaView) {
+    rtaView.style.display = 'none';
+  }
+  if (moduleSelectionView) {
+    moduleSelectionView.style.display = 'none';
+  }
+  if (selectionView) {
+    selectionView.style.display = 'flex';
+  }
+  if (sidebarEl) {
+    sidebarEl.classList.add('hidden');
+  }
+  activeServiceId = 'mensagens';
+  updateActiveServiceButton();
   setStatus('Selecione um operador para começar.');
   updateStatusBadge('idle');
   setSelectionEnabled(true);
@@ -387,9 +423,24 @@ loadProfiles();
 
 // ===== Serviços (Sidebar) =====
 const FALLBACK_SERVICES = [
-  { id: 'mensagens', name: 'Enviar mensagem automática', icon: 'chat' },
-  { id: 'rta', name: 'RTA automático', icon: 'doc' },
-  { id: 'trello', name: 'Integração Trello', icon: 'board' }
+  {
+    id: 'mensagens',
+    name: 'Enviar mensagem automática',
+    icon: 'chat',
+    description: 'Automatize o disparo e a gestão de mensagens no WhatsApp.'
+  },
+  {
+    id: 'rta',
+    name: 'RTA automático',
+    icon: 'doc',
+    description: 'Gere documentos RTA completos a partir das informações preenchidas.'
+  },
+  {
+    id: 'trello',
+    name: 'Integração Trello',
+    icon: 'board',
+    description: 'Sincronize dados e crie cards rapidamente no Trello.'
+  }
 ];
 
 function createServiceIcon(iconKey) {
@@ -471,18 +522,64 @@ function updateActiveServiceButton() {
   });
 }
 
+function renderModuleCards(services) {
+  if (!moduleCardsContainer) {
+    return;
+  }
+
+  moduleCardsContainer.innerHTML = '';
+
+  services.forEach((service) => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'module-card';
+    card.dataset.serviceId = service.id;
+
+    const iconWrapper = document.createElement('div');
+    iconWrapper.className = 'module-card-icon-wrapper';
+
+    const icon = createServiceIcon(service.icon);
+    icon.classList.add('module-card-icon');
+    iconWrapper.appendChild(icon);
+
+    const title = document.createElement('span');
+    title.className = 'module-card-title';
+    title.textContent = service.name;
+
+    card.appendChild(iconWrapper);
+    card.appendChild(title);
+
+    if (service.description) {
+      const description = document.createElement('p');
+      description.className = 'module-card-description';
+      description.textContent = service.description;
+      card.appendChild(description);
+    }
+
+    card.addEventListener('click', () => {
+      selectService(service.id);
+    });
+
+    moduleCardsContainer.appendChild(card);
+  });
+}
+
 async function loadServices() {
-  let servicesToRender = [...FALLBACK_SERVICES];
+  let servicesToRender = FALLBACK_SERVICES.map((service) => ({ ...service }));
 
   if (window.services?.list) {
     try {
       const response = await window.services.list();
       if (Array.isArray(response) && response.length > 0) {
-        servicesToRender = response.map((service) => ({
-          id: service.id,
-          name: service.name,
-          icon: service.icon || FALLBACK_SERVICES.find((item) => item.id === service.id)?.icon || 'chat'
-        }));
+        servicesToRender = response.map((service) => {
+          const fallback = FALLBACK_SERVICES.find((item) => item.id === service.id);
+          return {
+            id: service.id,
+            name: service.name || fallback?.name || service.id,
+            icon: service.icon || fallback?.icon || 'chat',
+            description: service.description || fallback?.description || ''
+          };
+        });
       }
     } catch (error) {
       console.error('Erro ao carregar lista de serviços:', error);
@@ -490,6 +587,7 @@ async function loadServices() {
   }
 
   renderServiceButtons(servicesToRender);
+  renderModuleCards(servicesToRender);
 }
 
 function selectService(id) {
@@ -504,20 +602,66 @@ function selectService(id) {
   if (rtaView) {
     rtaView.style.display = 'none';
   }
+  if (moduleSelectionView) {
+    moduleSelectionView.style.display = 'none';
+  }
+
+  let viewDisplayed = false;
+  let sidebarShouldShow = false;
 
   if (id === 'mensagens') {
     if (!selectedProfileId && selectionView) {
       selectionView.style.display = 'flex';
+      viewDisplayed = true;
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
     } else if (controlView) {
       controlView.style.display = 'flex';
+      viewDisplayed = true;
+      if (selectedProfileId) {
+        setStatus('Pronto para iniciar os envios.');
+        updateStatusBadge('stopped');
+        sidebarShouldShow = true;
+      }
     }
   } else if (id === 'rta') {
     if (rtaView) {
       rtaView.style.display = 'flex';
+      viewDisplayed = true;
+      setStatus('Preencha os dados para gerar o RTA.');
+      updateStatusBadge('idle');
+      sidebarShouldShow = true;
     }
   } else if (id === 'trello') {
-    if (logContainer) {
-      appendLog('Trello: view ainda não implementada.');
+    appendLog('Trello: view ainda não implementada.');
+    setStatus('Integração Trello em breve. Selecione outro módulo.');
+    updateStatusBadge('idle');
+    sidebarShouldShow = true;
+    viewDisplayed = true;
+  } else {
+    appendLog(`Módulo desconhecido: ${id}`);
+    setStatus('Módulo não reconhecido.');
+    updateStatusBadge('idle');
+    sidebarShouldShow = !!selectedProfileId;
+  }
+
+  if (!viewDisplayed) {
+    if (selectedProfileId && moduleSelectionView) {
+      moduleSelectionView.style.display = 'flex';
+      activeServiceId = null;
+      sidebarShouldShow = false;
+    } else if (!selectedProfileId && selectionView) {
+      selectionView.style.display = 'flex';
+      activeServiceId = 'mensagens';
+      sidebarShouldShow = false;
+    }
+  }
+
+  if (sidebarEl) {
+    if (sidebarShouldShow && selectedProfileId) {
+      sidebarEl.classList.remove('hidden');
+    } else {
+      sidebarEl.classList.add('hidden');
     }
   }
 

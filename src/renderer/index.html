@@ -85,12 +85,68 @@
       .service-view.active-view {
         display: block;
       }
+
+      /* Seleção de módulos */
+      .module-card {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        align-items: flex-start;
+        width: 100%;
+        border-radius: 1rem;
+        border: 1px solid rgba(51, 65, 85, 0.5);
+        background: rgba(15, 23, 42, 0.65);
+        padding: 1.5rem;
+        transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .module-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(59, 130, 246, 0.5);
+        background: rgba(30, 41, 59, 0.7);
+      }
+
+      .module-card:focus-visible {
+        outline: none;
+        border-color: rgba(59, 130, 246, 0.8);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+      }
+
+      .module-card-icon-wrapper {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3rem;
+        height: 3rem;
+        border-radius: 0.75rem;
+        background: rgba(59, 130, 246, 0.12);
+        color: rgba(96, 165, 250, 1);
+      }
+
+      .module-card-icon {
+        width: 1.75rem;
+        height: 1.75rem;
+        font-size: 1.5rem;
+      }
+
+      .module-card-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: #e2e8f0;
+      }
+
+      .module-card-description {
+        font-size: 0.875rem;
+        color: rgba(148, 163, 184, 0.9);
+      }
     </style>
   </head>
   <body class="antialiased">
     <div class="min-h-screen flex">
-      <!-- Sidebar à esquerda -->
-      <aside id="sidebar" class="w-64 bg-slate-900/50 border-r border-slate-800 flex flex-col p-4 gap-4">
+  <!-- Sidebar à esquerda -->
+  <aside id="sidebar" class="w-64 bg-slate-900/50 border-r border-slate-800 flex flex-col p-4 gap-4 hidden">
         <div class="flex items-center justify-between mb-2">
           <h2 class="text-lg font-semibold text-white">Serviços</h2>
           <button id="sidebarToggle" class="text-slate-400 hover:text-white text-2xl leading-none" title="Minimizar sidebar">‹</button>
@@ -102,7 +158,7 @@
 
       <!-- Conteúdo principal -->
       <div class="flex-1 flex flex-col">
-        <header class="bg-slate-900/30 border-b border-slate-800 px-6 py-4">
+  <header class="bg-slate-900/30 border-b border-slate-800 px-6 py-4">
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <button id="sidebarOpenToggle" class="hidden text-slate-400 hover:text-white text-2xl leading-none" title="Mostrar sidebar">☰</button>
@@ -112,7 +168,7 @@
           </div>
         </header>
 
-        <main class="flex-1 overflow-auto px-6 py-8">
+  <main class="flex-1 overflow-auto px-6 py-8">
           <div class="mx-auto max-w-7xl">
 
           <section id="selectionView" class="flex flex-col gap-6" style="display: flex;">
@@ -127,6 +183,14 @@
           <div id="profilesContainer" class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
             <!-- Os cards dos perfis serão inseridos aqui dinamicamente -->
           </div>
+        </section>
+
+          <section id="moduleSelectionView" class="flex flex-col gap-6" style="display: none;">
+          <div class="card space-y-2">
+            <h2 class="text-2xl font-semibold text-white">Escolha o módulo</h2>
+            <p class="text-sm text-slate-400">Selecione qual módulo deseja utilizar com o operador escolhido.</p>
+          </div>
+          <div id="moduleCards" class="grid gap-5 sm:grid-cols-2 xl:grid-cols-3"></div>
         </section>
 
           <section id="controlView" class="flex-col gap-6" style="display: none;">

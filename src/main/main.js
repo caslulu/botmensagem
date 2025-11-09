@@ -20,9 +20,9 @@ const {
   getAllProfiles
 } = require('./database');
 
-// Serviços migrados do auto-rta (Python -> Node)
-const rtaService = require('./auto-rta/services/rtaService');
-const trelloService = require('./auto-rta/services/trelloService');
+// Serviços do módulo RTA (migrado do auto-rta original)
+const rtaService = require('./rta/services/rtaService');
+const trelloService = require('./rta/services/trelloService');
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;

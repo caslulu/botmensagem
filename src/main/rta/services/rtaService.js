@@ -7,16 +7,16 @@ const { PDFDocument } = require('pdf-lib');
 
 class RtaService {
     constructor() {
-        // espelha a estrutura do Python: backend/app/assets
+        // estrutura simplificada: assets ficam em ../assets
         const currentDir = __dirname;
-        this.assetsDir = path.resolve(currentDir, '../backend/app/assets');
+        this.assetsDir = path.resolve(currentDir, '../assets');
         this.templates = {
             allstate: path.join(this.assetsDir, 'rta_template_allstate.pdf'),
             progressive: path.join(this.assetsDir, 'rta_template_progressive.pdf'),
             geico: path.join(this.assetsDir, 'rta_template_geico.pdf'),
             liberty: path.join(this.assetsDir, 'rta_template_liberty.pdf')
         };
-        this.outputDir = path.resolve(process.cwd(), 'data', 'auto-rta', 'output');
+        this.outputDir = path.resolve(process.cwd(), 'data', 'rta', 'output');
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }
@@ -46,9 +46,9 @@ class RtaService {
                         return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
                     },
                     (s) => {
-                        const m = s.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/); // d/m/Y ou m/d/Y? vamos normalizar depois
+                        const m = s.match(/^([0-9]{2})\/([0-9]{2})\/([0-9]{4})$/);
                         if (!m) return null;
-                        // ambiguo; tentaremos como d/m/Y primeiro e, se inválido, m/d/Y
+                        // ambiguo; tentar como d/m/Y primeiro, depois m/d/Y
                         const d1 = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
                         if (!isNaN(d1.getTime())) return d1;
                         const d2 = new Date(Number(m[3]), Number(m[1]) - 1, Number(m[2]));
@@ -130,7 +130,6 @@ class RtaService {
                     field.setText(String(value ?? ''));
                 }
             } catch (e) {
-                // Tenta generic getField
                 try {
                     const anyField = form.getField(fieldName);
                     if (anyField.setText) anyField.setText(String(value ?? ''));
@@ -163,7 +162,6 @@ class RtaService {
             }
         }
 
-        // Atualiza aparência dos campos
         try { form.updateFieldAppearances(); } catch {}
 
         const ts = new Date().toISOString().replace(/[:.]/g, '-');
