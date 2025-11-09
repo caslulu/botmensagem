@@ -520,10 +520,300 @@
               </div>
               
               <pre id="rtaOutput" class="max-h-72 overflow-y-auto rounded-xl bg-slate-950/60 p-4 text-xs text-slate-300"></pre>
+            </div>
+          </section>
+
+          <!-- Conteúdo do Trello -->
+          <section id="trelloView" class="flex-col gap-6" style="display: none;">
+            <div class="card space-y-6">
+              <header class="space-y-1">
+                <p class="text-sm uppercase tracking-wide text-slate-400">Integração Trello</p>
+                <h3 class="text-lg font-semibold text-white">Criar card automático</h3>
+                <p class="text-sm text-slate-300">Preencha os dados do cliente, veículos, drivers e anexos para gerar um card no Trello.</p>
+              </header>
+
+              <form id="trelloForm" class="flex flex-col gap-6" novalidate>
+                <section class="rta-section" aria-labelledby="trello-customer">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">👤</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-customer">Dados do cliente</h4>
+                      <p class="rta-section-description">Informações principais do segurado utilizadas na descrição do card.</p>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="input-group">
+                      <label for="trelloEstadoCivil">Estado civil</label>
+                      <div class="rta-radio-group" id="trelloEstadoCivilGroup">
+                        <label class="rta-radio-option">
+                          <input type="radio" name="estado_civil" value="Solteiro(a)" checked />
+                          <span>Solteiro(a)</span>
+                        </label>
+                        <label class="rta-radio-option">
+                          <input type="radio" name="estado_civil" value="Casado(a)" />
+                          <span>Casado(a)</span>
+                        </label>
+                        <label class="rta-radio-option">
+                          <input type="radio" name="estado_civil" value="Divorciado(a)" />
+                          <span>Divorciado(a)</span>
+                        </label>
+                      </div>
+                      <p class="trello-field-error" data-error="estado_civil"></p>
+                    </div>
+
+                    <div class="input-group">
+                      <label for="trelloGenero">Gênero</label>
+                      <div class="rta-radio-group" id="trelloGeneroGroup">
+                        <label class="rta-radio-option">
+                          <input type="radio" name="genero" value="Masculino" checked />
+                          <span>Masculino</span>
+                        </label>
+                        <label class="rta-radio-option">
+                          <input type="radio" name="genero" value="Feminino" />
+                          <span>Feminino</span>
+                        </label>
+                      </div>
+                      <p class="trello-field-error" data-error="genero"></p>
+                    </div>
+
+                    <div class="input-group">
+                      <label for="trelloNome">Nome completo</label>
+                      <input id="trelloNome" name="nome" class="input-control" placeholder="Nome e sobrenome" data-required="true" />
+                      <p class="trello-field-error" data-error="nome"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloDocumento">Documento</label>
+                      <input id="trelloDocumento" name="documento" class="input-control" placeholder="Driver License / CNH" />
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloDocumentoEstado">Estado do documento</label>
+                      <select id="trelloDocumentoEstado" name="documento_estado" class="input-control" data-required="true">
+                        <option value="">Selecione...</option>
+                      </select>
+                      <p class="trello-field-error" data-error="documento_estado"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloNascimento">Data de nascimento</label>
+                      <input id="trelloNascimento" name="data_nascimento" type="date" class="input-control" />
+                    </div>
+                    <div class="input-group md:col-span-2">
+                      <label for="trelloEnderecoRua">Rua</label>
+                      <input id="trelloEnderecoRua" name="endereco_rua" class="input-control" placeholder="Rua / Street" data-required="true" />
+                      <p class="trello-field-error" data-error="endereco_rua"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloEnderecoApt">Apt / Suite</label>
+                      <input id="trelloEnderecoApt" name="endereco_apt" class="input-control" placeholder="Apt, Suite, etc." />
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloEnderecoCidade">Cidade</label>
+                      <input id="trelloEnderecoCidade" name="endereco_cidade" class="input-control" placeholder="Cidade" data-required="true" />
+                      <p class="trello-field-error" data-error="endereco_cidade"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloEnderecoEstado">Estado</label>
+                      <select id="trelloEnderecoEstado" name="endereco_estado" class="input-control" data-required="true">
+                        <option value="">Selecione...</option>
+                      </select>
+                      <p class="trello-field-error" data-error="endereco_estado"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloEnderecoZip">ZIP Code</label>
+                      <input id="trelloEnderecoZip" name="endereco_zipcode" class="input-control" placeholder="ZIP" data-required="true" />
+                      <p class="trello-field-error" data-error="endereco_zipcode"></p>
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloTempoSeguro">Tempo de seguro</label>
+                      <input id="trelloTempoSeguro" name="tempo_de_seguro" class="input-control" placeholder="Ex: 2 anos" />
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloTempoEndereco">Tempo no endereço</label>
+                      <input id="trelloTempoEndereco" name="tempo_no_endereco" class="input-control" placeholder="Ex: 1 ano" />
+                    </div>
+                  </div>
+                </section>
+
+                <section id="trelloSpouseSection" class="rta-section" aria-labelledby="trello-spouse" style="display: none;">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">💍</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-spouse">Cônjuge</h4>
+                      <p class="rta-section-description">Preencha os dados do cônjuge quando o estado civil for Casado(a).</p>
+                    </div>
+                  </div>
+                  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="input-group">
+                      <label for="trelloNomeConjuge">Nome</label>
+                      <input id="trelloNomeConjuge" name="nome_conjuge" class="input-control" />
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloDocumentoConjuge">Documento</label>
+                      <input id="trelloDocumentoConjuge" name="documento_conjuge" class="input-control" />
+                    </div>
+                    <div class="input-group">
+                      <label for="trelloNascimentoConjuge">Data de nascimento</label>
+                      <input id="trelloNascimentoConjuge" name="data_nascimento_conjuge" type="date" class="input-control" />
+                    </div>
+                  </div>
+                </section>
+
+                <section class="rta-section" aria-labelledby="trello-vehicles">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">🚗</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-vehicles">Veículos</h4>
+                      <p class="rta-section-description">Adicione todos os veículos relacionados ao cliente.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between mb-3">
+                    <p class="text-sm text-slate-300">Inclua pelo menos um veículo com VIN válido.</p>
+                    <button type="button" id="trelloAddVehicle" class="btn-secondary">+ Adicionar veículo</button>
+                  </div>
+                  <div class="space-y-4" id="trelloVehiclesContainer"></div>
+                  <p class="trello-field-error" data-error="veiculos"></p>
+                </section>
+
+                <section class="rta-section" aria-labelledby="trello-drivers">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">🧍</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-drivers">Drivers adicionais</h4>
+                      <p class="rta-section-description">Cadastre outros condutores relacionados à apólice.</p>
+                    </div>
+                  </div>
+                  <div class="flex items-center justify-between mb-3">
+                    <p class="text-sm text-slate-300">Preencha apenas se houver outros motoristas autorizados.</p>
+                    <button type="button" id="trelloAddDriver" class="btn-secondary">+ Adicionar driver</button>
+                  </div>
+                  <div class="space-y-4" id="trelloDriversContainer"></div>
+                </section>
+
+                <section class="rta-section" aria-labelledby="trello-observacoes">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">📝</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-observacoes">Observações</h4>
+                      <p class="rta-section-description">Informações adicionais relevantes para o atendimento.</p>
+                    </div>
+                  </div>
+                  <textarea id="trelloObservacoes" name="observacoes" class="input-control" rows="4" placeholder="Informações adicionais"></textarea>
+                </section>
+
+                <section class="rta-section" aria-labelledby="trello-attachments">
+                  <div class="rta-section-header">
+                    <div class="rta-section-icon" aria-hidden="true">📎</div>
+                    <div>
+                      <h4 class="rta-section-title" id="trello-attachments">Imagens (opcional)</h4>
+                      <p class="rta-section-description">Selecione imagens para anexar automaticamente ao card.</p>
+                    </div>
+                  </div>
+                  <input type="file" id="trelloImages" accept="image/*" multiple class="block w-full text-sm text-slate-200 file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-slate-800 file:text-slate-200 hover:file:bg-slate-700" />
+                  <p id="trelloImagesInfo" class="text-xs text-slate-400 mt-2"></p>
+                  <div id="trelloImagePreview" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+                </section>
+
+                <div class="flex flex-wrap items-center gap-3">
+                  <button type="submit" id="trelloSubmitBtn" class="btn-primary">Criar card no Trello</button>
+                  <button type="button" id="trelloResetBtn" class="btn-secondary">Limpar</button>
+                  <span id="trelloStatus" class="rta-status-chip">Aguardando</span>
+                </div>
+
+                <div id="trelloResult" class="hidden rounded-xl border border-slate-700 bg-slate-950/60 p-4 text-sm text-slate-200"></div>
+              </form>
+            </div>
+
+            <template id="trelloVehicleTemplate">
+              <div class="trello-vehicle-card border border-slate-700 rounded-xl bg-slate-950/60 p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                  <h5 class="text-sm font-semibold text-slate-200">Veículo <span data-role="vehicle-index">1</span></h5>
+                  <button type="button" class="btn-secondary trello-remove-vehicle">Remover</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div class="input-group">
+                    <label>VIN</label>
+                    <input type="text" class="input-control trello-input" data-field="vin" maxlength="17" placeholder="VIN" />
+                    <p class="trello-field-error" data-role="error"></p>
+                    <p class="text-xs text-slate-400 italic" data-role="vehicle-label"></p>
+                  </div>
+                  <div class="input-group">
+                    <label>Placa</label>
+                    <input type="text" class="input-control trello-input" data-field="placa" placeholder="Placa" />
+                  </div>
+                  <div class="input-group">
+                    <label>Financiado / Pago</label>
+                    <select class="input-control trello-input" data-field="financiado">
+                      <option value="">Selecione</option>
+                      <option value="Financiado">Financiado</option>
+                      <option value="Quitado">Quitado</option>
+                    </select>
+                  </div>
+                  <div class="input-group md:col-span-3">
+                    <label>Tempo com o veículo</label>
+                    <select class="input-control trello-input" data-field="tempo_com_veiculo">
+                      <option value="">Selecione</option>
+                      <option value="Menos de 1 ano">Menos de 1 ano</option>
+                      <option value="1-3 Anos">Entre 1 e 3 anos</option>
+                      <option value="Mais de 5 Anos">5 Anos ou mais</option>
+                    </select>
+                  </div>
+                </div>
+                <input type="hidden" data-field="ano" />
+                <input type="hidden" data-field="marca" />
+                <input type="hidden" data-field="modelo" />
+              </div>
+            </template>
+
+            <template id="trelloDriverTemplate">
+              <div class="trello-driver-card border border-slate-700 rounded-xl bg-slate-950/60 p-4 space-y-4">
+                <div class="flex items-center justify-between">
+                  <h5 class="text-sm font-semibold text-slate-200">Driver adicional</h5>
+                  <button type="button" class="btn-secondary trello-remove-driver">Remover</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+                  <div class="input-group md:col-span-2">
+                    <label>Nome</label>
+                    <input type="text" class="input-control trello-driver-input" data-field="nome" placeholder="Nome completo" />
+                  </div>
+                  <div class="input-group">
+                    <label>Gênero</label>
+                    <div class="rta-radio-group">
+                      <label class="rta-radio-option text-xs">
+                        <input type="radio" class="trello-driver-input" data-field="genero" value="Masculino" />
+                        <span>Masculino</span>
+                      </label>
+                      <label class="rta-radio-option text-xs">
+                        <input type="radio" class="trello-driver-input" data-field="genero" value="Feminino" />
+                        <span>Feminino</span>
+                      </label>
+                    </div>
+                  </div>
+                  <div class="input-group">
+                    <label>Documento</label>
+                    <input type="text" class="input-control trello-driver-input" data-field="documento" placeholder="Documento" />
+                  </div>
+                  <div class="input-group">
+                    <label>Data de nascimento</label>
+                    <input type="date" class="input-control trello-driver-input" data-field="data_nascimento" />
+                  </div>
+                  <div class="input-group">
+                    <label>Parentesco</label>
+                    <select class="input-control trello-driver-input" data-field="parentesco">
+                      <option value="">Selecione</option>
+                      <option value="Cônjuge">Cônjuge</option>
+                      <option value="Filho(a)">Filho(a)</option>
+                      <option value="Pai/Mãe">Pai/Mãe</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </section>
+
         </div>
-      </div>
-      </div>
+      </main>
     </div>
+  </div>
 
     <!-- Modal para editar/adicionar mensagem -->
     <div id="messageModal" class="modal-overlay hidden">

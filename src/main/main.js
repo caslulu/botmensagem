@@ -20,9 +20,9 @@ const {
   getAllProfiles
 } = require('./database');
 
-// Serviços do módulo RTA (migrado do auto-rta original)
+// Serviços dos módulos (migrados do Python original)
 const rtaService = require('./rta/services/rtaService');
-const trelloService = require('./rta/services/trelloService');
+const trelloService = require('./trello/services/trelloService');
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
@@ -194,7 +194,7 @@ ipcMain.handle('rta:generate', async (_event, data) => {
 
 ipcMain.handle('trello:auth-check', async () => {
   try {
-    const ok = trelloService.trelloAuthCheck();
+    const ok = await trelloService.trelloAuthCheck();
     return { authenticated: ok };
   } catch (error) {
     return { authenticated: false, error: error.message };
@@ -203,7 +203,7 @@ ipcMain.handle('trello:auth-check', async () => {
 
 ipcMain.handle('trello:create-card', async (_event, data) => {
   try {
-    const card = trelloService.createTrelloCard(data || {});
+    const card = await trelloService.createTrelloCard(data || {});
     return { success: true, card };
   } catch (error) {
     return { success: false, error: error.message };

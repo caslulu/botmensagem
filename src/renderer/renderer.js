@@ -3,7 +3,9 @@ const sidebarEl = document.getElementById('sidebar');
 const servicesNav = document.getElementById('servicesNav');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const sidebarOpenToggle = document.getElementById('sidebarOpenToggle');
+const mainViewport = document.querySelector('main');
 const rtaView = document.getElementById('rtaView');
+const trelloView = document.getElementById('trelloView');
 const rtaStatus = document.getElementById('rtaStatus');
 const rtaOutput = document.getElementById('rtaOutput');
 const rtaActions = document.getElementById('rtaActions');
@@ -68,16 +70,10 @@ let editingMessageId = null;
 let currentSendLimit = 200;
 let activeServiceId = 'mensagens';
 let lastGeneratedRtaPath = null;
+let trelloFormManager = null;
 
 startButton.disabled = true;
-// Inicializar views usando style.display ao invés de classes
-if (selectionView) {
-  selectionView.style.display = 'flex';
-}
-if (controlView) {
-  controlView.style.display = 'none';
-}
-if (rtaView) rtaView.style.display = 'none';
+showProfileSelection();
 
 if (servicesNav) {
   servicesNav.addEventListener('click', (event) => {
@@ -158,6 +154,80 @@ function updateProfilesActiveState() {
   });
 }
 
+function toggleSidebarVisibility(visible) {
+  if (!sidebarEl) {
+    return;
+  }
+
+  sidebarEl.classList.toggle('hidden', !visible);
+}
+
+function scrollMainToTop() {
+  if (mainViewport) {
+    mainViewport.scrollTop = 0;
+  }
+}
+
+function showProfileSelection() {
+  if (selectionView) selectionView.style.display = 'flex';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  toggleSidebarVisibility(false);
+  scrollMainToTop();
+}
+
+function showModuleSelection() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'flex';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  toggleSidebarVisibility(false);
+  scrollMainToTop();
+}
+
+function showControlModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'flex';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showRtaModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'flex';
+  if (trelloView) trelloView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showUnavailableModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showTrelloModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'flex';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
 function selectProfile(profileId) {
   if (!selectionEnabled) {
     return;
@@ -171,21 +241,7 @@ function selectProfile(profileId) {
     activeProfileNameEl.textContent = profile.name;
     activeProfileMessageEl.textContent = profile.message;
     startButton.disabled = false;
-    if (selectionView) {
-      selectionView.style.display = 'none';
-    }
-    if (controlView) {
-      controlView.style.display = 'none';
-    }
-    if (rtaView) {
-      rtaView.style.display = 'none';
-    }
-    if (moduleSelectionView) {
-      moduleSelectionView.style.display = 'flex';
-    }
-    if (sidebarEl) {
-      sidebarEl.classList.add('hidden');
-    }
+    showModuleSelection();
     activeServiceId = null;
     updateActiveServiceButton();
     setStatus('Escolha o módulo que deseja utilizar.');
@@ -197,9 +253,7 @@ function selectProfile(profileId) {
   } else {
     startButton.disabled = true;
     setStatus('Selecione um operador para começar.');
-    if (moduleSelectionView) {
-      moduleSelectionView.style.display = 'none';
-    }
+    showProfileSelection();
   }
 }
 
@@ -396,21 +450,7 @@ backToProfilesButton.addEventListener('click', () => {
   activeProfileMessageEl.textContent = '';
   startButton.disabled = true;
   stopButton.disabled = true;
-  if (controlView) {
-    controlView.style.display = 'none';
-  }
-  if (rtaView) {
-    rtaView.style.display = 'none';
-  }
-  if (moduleSelectionView) {
-    moduleSelectionView.style.display = 'none';
-  }
-  if (selectionView) {
-    selectionView.style.display = 'flex';
-  }
-  if (sidebarEl) {
-    sidebarEl.classList.add('hidden');
-  }
+  showProfileSelection();
   activeServiceId = 'mensagens';
   updateActiveServiceButton();
   setStatus('Selecione um operador para começar.');
@@ -591,80 +631,62 @@ async function loadServices() {
 }
 
 function selectService(id) {
-  activeServiceId = id;
+  let handled = false;
 
-  if (selectionView) {
-    selectionView.style.display = 'none';
-  }
-  if (controlView) {
-    controlView.style.display = 'none';
-  }
-  if (rtaView) {
-    rtaView.style.display = 'none';
-  }
-  if (moduleSelectionView) {
-    moduleSelectionView.style.display = 'none';
-  }
-
-  let viewDisplayed = false;
-  let sidebarShouldShow = false;
-
-  if (id === 'mensagens') {
-    if (!selectedProfileId && selectionView) {
-      selectionView.style.display = 'flex';
-      viewDisplayed = true;
-      setStatus('Selecione um operador para começar.');
-      updateStatusBadge('idle');
-    } else if (controlView) {
-      controlView.style.display = 'flex';
-      viewDisplayed = true;
-      if (selectedProfileId) {
+  switch (id) {
+    case 'mensagens': {
+      if (!selectedProfileId) {
+        showProfileSelection();
+        setStatus('Selecione um operador para começar.');
+        updateStatusBadge('idle');
+      } else {
+        showControlModule();
         setStatus('Pronto para iniciar os envios.');
         updateStatusBadge('stopped');
-        sidebarShouldShow = true;
       }
+      handled = true;
+      break;
     }
-  } else if (id === 'rta') {
-    if (rtaView) {
-      rtaView.style.display = 'flex';
-      viewDisplayed = true;
-      setStatus('Preencha os dados para gerar o RTA.');
+    case 'rta': {
+      if (!selectedProfileId) {
+        showProfileSelection();
+        setStatus('Selecione um operador para começar.');
+        updateStatusBadge('idle');
+      } else {
+        showRtaModule();
+        setStatus('Preencha os dados para gerar o RTA.');
+        updateStatusBadge('idle');
+        handled = true;
+      }
+      break;
+    }
+    case 'trello': {
+      if (!selectedProfileId) {
+        showProfileSelection();
+        setStatus('Selecione um operador para começar.');
+        updateStatusBadge('idle');
+      } else {
+        showTrelloModule();
+        initializeTrelloForm();
+        setStatus('Preencha os dados para criar o card no Trello.');
+        updateStatusBadge('idle');
+        handled = true;
+      }
+      break;
+    }
+    default: {
+      appendLog(`Módulo desconhecido: ${id}`);
+      if (selectedProfileId) {
+        showModuleSelection();
+      } else {
+        showProfileSelection();
+      }
+      setStatus('Módulo não reconhecido.');
       updateStatusBadge('idle');
-      sidebarShouldShow = true;
-    }
-  } else if (id === 'trello') {
-    appendLog('Trello: view ainda não implementada.');
-    setStatus('Integração Trello em breve. Selecione outro módulo.');
-    updateStatusBadge('idle');
-    sidebarShouldShow = true;
-    viewDisplayed = true;
-  } else {
-    appendLog(`Módulo desconhecido: ${id}`);
-    setStatus('Módulo não reconhecido.');
-    updateStatusBadge('idle');
-    sidebarShouldShow = !!selectedProfileId;
-  }
-
-  if (!viewDisplayed) {
-    if (selectedProfileId && moduleSelectionView) {
-      moduleSelectionView.style.display = 'flex';
-      activeServiceId = null;
-      sidebarShouldShow = false;
-    } else if (!selectedProfileId && selectionView) {
-      selectionView.style.display = 'flex';
-      activeServiceId = 'mensagens';
-      sidebarShouldShow = false;
     }
   }
 
-  if (sidebarEl) {
-    if (sidebarShouldShow && selectedProfileId) {
-      sidebarEl.classList.remove('hidden');
-    } else {
-      sidebarEl.classList.add('hidden');
-    }
-  }
-
+  activeServiceId = handled ? id : null;
   updateActiveServiceButton();
 }
 
@@ -1107,13 +1129,631 @@ if (rtaDownloadBtn) {
       const suggested = (lastGeneratedRtaPath?.split('/')?.pop()) || 'rta.pdf';
       const dl = await window.files.saveToDownloads(lastGeneratedRtaPath, suggested);
       if (dl?.success) {
-        appendLog(`Arquivo copiado para Downloads: ${dl.path}`);
+        appendLog('Arquivo copiado para Downloads: ' + dl.path);
         await window.files.showInFolder(dl.path);
       } else {
-        appendLog(`Erro ao copiar: ${dl?.error || 'Desconhecido'}`);
+        appendLog('Erro ao copiar: ' + (dl?.error || 'Desconhecido'));
       }
     } catch (error) {
-      appendLog(`Erro ao copiar: ${error.message}`);
+      appendLog('Erro ao copiar: ' + (error.message || error));
     }
   });
+}
+
+// ===== TRELLO FORM HANDLER =====
+const TRELLO_STATE_OPTIONS = [
+  { code: 'AL', name: 'Alabama' },
+  { code: 'AK', name: 'Alaska' },
+  { code: 'AZ', name: 'Arizona' },
+  { code: 'AR', name: 'Arkansas' },
+  { code: 'CA', name: 'California' },
+  { code: 'CO', name: 'Colorado' },
+  { code: 'CT', name: 'Connecticut' },
+  { code: 'DE', name: 'Delaware' },
+  { code: 'DC', name: 'District of Columbia' },
+  { code: 'FL', name: 'Florida' },
+  { code: 'GA', name: 'Georgia' },
+  { code: 'HI', name: 'Hawaii' },
+  { code: 'ID', name: 'Idaho' },
+  { code: 'IL', name: 'Illinois' },
+  { code: 'IN', name: 'Indiana' },
+  { code: 'IA', name: 'Iowa' },
+  { code: 'KS', name: 'Kansas' },
+  { code: 'KY', name: 'Kentucky' },
+  { code: 'LA', name: 'Louisiana' },
+  { code: 'ME', name: 'Maine' },
+  { code: 'MD', name: 'Maryland' },
+  { code: 'MA', name: 'Massachusetts' },
+  { code: 'MI', name: 'Michigan' },
+  { code: 'MN', name: 'Minnesota' },
+  { code: 'MS', name: 'Mississippi' },
+  { code: 'MO', name: 'Missouri' },
+  { code: 'MT', name: 'Montana' },
+  { code: 'NE', name: 'Nebraska' },
+  { code: 'NV', name: 'Nevada' },
+  { code: 'NH', name: 'New Hampshire' },
+  { code: 'NJ', name: 'New Jersey' },
+  { code: 'NM', name: 'New Mexico' },
+  { code: 'NY', name: 'New York' },
+  { code: 'NC', name: 'North Carolina' },
+  { code: 'ND', name: 'North Dakota' },
+  { code: 'OH', name: 'Ohio' },
+  { code: 'OK', name: 'Oklahoma' },
+  { code: 'OR', name: 'Oregon' },
+  { code: 'PA', name: 'Pennsylvania' },
+  { code: 'RI', name: 'Rhode Island' },
+  { code: 'SC', name: 'South Carolina' },
+  { code: 'SD', name: 'South Dakota' },
+  { code: 'TN', name: 'Tennessee' },
+  { code: 'TX', name: 'Texas' },
+  { code: 'UT', name: 'Utah' },
+  { code: 'VT', name: 'Vermont' },
+  { code: 'VA', name: 'Virginia' },
+  { code: 'WA', name: 'Washington' },
+  { code: 'WV', name: 'West Virginia' },
+  { code: 'WI', name: 'Wisconsin' },
+  { code: 'WY', name: 'Wyoming' },
+  { code: 'INT', name: 'International' }
+];
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error('Falha ao ler arquivo.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+class TrelloFormManager {
+  constructor() {
+    this.form = document.getElementById('trelloForm');
+    this.statusEl = document.getElementById('trelloStatus');
+    this.resultEl = document.getElementById('trelloResult');
+    this.resetBtn = document.getElementById('trelloResetBtn');
+    this.submitBtn = document.getElementById('trelloSubmitBtn');
+    this.spouseSection = document.getElementById('trelloSpouseSection');
+    this.vehicleTemplate = document.getElementById('trelloVehicleTemplate');
+    this.driverTemplate = document.getElementById('trelloDriverTemplate');
+    this.vehiclesContainer = document.getElementById('trelloVehiclesContainer');
+    this.driversContainer = document.getElementById('trelloDriversContainer');
+    this.addVehicleBtn = document.getElementById('trelloAddVehicle');
+    this.addDriverBtn = document.getElementById('trelloAddDriver');
+    this.documentStateSelect = document.getElementById('trelloDocumentoEstado');
+    this.addressStateSelect = document.getElementById('trelloEnderecoEstado');
+    this.imageInput = document.getElementById('trelloImages');
+    this.imageInfo = document.getElementById('trelloImagesInfo');
+    this.imagePreview = document.getElementById('trelloImagePreview');
+    this.selectedImages = [];
+    this.previewUrls = [];
+    this.initialized = false;
+  }
+
+  init() {
+    if (!this.form || this.initialized) {
+      return;
+    }
+
+    this.initialized = true;
+    this.populateStateSelects();
+    this.setupListeners();
+    this.clearErrors();
+    this.addVehicle();
+    this.toggleSpouseSection();
+    this.updateStatus('Aguardando');
+    this.checkAuth();
+  }
+
+  populateStateSelects() {
+    const selects = [this.documentStateSelect, this.addressStateSelect];
+    selects.forEach((select) => {
+      if (!select || select.dataset.populated === 'true') return;
+      const frag = document.createDocumentFragment();
+      TRELLO_STATE_OPTIONS.forEach(({ code, name }) => {
+        const option = document.createElement('option');
+        option.value = code;
+        option.textContent = `${code} - ${name}`;
+        frag.appendChild(option);
+      });
+      select.appendChild(frag);
+      select.dataset.populated = 'true';
+    });
+  }
+
+  setupListeners() {
+    this.form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      this.handleSubmit();
+    });
+
+    this.resetBtn.addEventListener('click', () => {
+      this.form.reset();
+      this.handleReset();
+    });
+
+    this.addVehicleBtn.addEventListener('click', () => this.addVehicle());
+    this.addDriverBtn.addEventListener('click', () => this.addDriver());
+
+    this.imageInput.addEventListener('change', (event) => {
+      const files = Array.from(event.target.files || []);
+      this.setSelectedImages(files);
+    });
+
+    const estadoCivilRadios = this.form.querySelectorAll('input[name="estado_civil"]');
+    estadoCivilRadios.forEach((radio) => {
+      radio.addEventListener('change', () => this.toggleSpouseSection());
+    });
+  }
+
+  async checkAuth() {
+    if (!window.trello?.authCheck) {
+      return;
+    }
+
+    try {
+      const result = await window.trello.authCheck();
+      if (!result?.authenticated) {
+        this.updateStatus('Credenciais inválidas ou ausentes.', 'error');
+        this.setResult('Não foi possível validar o acesso ao Trello. Verifique as credenciais.', false);
+      } else {
+        this.updateStatus('Conectado ao Trello.');
+      }
+    } catch (error) {
+      this.updateStatus('Erro ao validar credenciais.', 'error');
+      this.setResult('Falha na autenticação: ' + (error.message || error), false);
+    }
+  }
+
+  toggleSpouseSection() {
+    if (!this.spouseSection) return;
+    const value = this.getRadioValue('estado_civil');
+    const visible = value === 'Casado(a)';
+    this.spouseSection.style.display = visible ? 'block' : 'none';
+  }
+
+  clearErrors() {
+    this.form.querySelectorAll('.trello-field-error').forEach((el) => {
+      el.textContent = '';
+    });
+    this.form.querySelectorAll('.input-control.error').forEach((el) => {
+      el.classList.remove('error');
+    });
+  }
+
+  setFieldError(key, message) {
+    const holder = this.form.querySelector(`.trello-field-error[data-error="${key}"]`);
+    if (holder) {
+      holder.textContent = message || '';
+      const input = this.form.querySelector(`[name="${key}"]`);
+      if (input) {
+        input.classList.toggle('error', Boolean(message));
+      }
+    }
+  }
+
+  setResult(message, success = true, extra = '') {
+    if (!this.resultEl) return;
+    if (!message) {
+      this.resultEl.classList.add('hidden');
+      this.resultEl.textContent = '';
+      return;
+    }
+
+    this.resultEl.classList.remove('hidden');
+    this.resultEl.textContent = extra ? message + '\n' + extra : message;
+    this.resultEl.classList.toggle('text-emerald-300', success);
+    this.resultEl.classList.toggle('text-rose-300', !success);
+  }
+
+  updateStatus(text, variant = 'idle') {
+    if (!this.statusEl) return;
+    this.statusEl.textContent = text || '—';
+    if (variant === 'error') {
+      this.statusEl.classList.add('text-rose-300');
+    } else {
+      this.statusEl.classList.remove('text-rose-300');
+    }
+  }
+
+  addVehicle() {
+    if (!this.vehicleTemplate || !this.vehiclesContainer) {
+      return;
+    }
+
+    const fragment = this.vehicleTemplate.content.cloneNode(true);
+    const card = fragment.querySelector('.trello-vehicle-card');
+    const removeBtn = card.querySelector('.trello-remove-vehicle');
+    const vinInput = card.querySelector('[data-field="vin"]');
+    const errorHolder = card.querySelector('[data-role="error"]');
+
+    removeBtn.addEventListener('click', () => {
+      if (this.vehiclesContainer.children.length <= 1) {
+        appendLog('É necessário manter ao menos um veículo.');
+        return;
+      }
+      card.remove();
+      this.updateVehicleIndices();
+    });
+
+    const updateVehicleLabel = () => {
+      const year = card.querySelector('[data-field="ano"]').value;
+      const make = card.querySelector('[data-field="marca"]').value;
+      const model = card.querySelector('[data-field="modelo"]').value;
+      const label = card.querySelector('[data-role="vehicle-label"]');
+      if (label) {
+        label.textContent = [year, make, model].filter(Boolean).join(' ').trim();
+      }
+    };
+
+    const handleVinInput = async (event) => {
+      const value = (event.target.value || '').toUpperCase().trim();
+      event.target.value = value;
+      errorHolder.textContent = '';
+      vinInput.classList.remove('error');
+
+      if (!value) {
+        return;
+      }
+
+      if (value.length < 5) {
+        errorHolder.textContent = 'VIN inválido';
+        vinInput.classList.add('error');
+        return;
+      }
+
+      if (value.length >= 5) {
+        const allVehicles = this.collectVehicles();
+        const cards = Array.from(this.vehiclesContainer.children);
+        const currentIndex = cards.indexOf(card);
+        const duplicates = allVehicles.filter((item, idx) => item.vin === value && idx !== currentIndex).length;
+        if (duplicates > 0) {
+          errorHolder.textContent = 'VIN duplicado com outro veículo';
+          vinInput.classList.add('error');
+          return;
+        }
+
+        if (value.length === 17) {
+          const info = await this.decodeVin(value);
+          if (info) {
+            if (info.year) card.querySelector('[data-field="ano"]').value = info.year;
+            if (info.make) card.querySelector('[data-field="marca"]').value = info.make;
+            if (info.model) card.querySelector('[data-field="modelo"]').value = info.model;
+            updateVehicleLabel();
+          }
+        }
+      }
+    };
+
+    vinInput.addEventListener('change', handleVinInput);
+    vinInput.addEventListener('blur', handleVinInput);
+
+    card.querySelectorAll('[data-field]').forEach((input) => {
+      input.addEventListener('input', updateVehicleLabel);
+    });
+
+    this.vehiclesContainer.appendChild(card);
+    this.updateVehicleIndices();
+  }
+
+  updateVehicleIndices() {
+    if (!this.vehiclesContainer) return;
+    const cards = Array.from(this.vehiclesContainer.children);
+    cards.forEach((card, index) => {
+      const label = card.querySelector('[data-role="vehicle-index"]');
+      if (label) label.textContent = index + 1;
+    });
+  }
+
+  addDriver() {
+    if (!this.driverTemplate || !this.driversContainer) {
+      return;
+    }
+
+    const fragment = this.driverTemplate.content.cloneNode(true);
+    const card = fragment.querySelector('.trello-driver-card');
+    const removeBtn = card.querySelector('.trello-remove-driver');
+    removeBtn.addEventListener('click', () => {
+      card.remove();
+    });
+
+    const radios = card.querySelectorAll('input[type="radio"][data-field="genero"]');
+    const uniqueName = 'driver-genero-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+    radios.forEach((radio) => {
+      radio.name = uniqueName;
+    });
+
+    this.driversContainer.appendChild(card);
+  }
+
+  handleReset() {
+    this.clearErrors();
+    this.setResult('');
+    this.updateStatus('Aguardando');
+    this.toggleSpouseSection();
+    this.vehiclesContainer.innerHTML = '';
+    this.driversContainer.innerHTML = '';
+    this.addVehicle();
+    this.revokePreviews();
+    this.selectedImages = [];
+    if (this.imageInfo) this.imageInfo.textContent = '';
+    if (this.imagePreview) this.imagePreview.innerHTML = '';
+    if (this.imageInput) this.imageInput.value = '';
+  }
+
+  revokePreviews() {
+    this.previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    this.previewUrls = [];
+  }
+
+  setSelectedImages(files) {
+    this.revokePreviews();
+    this.selectedImages = files;
+    if (this.imageInfo) {
+      this.imageInfo.textContent = files.length
+        ? files.length + ' arquivo(s) selecionado(s).'
+        : '';
+    }
+    if (!this.imagePreview) return;
+    this.imagePreview.innerHTML = '';
+    files.forEach((file, idx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative border border-slate-700 rounded-lg overflow-hidden';
+      const img = document.createElement('img');
+      const url = URL.createObjectURL(file);
+      this.previewUrls.push(url);
+      img.src = url;
+      img.alt = file.name || 'imagem-' + (idx + 1);
+      img.style.width = '100%';
+      img.style.height = '120px';
+      img.style.objectFit = 'cover';
+      wrapper.appendChild(img);
+      const caption = document.createElement('div');
+      caption.className = 'px-2 py-1 text-[10px] text-slate-300 truncate';
+      caption.textContent = file.name;
+      wrapper.appendChild(caption);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.type = 'button';
+      removeBtn.textContent = '✕';
+      removeBtn.className = 'absolute top-1 right-1 bg-slate-900/80 text-xs px-1 rounded hover:bg-slate-800';
+      removeBtn.addEventListener('click', () => {
+        const next = this.selectedImages.filter((_, imageIndex) => imageIndex !== idx);
+        this.setSelectedImages(next);
+      });
+      wrapper.appendChild(removeBtn);
+
+      this.imagePreview.appendChild(wrapper);
+    });
+  }
+  getInputValue(id) {
+    const el = document.getElementById(id);
+    return el ? el.value.trim() : '';
+  }
+
+  getRadioValue(name) {
+    const el = this.form.querySelector(`input[name="${name}"]:checked`);
+    return el ? el.value : '';
+  }
+
+  collectVehicles() {
+    if (!this.vehiclesContainer) return [];
+    const cards = Array.from(this.vehiclesContainer.children);
+    return cards.map((card) => {
+      const data = {};
+      card.querySelectorAll('[data-field]').forEach((input) => {
+        data[input.dataset.field] = input.value.trim();
+      });
+      return data;
+    });
+  }
+
+  collectDrivers() {
+    if (!this.driversContainer) return [];
+    const cards = Array.from(this.driversContainer.children);
+    return cards.map((card) => {
+      const data = {};
+      card.querySelectorAll('.trello-driver-input').forEach((input) => {
+        const field = input.dataset.field;
+        if (input.type === 'radio') {
+          if (input.checked) {
+            data[field] = input.value;
+          }
+        } else {
+          data[field] = input.value.trim();
+        }
+      });
+      return data;
+    });
+  }
+
+  validate(formData) {
+    const errors = {};
+    if (!formData.nome || formData.nome.length < 2) {
+      errors.nome = 'Informe o nome completo';
+    }
+    if (!formData.documento_estado) {
+      errors.documento_estado = 'Selecione o estado da licença';
+    }
+    if (!formData.endereco_rua) {
+      errors.endereco_rua = 'Informe a rua';
+    }
+    if (!formData.endereco_cidade) {
+      errors.endereco_cidade = 'Informe a cidade';
+    }
+    if (!formData.endereco_estado) {
+      errors.endereco_estado = 'Selecione o estado';
+    }
+    if (!formData.endereco_zipcode) {
+      errors.endereco_zipcode = 'Informe o ZIP';
+    }
+
+    if (!formData.veiculos.length) {
+      errors.veiculos = 'Adicione ao menos um veículo';
+    } else {
+      const seen = new Set();
+      formData.veiculos.forEach((vehicle, index) => {
+        const vin = (vehicle.vin || '').trim().toUpperCase();
+        if (!vin || vin.length < 5) {
+          this.setVehicleError(index, 'VIN inválido');
+          errors.veiculos = 'Há veículos com VIN inválido';
+        } else if (seen.has(vin)) {
+          this.setVehicleError(index, 'VIN duplicado com outro veículo');
+          errors.veiculos = 'Há veículos com VIN duplicado';
+        }
+        seen.add(vin);
+      });
+    }
+
+    if (formData.observacoes && formData.observacoes.length > 2000) {
+      errors.observacoes = 'Máximo de 2000 caracteres';
+    }
+
+    return errors;
+  }
+
+  setVehicleError(index, message) {
+    const card = this.vehiclesContainer?.children?.[index];
+    if (!card) return;
+    const errorHolder = card.querySelector('[data-role="error"]');
+    const vinInput = card.querySelector('[data-field="vin"]');
+    if (errorHolder) {
+      errorHolder.textContent = message;
+    }
+    if (vinInput) {
+      vinInput.classList.toggle('error', Boolean(message));
+    }
+  }
+
+  async handleSubmit() {
+    if (!window.trello?.createCard) {
+      appendLog('API trello indisponível no preload.');
+      this.setResult('Integração Trello não está disponível.', false);
+      return;
+    }
+
+    this.clearErrors();
+    this.form.querySelectorAll('[data-role="error"]').forEach((el) => {
+      el.textContent = '';
+    });
+
+    const formData = {
+      nome: this.getInputValue('trelloNome'),
+      estado_civil: this.getRadioValue('estado_civil'),
+      genero: this.getRadioValue('genero'),
+      documento: this.getInputValue('trelloDocumento'),
+      documento_estado: this.getInputValue('trelloDocumentoEstado'),
+      endereco_rua: this.getInputValue('trelloEnderecoRua'),
+      endereco_apt: this.getInputValue('trelloEnderecoApt'),
+      endereco_cidade: this.getInputValue('trelloEnderecoCidade'),
+      endereco_estado: this.getInputValue('trelloEnderecoEstado'),
+      endereco_zipcode: this.getInputValue('trelloEnderecoZip'),
+      data_nascimento: this.getInputValue('trelloNascimento'),
+      tempo_de_seguro: this.getInputValue('trelloTempoSeguro'),
+      tempo_no_endereco: this.getInputValue('trelloTempoEndereco'),
+      nome_conjuge: this.getInputValue('trelloNomeConjuge'),
+      documento_conjuge: this.getInputValue('trelloDocumentoConjuge'),
+      data_nascimento_conjuge: this.getInputValue('trelloNascimentoConjuge'),
+      observacoes: document.getElementById('trelloObservacoes')?.value.trim() || '',
+      veiculos: this.collectVehicles(),
+      pessoas: this.collectDrivers()
+    };
+
+    const errors = this.validate(formData);
+    Object.entries(errors).forEach(([key, message]) => this.setFieldError(key, message));
+    if (Object.keys(errors).length) {
+      this.updateStatus('Verifique os campos informados.', 'error');
+      this.setResult('Existem erros no formulário. Corrija para continuar.', false);
+      return;
+    }
+
+    try {
+      this.updateStatus('Criando card...', 'running');
+      this.submitBtn.disabled = true;
+      this.setResult('');
+
+      const attachments = await this.prepareAttachments();
+      const payload = {
+        ...formData,
+        attachments
+      };
+
+      const response = await window.trello.createCard(payload);
+      if (!response?.success) {
+        const message = response?.error || 'Falha ao criar o card.';
+        this.updateStatus('Erro ao criar card.', 'error');
+        this.setResult(message, false);
+        appendLog('Trello: ' + message);
+        return;
+      }
+
+      const cardInfo = response.card || {};
+      const url = cardInfo.url || '';
+      const attachmentsInfo = cardInfo.attachments;
+      let extra = '';
+      if (attachmentsInfo?.total) {
+        const ok = attachmentsInfo.sucesso?.length || 0;
+        const fail = attachmentsInfo.falha?.length || 0;
+        const failMessage = fail ? ', erros: ' + fail : '';
+        extra = 'Anexos enviados: ' + ok + failMessage;
+      }
+
+      const message = url ? 'Card criado com sucesso: ' + url : 'Card criado com sucesso.';
+      this.updateStatus('Card criado com sucesso.');
+      this.setResult(message, true, extra);
+      appendLog('Trello: ' + message);
+      this.form.reset();
+      this.handleReset();
+    } catch (error) {
+      this.updateStatus('Erro ao criar card.', 'error');
+      this.setResult(error.message || String(error), false);
+      appendLog('Trello erro: ' + (error.message || error));
+    } finally {
+      this.submitBtn.disabled = false;
+    }
+  }
+
+  async prepareAttachments() {
+    if (!this.selectedImages.length) {
+      return [];
+    }
+
+    const entries = await Promise.all(
+      this.selectedImages.map(async (file) => {
+        const dataUrl = await readFileAsDataUrl(file);
+        return {
+          name: file.name,
+          dataUrl
+        };
+      })
+    );
+
+    return entries;
+  }
+
+  async decodeVin(vin) {
+    if (!vin || vin.length < 11) {
+      return null;
+    }
+    const url = 'https://vpic.nhtsa.dot.gov/api/vehicles/decodevinvalues/' + encodeURIComponent(vin) + '?format=json';
+    try {
+      const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      const row = data?.Results?.[0] || {};
+      return {
+        year: row?.ModelYear || row?.Model_Year || '',
+        make: row?.Make || '',
+        model: row?.Model || ''
+      };
+    } catch (_) {
+      return null;
+    }
+  }
+}
+
+function initializeTrelloForm() {
+  if (!trelloFormManager) {
+    trelloFormManager = new TrelloFormManager();
+    trelloFormManager.init();
+  }
 }

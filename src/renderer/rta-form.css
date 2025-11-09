@@ -180,6 +180,17 @@
   accent-color: #3b82f6;
 }
 
+.trello-field-error {
+  min-height: 1rem;
+  font-size: 0.75rem;
+  color: #f87171;
+}
+
+.input-control.error {
+  border-color: rgba(248, 113, 113, 0.75);
+  box-shadow: 0 0 0 3px rgba(248, 113, 113, 0.15);
+}
+
 @media (max-width: 640px) {
   .rta-section {
     padding: 1.25rem;
