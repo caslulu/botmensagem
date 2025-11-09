@@ -5,7 +5,9 @@ const {
   getAllProfiles,
   getProfileById,
   getProfileSession,
-  updateProfileSessionUsage
+  updateProfileSessionUsage,
+  createProfile: createProfileRecord,
+  MAX_PROFILES
 } = require('./database');
 
 /**
@@ -24,7 +26,8 @@ function mapDbProfile(rawProfile) {
     imagePath: rawProfile.image_path,
     message: rawProfile.default_message,
     sendLimit: 200,
-    sessionDir: null
+    sessionDir: null,
+    isAdmin: rawProfile.is_admin === 1
   };
 
   // Override message & image from selected message (messages table)
@@ -55,7 +58,7 @@ function mapDbProfile(rawProfile) {
 
 function getProfiles() {
   const dbProfiles = getAllProfiles();
-  return dbProfiles.map(mapDbProfile);
+  return dbProfiles.slice(0, MAX_PROFILES).map(mapDbProfile);
 }
 
 function findProfileById(id) {
@@ -63,4 +66,9 @@ function findProfileById(id) {
   return mapDbProfile(raw);
 }
 
-module.exports = { getProfiles, findProfileById };
+function createProfile(profile) {
+  const created = createProfileRecord(profile);
+  return mapDbProfile(created);
+}
+
+module.exports = { getProfiles, findProfileById, createProfile };

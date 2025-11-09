@@ -3,7 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const automation = require('./automation');
-const { getProfiles, findProfileById } = require('./profiles');
+const { getProfiles, findProfileById, createProfile } = require('./profiles');
 const { setupAutoUpdater } = require('./updater');
 const { 
   initDatabase,
@@ -52,6 +52,32 @@ function createMainWindow() {
   });
 }
 
+function formatProfileForRenderer(profile) {
+  if (!profile) {
+    return null;
+  }
+
+  let thumbnailData = null;
+
+  if (profile.imagePath && fs.existsSync(profile.imagePath)) {
+    try {
+      const imageBuffer = fs.readFileSync(profile.imagePath);
+      const mimeType = profile.imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
+      thumbnailData = `data:${mimeType};base64,${imageBuffer.toString('base64')}`;
+    } catch (error) {
+      console.error(`Erro ao carregar imagem para ${profile.name}:`, error);
+    }
+  }
+
+  return {
+    id: profile.id,
+    name: profile.name,
+    message: profile.message,
+    thumbnail: thumbnailData,
+    isAdmin: profile.isAdmin
+  };
+}
+
 app.on('ready', async () => {
   if (process.platform === 'win32') {
     app.setAppUserModelId('com.caslulu.botmensagem');
@@ -98,34 +124,17 @@ app.on('window-all-closed', () => {
 });
 
 ipcMain.handle('automation:profiles', async () => {
-  return getProfiles().map((profile) => {
-    let thumbnailData = null;
-    
-    // Convert image to base64 if it exists
-    if (profile.imagePath && fs.existsSync(profile.imagePath)) {
-      try {
-        const imageBuffer = fs.readFileSync(profile.imagePath);
-        const base64Image = imageBuffer.toString('base64');
-        const mimeType = profile.imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        thumbnailData = `data:${mimeType};base64,${base64Image}`;
-      } catch (error) {
-        console.error(`Erro ao carregar imagem para ${profile.name}:`, error);
-      }
-    }
-    
-    return {
-      id: profile.id,
-      name: profile.name,
-      message: profile.message,
-      thumbnail: thumbnailData
-    };
-  });
+  return getProfiles().map(formatProfileForRenderer);
 });
 
 ipcMain.handle('automation:start', async (_event, profileId) => {
   const profile = findProfileById(profileId);
   if (!profile) {
     throw new Error(`Perfil desconhecido: ${profileId}`);
+  }
+
+  if (!profile.isAdmin) {
+    throw new Error('Somente contas administradoras podem enviar mensagens automáticas.');
   }
 
   return automation.start(profile);
@@ -176,9 +185,9 @@ ipcMain.handle('messages:get', async (_event, profileId) => {
 
 ipcMain.handle('services:list', async () => {
   return [
-    { id: 'mensagens', name: 'Enviar mensagem automática', icon: '💬' },
-    { id: 'rta', name: 'RTA automático', icon: '📄' },
-    { id: 'trello', name: 'Integração Trello', icon: '📌' }
+    { id: 'mensagens', name: 'Enviar mensagem automática', icon: '💬', requiresAdmin: true },
+    { id: 'rta', name: 'RTA automático', icon: '📄', requiresAdmin: false },
+    { id: 'trello', name: 'Integração Trello', icon: '📌', requiresAdmin: false }
   ];
 });
 
@@ -323,6 +332,16 @@ ipcMain.handle('file:select-image', async () => {
 });
 
 // Profile settings handlers
+ipcMain.handle('profile:create', async (_event, profileData) => {
+  try {
+    const createdProfile = createProfile(profileData);
+    return { success: true, profile: formatProfileForRenderer(createdProfile) };
+  } catch (error) {
+    console.error('Erro ao criar perfil:', error);
+    return { success: false, error: error.message };
+  }
+});
+
 ipcMain.handle('profile:get-settings', async (_event, profileId) => {
   try {
     const settings = getProfileSettings(profileId);

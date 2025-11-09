@@ -77,6 +77,15 @@
       .service-btn-emoji {
         font-size: 18px;
       }
+      .service-btn:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .service-btn:disabled:hover {
+        background: rgba(15, 23, 42, 0.5);
+        color: rgb(148, 163, 184);
+        border-color: rgba(51, 65, 85, 0.5);
+      }
 
       /* Views */
       .service-view {
@@ -106,6 +115,53 @@
         transform: translateY(-4px);
         border-color: rgba(59, 130, 246, 0.5);
         background: rgba(30, 41, 59, 0.7);
+      }
+
+      .module-card[disabled] {
+        cursor: not-allowed;
+        opacity: 0.6;
+        transform: none;
+      }
+
+      .module-card[disabled]:hover {
+        transform: none;
+        border-color: rgba(51, 65, 85, 0.5);
+        background: rgba(15, 23, 42, 0.65);
+      }
+
+      .add-profile-card {
+        justify-content: center;
+        text-align: center;
+        border: 2px dashed rgba(71, 85, 105, 0.6);
+        background: rgba(15, 23, 42, 0.55);
+        color: rgba(148, 163, 184, 0.9);
+        gap: 0.75rem;
+      }
+
+      .add-profile-card:hover {
+        border-color: rgba(59, 130, 246, 0.6);
+        color: rgba(96, 165, 250, 1);
+        transform: translateY(-4px);
+      }
+
+      .add-profile-card[disabled] {
+        cursor: not-allowed;
+        opacity: 0.5;
+        border-color: rgba(71, 85, 105, 0.4);
+        color: rgba(148, 163, 184, 0.6);
+        transform: none;
+      }
+
+      .add-profile-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 3.5rem;
+        height: 3.5rem;
+        border-radius: 9999px;
+        background: rgba(59, 130, 246, 0.15);
+        color: rgba(96, 165, 250, 1);
+        font-size: 1.75rem;
       }
 
       .module-card:focus-visible {
@@ -814,6 +870,82 @@
       </main>
     </div>
   </div>
+
+    <!-- Modal para criar perfil -->
+    <div id="profileModal" class="modal-overlay hidden">
+      <div class="modal-content max-w-3xl">
+        <div class="modal-header">
+          <h3 class="text-xl font-semibold text-white">Adicionar novo perfil</h3>
+          <button id="closeProfileModalBtn" class="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <form id="profileForm" class="modal-body space-y-4">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label for="profileNameInput" class="block text-sm font-medium text-slate-300 mb-1">Nome do operador</label>
+              <input
+                type="text"
+                id="profileNameInput"
+                class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="Ex: Joana"
+                required
+              />
+            </div>
+            <div>
+              <label for="profileIdInput" class="block text-sm font-medium text-slate-300 mb-1">Identificador interno</label>
+              <input
+                type="text"
+                id="profileIdInput"
+                class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="use apenas letras, números ou hífen"
+                required
+              />
+              <p class="text-xs text-slate-400 mt-1">Esse identificador precisa ser único e será usado para salvar sessões.</p>
+            </div>
+          </div>
+
+          <div>
+            <label for="profileMessageInput" class="block text-sm font-medium text-slate-300 mb-1">Mensagem padrão</label>
+            <textarea
+              id="profileMessageInput"
+              rows="6"
+              class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              placeholder="Mensagem inicial para os disparos"
+              required
+            ></textarea>
+          </div>
+
+          <div>
+            <label for="profileImageInput" class="block text-sm font-medium text-slate-300 mb-1">Imagem do perfil</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="profileImageInput"
+                class="flex-1 rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="Selecione um arquivo de imagem"
+                required
+              />
+              <button type="button" id="selectProfileImageBtn" class="btn-secondary whitespace-nowrap">
+                📁 Selecionar
+              </button>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Precisamos do arquivo salvo localmente para montar a vitrine do operador.</p>
+          </div>
+
+          <label class="flex items-center gap-2 text-sm text-slate-300">
+            <input type="checkbox" id="profileAdminInput" class="rounded border-slate-600" />
+            Definir este operador como administrador (libera disparos automáticos)
+          </label>
+
+          <p id="profileError" class="hidden text-sm text-rose-400"></p>
+        </form>
+
+        <div class="modal-footer">
+          <button id="cancelProfileModalBtn" class="btn-secondary" type="button">Cancelar</button>
+          <button id="saveProfileBtn" class="btn-primary" type="submit" form="profileForm">Criar perfil</button>
+        </div>
+      </div>
+    </div>
 
     <!-- Modal para editar/adicionar mensagem -->
     <div id="messageModal" class="modal-overlay hidden">

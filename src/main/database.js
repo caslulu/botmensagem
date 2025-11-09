@@ -4,6 +4,8 @@ const fs = require('fs');
 
 const PathResolver = require('./automation/utils/path-resolver');
 
+const MAX_PROFILES = 5;
+
 // Usar diretório de dados consistente (Electron userData ou ./data)
 const DB_DIR = PathResolver.getUserDataDir();
 const DB_PATH = path.join(DB_DIR, 'messages.db');
@@ -56,6 +58,7 @@ async function initDatabase() {
       name TEXT NOT NULL,
       image_path TEXT NOT NULL,
       default_message TEXT NOT NULL,
+      is_admin INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
@@ -77,6 +80,9 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_profile_id ON messages(profile_id)
   `);
   
+  // Garantir colunas opcionais mais recentes
+  ensureProfilesAdminColumn();
+
   // Migrar diretórios de sessão antigos antes de qualquer seed
   migrateSessionDirs();
 
@@ -93,6 +99,103 @@ function saveDatabase() {
     const buffer = Buffer.from(data);
     fs.writeFileSync(DB_PATH, buffer);
   }
+}
+
+function ensureProfilesAdminColumn() {
+  if (!db) return;
+  try {
+    const stmt = db.prepare('PRAGMA table_info(profiles)');
+    let hasAdminColumn = false;
+    while (stmt.step()) {
+      const column = stmt.getAsObject();
+      if (column.name === 'is_admin') {
+        hasAdminColumn = true;
+        break;
+      }
+    }
+    stmt.free();
+
+    if (!hasAdminColumn) {
+      db.run('ALTER TABLE profiles ADD COLUMN is_admin INTEGER DEFAULT 0');
+      console.log('✓ Coluna is_admin adicionada à tabela profiles');
+    }
+
+    // Garantir que perfis padrão estejam como admin
+    db.run("UPDATE profiles SET is_admin = 1 WHERE id IN ('thiago','debora')");
+    saveDatabase();
+  } catch (error) {
+    console.error('Erro ao garantir coluna is_admin na tabela profiles', error);
+  }
+}
+
+function getProfileCount() {
+  if (!db) return 0;
+  const stmt = db.prepare('SELECT COUNT(*) as count FROM profiles');
+  stmt.step();
+  const { count } = stmt.getAsObject();
+  stmt.free();
+  return count;
+}
+
+function createProfile(profile) {
+  if (!db) throw new Error('Database not initialized');
+
+  if (!profile) {
+    throw new Error('Perfil inválido');
+  }
+
+  const id = profile.id;
+  const name = profile.name;
+  const imagePath = profile.imagePath || profile.image_path;
+  const defaultMessage = profile.defaultMessage || profile.default_message || '';
+  const isAdmin = profile.isAdmin ?? profile.is_admin ?? false;
+
+  if (!id || !name) {
+    throw new Error('Perfil inválido: id e nome são obrigatórios');
+  }
+
+  if (!imagePath) {
+    throw new Error('Perfil inválido: imagem obrigatória');
+  }
+
+  if (!fs.existsSync(imagePath)) {
+    throw new Error('Perfil inválido: caminho da imagem não encontrado');
+  }
+
+  if (!defaultMessage) {
+    throw new Error('Perfil inválido: mensagem padrão obrigatória');
+  }
+
+  if (getProfileCount() >= MAX_PROFILES) {
+    throw new Error(`Limite máximo de ${MAX_PROFILES} perfis atingido`);
+  }
+
+  const existing = getProfileById(id);
+  if (existing) {
+    throw new Error(`Perfil ${id} já existe`);
+  }
+
+  const insertProfileStmt = db.prepare(`
+    INSERT INTO profiles (id, name, image_path, default_message, is_admin)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+  insertProfileStmt.bind([id, name, imagePath, defaultMessage, isAdmin ? 1 : 0]);
+  insertProfileStmt.step();
+  insertProfileStmt.free();
+
+  const sessionDir = PathResolver.getProfileSessionDir(id);
+  fs.mkdirSync(sessionDir, { recursive: true });
+
+  const insertSessionStmt = db.prepare(`
+    INSERT INTO profile_sessions (profile_id, session_dir)
+    VALUES (?, ?)
+  `);
+  insertSessionStmt.bind([id, sessionDir]);
+  insertSessionStmt.step();
+  insertSessionStmt.free();
+
+  saveDatabase();
+  return getProfileById(id);
 }
 
 // Get all messages for a profile
@@ -308,18 +411,20 @@ function seedInitialProfiles() {
         id: 'thiago',
         name: 'Thiago',
         image_path: path.join(process.cwd(), 'imagem_thiago.jpg'),
-        default_message: `🚨 *PARE DE PAGAR CARO NO SEGURO!* 🚨\n👉 Carro | Moto\n\n💰 *ECONOMIZE ATÉ 50% AGORA!*\n✅ As melhores taxas do mercado\n✅ Cotações rápidas, sem enrolação\n\n📋 *Aceitamos:*\n• Drivh\n• CNH brasileira\n• Passaporte\n• Habilitação estrangeira\n\n🧑‍💼 Thiago | Seu Corretor de Confiança\nFale comigo no WhatsApp e receba sua cotação em minutos:\n👉 https://wa.me/message/BMDAOE4YSM7HN1`
+        default_message: `🚨 *PARE DE PAGAR CARO NO SEGURO!* 🚨\n👉 Carro | Moto\n\n💰 *ECONOMIZE ATÉ 50% AGORA!*\n✅ As melhores taxas do mercado\n✅ Cotações rápidas, sem enrolação\n\n📋 *Aceitamos:*\n• Drivh\n• CNH brasileira\n• Passaporte\n• Habilitação estrangeira\n\n🧑‍💼 Thiago | Seu Corretor de Confiança\nFale comigo no WhatsApp e receba sua cotação em minutos:\n👉 https://wa.me/message/BMDAOE4YSM7HN1`,
+        is_admin: 1
       },
       {
         id: 'debora',
         name: 'Debora',
         image_path: path.join(process.cwd(), 'imagem_debora.jpg'),
-        default_message: `🔒 SEGURANÇA NO VOLANTE COMEÇA AQUI!\n� Seguro de carro, moto e casa\n\n�REDUZA SEU SEGURO EM ATÉ 50%, GARANTIMOS AS MELHORES TAXAS DO MERCADO\n\n� COTAÇÃO RÁPIDA E SEM BUROCRACIA!\nAceitamos: \n* CNH \n* Passaporte \n* Habilitação estrangeira\n\n👩🏻‍💼Débora | Corretora de Seguros\n📞 Clique aqui e peça sua cotação:\nhttps://wa.me/message/X4X7FBTDBF7RH1`
+        default_message: `🔒 SEGURANÇA NO VOLANTE COMEÇA AQUI!\n� Seguro de carro, moto e casa\n\n�REDUZA SEU SEGURO EM ATÉ 50%, GARANTIMOS AS MELHORES TAXAS DO MERCADO\n\n� COTAÇÃO RÁPIDA E SEM BUROCRACIA!\nAceitamos: \n* CNH \n* Passaporte \n* Habilitação estrangeira\n\n👩🏻‍💼Débora | Corretora de Seguros\n📞 Clique aqui e peça sua cotação:\nhttps://wa.me/message/X4X7FBTDBF7RH1`,
+        is_admin: 1
       }
     ];
 
     const insertProfileStmt = db.prepare(`
-      INSERT INTO profiles (id, name, image_path, default_message) VALUES (?, ?, ?, ?)
+      INSERT INTO profiles (id, name, image_path, default_message, is_admin) VALUES (?, ?, ?, ?, ?)
     `);
 
     const insertSessionStmt = db.prepare(`
@@ -328,13 +433,13 @@ function seedInitialProfiles() {
 
     initialProfiles.forEach(p => {
       try {
-        insertProfileStmt.bind([p.id, p.name, p.image_path, p.default_message]);
+        insertProfileStmt.bind([p.id, p.name, p.image_path, p.default_message, p.is_admin ? 1 : 0]);
         insertProfileStmt.step();
         insertProfileStmt.reset();
 
-  // Novo padrão: userData/sessions/<profileId>
-  const sessionDir = PathResolver.getProfileSessionDir(p.id);
-  fs.mkdirSync(sessionDir, { recursive: true });
+        // Novo padrão: userData/sessions/<profileId>
+        const sessionDir = PathResolver.getProfileSessionDir(p.id);
+        fs.mkdirSync(sessionDir, { recursive: true });
         insertSessionStmt.bind([p.id, sessionDir]);
         insertSessionStmt.step();
         insertSessionStmt.reset();
@@ -525,5 +630,8 @@ module.exports = {
   getProfileById,
   getProfileSession,
   updateProfileSessionUsage,
-  migrateSessionDirs
+  migrateSessionDirs,
+  getProfileCount,
+  createProfile,
+  MAX_PROFILES
 };

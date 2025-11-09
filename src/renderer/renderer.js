@@ -37,6 +37,20 @@ const messageText = document.getElementById('messageText');
 const messageImage = document.getElementById('messageImage');
 const selectImageBtn = document.getElementById('selectImageBtn');
 
+// Profile creation elements
+const profileModal = document.getElementById('profileModal');
+const profileForm = document.getElementById('profileForm');
+const closeProfileModalBtn = document.getElementById('closeProfileModalBtn');
+const cancelProfileModalBtn = document.getElementById('cancelProfileModalBtn');
+const saveProfileBtn = document.getElementById('saveProfileBtn');
+const profileNameInput = document.getElementById('profileNameInput');
+const profileIdInput = document.getElementById('profileIdInput');
+const profileMessageInput = document.getElementById('profileMessageInput');
+const profileImageInput = document.getElementById('profileImageInput');
+const profileAdminInput = document.getElementById('profileAdminInput');
+const selectProfileImageBtn = document.getElementById('selectProfileImageBtn');
+const profileError = document.getElementById('profileError');
+
 // Profile settings elements
 const sendLimitInput = document.getElementById('sendLimitInput');
 const saveSendLimitBtn = document.getElementById('saveSendLimitBtn');
@@ -61,8 +75,11 @@ const placeholderAvatar =
     </svg>`
   );
 
+const MAX_PROFILES = 5;
+
 let profiles = [];
 let selectedProfileId = null;
+let selectedProfile = null;
 let selectionEnabled = true;
 let automationRunning = false;
 let currentMessages = [];
@@ -71,6 +88,9 @@ let currentSendLimit = 200;
 let activeServiceId = 'mensagens';
 let lastGeneratedRtaPath = null;
 let trelloFormManager = null;
+let availableServices = [];
+let addProfileButtonEl = null;
+let profileIdManuallyEdited = false;
 
 startButton.disabled = true;
 showProfileSelection();
@@ -79,6 +99,10 @@ if (servicesNav) {
   servicesNav.addEventListener('click', (event) => {
     const button = event.target.closest('button[data-service-id]');
     if (!button || !servicesNav.contains(button)) {
+      return;
+    }
+
+    if (button.disabled) {
       return;
     }
 
@@ -138,6 +162,7 @@ function setSelectionEnabled(enabled) {
 
   profilesContainer.classList.toggle('opacity-50', !enabled);
   profilesContainer.classList.toggle('pointer-events-none', !enabled);
+  updateAddProfileButtonState();
 }
 
 function updateProfilesActiveState() {
@@ -238,19 +263,31 @@ function selectProfile(profileId) {
   updateProfilesActiveState();
 
   if (profile) {
+    selectedProfile = profile;
     activeProfileNameEl.textContent = profile.name;
     activeProfileMessageEl.textContent = profile.message;
-    startButton.disabled = false;
+    startButton.disabled = !profile.isAdmin;
     showModuleSelection();
     activeServiceId = null;
     updateActiveServiceButton();
-    setStatus('Escolha o módulo que deseja utilizar.');
-    updateStatusBadge('stopped');
+    if (profile.isAdmin) {
+      setStatus('Escolha o módulo que deseja utilizar.');
+      updateStatusBadge('stopped');
+    } else {
+      setStatus('Selecione um módulo disponível. O envio automático é exclusivo para administradores.');
+      updateStatusBadge('idle');
+    }
     
     // Load messages and settings for this profile
     loadMessages(profileId);
     loadProfileSettings(profileId);
+
+    if (availableServices.length > 0) {
+      renderServiceButtons(availableServices);
+      renderModuleCards(availableServices);
+    }
   } else {
+    selectedProfile = null;
     startButton.disabled = true;
     setStatus('Selecione um operador para começar.');
     showProfileSelection();
@@ -260,11 +297,17 @@ function selectProfile(profileId) {
 function renderProfiles(profileList) {
   console.log('Renderizando perfis:', profileList);
   profiles = profileList;
+  if (selectedProfileId) {
+    selectedProfile = profiles.find((item) => item.id === selectedProfileId) || selectedProfile;
+  }
   profilesContainer.innerHTML = '';
+  const fragment = document.createDocumentFragment();
 
   if (!profileList || profileList.length === 0) {
-    profilesContainer.innerHTML = '<p class="text-slate-400 text-center col-span-full py-8">Nenhum perfil encontrado.</p>';
-    return;
+    const emptyMessage = document.createElement('p');
+    emptyMessage.className = 'text-slate-400 text-center col-span-full py-8';
+    emptyMessage.textContent = 'Nenhum perfil cadastrado ainda.';
+    fragment.appendChild(emptyMessage);
   }
 
   profiles.forEach((profile) => {
@@ -311,10 +354,15 @@ function renderProfiles(profileList) {
     card.appendChild(input);
     card.appendChild(thumbWrapper);
     card.appendChild(info);
-
-    profilesContainer.appendChild(card);
+    fragment.appendChild(card);
   });
 
+  const addProfileCard = createAddProfileCard();
+  if (addProfileCard) {
+    fragment.appendChild(addProfileCard);
+  }
+
+  profilesContainer.appendChild(fragment);
   setSelectionEnabled(selectionEnabled);
   if (!selectedProfileId) {
     setStatus('Selecione um operador para começar.');
@@ -346,15 +394,21 @@ async function loadProfiles() {
 }
 
 startButton.addEventListener('click', async () => {
-  if (!selectedProfileId) {
+  if (!selectedProfileId || !selectedProfile) {
     setStatus('Escolha um operador antes de iniciar.');
     appendLog('Seleção de operador obrigatória para iniciar.');
     startButton.disabled = true;
     return;
   }
 
-  const profile = profiles.find((item) => item.id === selectedProfileId);
-  const profileLabel = profile?.name ?? selectedProfileId;
+  if (!selectedProfile.isAdmin) {
+    setStatus('Somente administradores podem iniciar os envios automáticos.');
+    appendLog(`Perfil ${selectedProfile.name} não tem permissão para disparos automáticos.`);
+    startButton.disabled = true;
+    return;
+  }
+
+  const profileLabel = selectedProfile.name ?? selectedProfileId;
 
   appendLog(`Disparando automação para ${profileLabel}…`);
   setStatus('Iniciando automação…');
@@ -446,6 +500,7 @@ backToProfilesButton.addEventListener('click', () => {
   }
 
   selectedProfileId = null;
+  selectedProfile = null;
   activeProfileNameEl.textContent = '—';
   activeProfileMessageEl.textContent = '';
   startButton.disabled = true;
@@ -457,6 +512,11 @@ backToProfilesButton.addEventListener('click', () => {
   updateStatusBadge('idle');
   setSelectionEnabled(true);
   updateProfilesActiveState();
+
+  if (availableServices.length > 0) {
+    renderServiceButtons(availableServices);
+    renderModuleCards(availableServices);
+  }
 });
 
 loadProfiles();
@@ -467,19 +527,22 @@ const FALLBACK_SERVICES = [
     id: 'mensagens',
     name: 'Enviar mensagem automática',
     icon: 'chat',
-    description: 'Automatize o disparo e a gestão de mensagens no WhatsApp.'
+    description: 'Automatize o disparo e a gestão de mensagens no WhatsApp.',
+    requiresAdmin: true
   },
   {
     id: 'rta',
     name: 'RTA automático',
     icon: 'doc',
-    description: 'Gere documentos RTA completos a partir das informações preenchidas.'
+    description: 'Gere documentos RTA completos a partir das informações preenchidas.',
+    requiresAdmin: false
   },
   {
     id: 'trello',
     name: 'Integração Trello',
     icon: 'board',
-    description: 'Sincronize dados e crie cards rapidamente no Trello.'
+    description: 'Sincronize dados e crie cards rapidamente no Trello.',
+    requiresAdmin: false
   }
 ];
 
@@ -521,6 +584,318 @@ function createServiceIcon(iconKey) {
   return svg;
 }
 
+function slugify(value) {
+  if (!value) return '';
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s-]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 40);
+}
+
+function setProfileFormLoading(isLoading) {
+  if (!saveProfileBtn) return;
+  saveProfileBtn.disabled = isLoading;
+  saveProfileBtn.textContent = isLoading ? 'Criando…' : 'Criar perfil';
+  if (cancelProfileModalBtn) {
+    cancelProfileModalBtn.disabled = isLoading;
+  }
+  if (closeProfileModalBtn) {
+    closeProfileModalBtn.disabled = isLoading;
+  }
+  if (selectProfileImageBtn) {
+    selectProfileImageBtn.disabled = isLoading;
+  }
+}
+
+function resetProfileForm(defaultValues = {}) {
+  if (profileForm) {
+    profileForm.reset();
+  }
+  profileIdManuallyEdited = false;
+  if (profileNameInput) {
+    profileNameInput.value = defaultValues.name || '';
+  }
+  if (profileIdInput) {
+    profileIdInput.value = defaultValues.id || '';
+  }
+  if (profileMessageInput) {
+    profileMessageInput.value = defaultValues.message || '';
+  }
+  if (profileImageInput) {
+    profileImageInput.value = defaultValues.imagePath || '';
+  }
+  if (profileAdminInput) {
+    profileAdminInput.checked = !!defaultValues.isAdmin;
+  }
+  if (profileError) {
+    profileError.textContent = '';
+    profileError.classList.add('hidden');
+  }
+  setProfileFormLoading(false);
+}
+
+function openProfileModal() {
+  if (!profileModal) {
+    return;
+  }
+
+  if (profiles.length >= MAX_PROFILES) {
+    appendLog(`Limite máximo de ${MAX_PROFILES} perfis atingido.`);
+    return;
+  }
+
+  resetProfileForm();
+  profileModal.classList.remove('hidden');
+  requestAnimationFrame(() => {
+    profileNameInput?.focus();
+  });
+}
+
+function closeProfileModal() {
+  if (!profileModal) {
+    return;
+  }
+
+  profileModal.classList.add('hidden');
+  setProfileFormLoading(false);
+}
+
+function updateAddProfileButtonState() {
+  if (!addProfileButtonEl) {
+    return;
+  }
+
+  const reachedLimit = profiles.length >= MAX_PROFILES;
+  const disabled = reachedLimit || !selectionEnabled;
+  addProfileButtonEl.disabled = disabled;
+  addProfileButtonEl.title = reachedLimit
+    ? `Limite máximo de ${MAX_PROFILES} perfis atingido`
+    : selectionEnabled
+        ? 'Adicionar novo operador'
+        : 'Finalize a automação para adicionar novos operadores';
+
+  const label = addProfileButtonEl.querySelector('.add-profile-label');
+  if (label) {
+    label.textContent = reachedLimit ? 'Limite atingido' : 'Adicionar operador';
+  }
+
+  const hint = addProfileButtonEl.querySelector('.add-profile-hint');
+  if (hint) {
+    hint.textContent = reachedLimit
+      ? `Você já cadastrou ${MAX_PROFILES} perfis.`
+      : `Cadastre até ${MAX_PROFILES} perfis diferentes.`;
+  }
+}
+
+function createAddProfileCard() {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = 'profile-card add-profile-card';
+  button.innerHTML = `
+    <span class="add-profile-icon" aria-hidden="true">+</span>
+    <div class="profile-info">
+      <p class="profile-name add-profile-label">Adicionar operador</p>
+      <p class="text-xs text-slate-400 mt-1 add-profile-hint">Cadastre até ${MAX_PROFILES} perfis diferentes.</p>
+    </div>
+  `;
+
+  button.addEventListener('click', () => {
+    if (!selectionEnabled) {
+      appendLog('Finalize ou pare a automação antes de adicionar um novo operador.');
+      return;
+    }
+
+    if (profiles.length >= MAX_PROFILES) {
+      appendLog(`Limite máximo de ${MAX_PROFILES} perfis atingido.`);
+      updateAddProfileButtonState();
+      return;
+    }
+
+    openProfileModal();
+  });
+
+  addProfileButtonEl = button;
+  updateAddProfileButtonState();
+  return button;
+}
+
+async function handleProfileCreate(event) {
+  event.preventDefault();
+
+  if (!window.profile?.create) {
+    appendLog('API de criação de perfil não disponível.');
+    return;
+  }
+
+  const name = profileNameInput?.value.trim();
+  let identifier = profileIdInput?.value.trim();
+  const message = profileMessageInput?.value.trim();
+  const imagePath = profileImageInput?.value.trim();
+  const isAdmin = !!profileAdminInput?.checked;
+
+  if (!identifier && name) {
+    identifier = slugify(name);
+    if (profileIdInput) {
+      profileIdInput.value = identifier;
+    }
+  }
+
+  identifier = slugify(identifier);
+
+  if (!name || !identifier || !message || !imagePath) {
+    if (profileError) {
+      profileError.textContent = 'Preencha todos os campos obrigatórios.';
+      profileError.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (profiles.some((profile) => profile.id === identifier)) {
+    if (profileError) {
+      profileError.textContent = 'Já existe um operador com esse identificador.';
+      profileError.classList.remove('hidden');
+    }
+    return;
+  }
+
+  if (profileError) {
+    profileError.textContent = '';
+    profileError.classList.add('hidden');
+  }
+
+  setProfileFormLoading(true);
+
+  try {
+    const payload = {
+      id: identifier,
+      name,
+      defaultMessage: message,
+      imagePath,
+      isAdmin
+    };
+
+    const response = await window.profile.create(payload);
+    if (!response?.success) {
+      throw new Error(response?.error || 'Não foi possível criar o perfil.');
+    }
+
+    appendLog(`Perfil criado com sucesso: ${name}`);
+    closeProfileModal();
+
+    await loadProfiles();
+
+    const createdId = response.profile?.id || identifier;
+    if (createdId) {
+      selectProfile(createdId);
+      setStatus('Perfil adicionado. Configure as mensagens antes de iniciar.');
+    }
+  } catch (error) {
+    console.error('Erro ao criar perfil:', error);
+    const message = error?.message || 'Erro ao criar perfil.';
+    if (profileError) {
+      profileError.textContent = message;
+      profileError.classList.remove('hidden');
+    }
+    appendLog(message);
+  } finally {
+    setProfileFormLoading(false);
+  }
+}
+
+if (profileForm) {
+  profileForm.addEventListener('submit', handleProfileCreate);
+}
+
+if (closeProfileModalBtn) {
+  closeProfileModalBtn.addEventListener('click', () => {
+    if (!saveProfileBtn?.disabled) {
+      closeProfileModal();
+    }
+  });
+}
+
+if (cancelProfileModalBtn) {
+  cancelProfileModalBtn.addEventListener('click', () => {
+    if (!saveProfileBtn?.disabled) {
+      closeProfileModal();
+    }
+  });
+}
+
+if (profileModal) {
+  profileModal.addEventListener('click', (event) => {
+    if (event.target === profileModal && !saveProfileBtn?.disabled) {
+      closeProfileModal();
+    }
+  });
+}
+
+if (selectProfileImageBtn) {
+  selectProfileImageBtn.addEventListener('click', async () => {
+    if (!window.fileSystem?.selectImage) {
+      appendLog('Seleção de arquivos não está disponível.');
+      return;
+    }
+
+    try {
+      const result = await window.fileSystem.selectImage();
+      if (result?.success && result.path) {
+        if (profileImageInput) {
+          profileImageInput.value = result.path;
+        }
+        appendLog(`Imagem do operador selecionada: ${result.path}`);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      appendLog(`Erro ao selecionar imagem: ${error.message ?? error}`);
+    }
+  });
+}
+
+if (profileNameInput && profileIdInput) {
+  profileNameInput.addEventListener('input', () => {
+    if (profileIdManuallyEdited) {
+      return;
+    }
+    profileIdInput.value = slugify(profileNameInput.value);
+  });
+}
+
+if (profileIdInput) {
+  profileIdInput.addEventListener('input', () => {
+    profileIdManuallyEdited = true;
+  });
+
+  profileIdInput.addEventListener('blur', () => {
+    profileIdInput.value = slugify(profileIdInput.value);
+  });
+}
+
+function isServiceAccessible(service, profile) {
+  if (!service) {
+    return true;
+  }
+
+  if (service.requiresAdmin && profile && !profile.isAdmin) {
+    return false;
+  }
+
+  return true;
+}
+
+function findServiceMeta(serviceId) {
+  return (
+    availableServices.find((service) => service.id === serviceId) ||
+    FALLBACK_SERVICES.find((service) => service.id === serviceId) ||
+    null
+  );
+}
+
 function renderServiceButtons(services) {
   if (!servicesNav) {
     return;
@@ -534,6 +909,7 @@ function renderServiceButtons(services) {
     button.type = 'button';
     button.className = 'service-btn';
     button.dataset.serviceId = service.id;
+    button.dataset.requiresAdmin = service.requiresAdmin ? 'true' : 'false';
 
     const icon = createServiceIcon(service.icon);
     icon.classList.add('service-btn-icon');
@@ -542,6 +918,15 @@ function renderServiceButtons(services) {
     const label = document.createElement('span');
     label.textContent = service.name;
     button.appendChild(label);
+
+    const accessible = isServiceAccessible(service, selectedProfile);
+    if (selectedProfile && !accessible) {
+      button.disabled = true;
+      button.title = 'Disponível apenas para administradores';
+    } else {
+      button.disabled = false;
+      button.removeAttribute('title');
+    }
 
     fragment.appendChild(button);
   });
@@ -574,6 +959,7 @@ function renderModuleCards(services) {
     card.type = 'button';
     card.className = 'module-card';
     card.dataset.serviceId = service.id;
+    card.dataset.requiresAdmin = service.requiresAdmin ? 'true' : 'false';
 
     const iconWrapper = document.createElement('div');
     iconWrapper.className = 'module-card-icon-wrapper';
@@ -596,7 +982,22 @@ function renderModuleCards(services) {
       card.appendChild(description);
     }
 
+    const accessible = isServiceAccessible(service, selectedProfile);
+    if (selectedProfile && !accessible) {
+      card.disabled = true;
+      card.title = 'Disponível apenas para administradores';
+    } else {
+      card.disabled = false;
+      card.removeAttribute('title');
+    }
+
     card.addEventListener('click', () => {
+      if (selectedProfile && !isServiceAccessible(service, selectedProfile)) {
+        appendLog(`Módulo restrito para o operador ${selectedProfile.name}.`);
+        setStatus('Este módulo está disponível apenas para administradores.');
+        updateStatusBadge('idle');
+        return;
+      }
       selectService(service.id);
     });
 
@@ -617,7 +1018,8 @@ async function loadServices() {
             id: service.id,
             name: service.name || fallback?.name || service.id,
             icon: service.icon || fallback?.icon || 'chat',
-            description: service.description || fallback?.description || ''
+            description: service.description || fallback?.description || '',
+            requiresAdmin: service.requiresAdmin ?? fallback?.requiresAdmin ?? false
           };
         });
       }
@@ -626,12 +1028,24 @@ async function loadServices() {
     }
   }
 
+  availableServices = servicesToRender;
   renderServiceButtons(servicesToRender);
   renderModuleCards(servicesToRender);
 }
 
 function selectService(id) {
   let handled = false;
+  const serviceMeta = findServiceMeta(id);
+
+  if (selectedProfile && serviceMeta && !isServiceAccessible(serviceMeta, selectedProfile)) {
+    appendLog(`Módulo "${serviceMeta.name}" disponível apenas para administradores.`);
+    setStatus('Este módulo está disponível apenas para administradores.');
+    updateStatusBadge('idle');
+    activeServiceId = null;
+    updateActiveServiceButton();
+    showModuleSelection();
+    return;
+  }
 
   switch (id) {
     case 'mensagens': {

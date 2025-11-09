@@ -23,6 +23,7 @@ contextBridge.exposeInMainWorld('fileSystem', {
 });
 
 contextBridge.exposeInMainWorld('profile', {
+  create: (profile) => ipcRenderer.invoke('profile:create', profile),
   getSettings: (profileId) => ipcRenderer.invoke('profile:get-settings', profileId),
   updateSendLimit: (profileId, sendLimit) => ipcRenderer.invoke('profile:update-send-limit', profileId, sendLimit)
 });
