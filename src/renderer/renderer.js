@@ -7,6 +7,7 @@ const mainViewport = document.querySelector('main');
 const rtaView = document.getElementById('rtaView');
 const trelloView = document.getElementById('trelloView');
 const priceView = document.getElementById('priceView');
+const quotesView = document.getElementById('quotesView');
 const rtaStatus = document.getElementById('rtaStatus');
 const rtaOutput = document.getElementById('rtaOutput');
 const rtaActions = document.getElementById('rtaActions');
@@ -201,6 +202,7 @@ function showProfileSelection() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -212,6 +214,7 @@ function showModuleSelection() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -223,6 +226,7 @@ function showControlModule() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -234,6 +238,7 @@ function showRtaModule() {
   if (rtaView) rtaView.style.display = 'flex';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -245,6 +250,7 @@ function showUnavailableModule() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -256,6 +262,7 @@ function showTrelloModule() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'flex';
   if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -267,6 +274,19 @@ function showPriceModule() {
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'flex';
+  if (quotesView) quotesView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showQuotesModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'flex';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -563,6 +583,14 @@ const FALLBACK_SERVICES = [
     requiresAdmin: false
   },
   {
+    id: 'cotacoes',
+    name: 'Cotações',
+    icon: '📑',
+    description: 'Gerencie cotações salvas, abra no Trello ou gere preços rapidamente.',
+    requiresAdmin: false,
+    requiresProfile: false
+  },
+  {
     id: 'price',
     name: 'Preço automático',
     icon: '💵',
@@ -842,6 +870,23 @@ moduleManager.register({
 });
 
 function createServiceIcon(iconKey) {
+moduleManager.register({
+  id: 'cotacoes',
+  ...(fallbackServiceById.cotacoes || {}),
+  guard: () => {
+    return true;
+  },
+  onEnter: (context) => {
+    showQuotesModule();
+    setStatus('Visualize e gerencie as cotações salvas.');
+    updateStatusBadge('idle');
+    window.dispatchEvent(new CustomEvent('quotes-module:enter', { detail: context }));
+  },
+  onExit: (context) => {
+    window.dispatchEvent(new CustomEvent('quotes-module:exit', { detail: context }));
+  }
+});
+
   const key = iconKey || 'chat';
   const svgIcons = ['chat', 'doc', 'board'];
 
@@ -1377,6 +1422,16 @@ window.rendererModules = window.rendererModules || {};
 Object.assign(window.rendererModules, rendererModulesApi);
 
 window.addEventListener('price-module:status', (event) => {
+  const payload = event?.detail || {};
+  if (payload.text) {
+    setStatus(payload.text);
+  }
+  if (payload.badge) {
+    updateStatusBadge(payload.badge);
+  }
+});
+
+window.addEventListener('quotes-module:status', (event) => {
   const payload = event?.detail || {};
   if (payload.text) {
     setStatus(payload.text);
@@ -1937,6 +1992,32 @@ class TrelloFormManager {
     this.checkAuth();
   }
 
+  // Prefill form fields from an external quote object
+  prefill(data) {
+    if (!data || !this.form) return;
+    const quote = data.quote || data;
+    try {
+      // Basic fields
+      if (quote.nome) document.getElementById('trelloNome').value = quote.nome;
+      if (quote.documento) document.getElementById('trelloDocumento').value = quote.documento;
+      // Try to map a couple of address fields if exist
+      if (quote.payload && typeof quote.payload === 'object') {
+        const p = quote.payload;
+        if (p.endereco_rua) document.getElementById('trelloEnderecoRua').value = p.endereco_rua;
+        if (p.endereco_cidade) document.getElementById('trelloEnderecoCidade').value = p.endereco_cidade;
+        if (p.endereco_estado) document.getElementById('trelloEnderecoEstado').value = p.endereco_estado;
+        if (p.endereco_zipcode) document.getElementById('trelloEnderecoZip').value = p.endereco_zipcode;
+        if (p.observacoes) document.getElementById('trelloObservacoes').value = p.observacoes;
+        if (Array.isArray(p.veiculos)) {
+          this.loadVehicles(p.veiculos);
+        }
+      }
+      this.updateStatus('Formulário preenchido com os dados da cotação.');
+    } catch (error) {
+      console.warn('Falha ao aplicar prefill no TrelloFormManager:', error.message);
+    }
+  }
+
   populateStateSelects() {
     const selects = [this.documentStateSelect, this.addressStateSelect];
     selects.forEach((select) => {
@@ -2048,7 +2129,7 @@ class TrelloFormManager {
     }
   }
 
-  addVehicle() {
+  addVehicle(initialData = null) {
     if (!this.vehicleTemplate || !this.vehiclesContainer) {
       return;
     }
@@ -2125,7 +2206,48 @@ class TrelloFormManager {
     });
 
     this.vehiclesContainer.appendChild(card);
+
+    if (initialData && typeof initialData === 'object') {
+      Object.entries(initialData).forEach(([key, value]) => {
+        const input = card.querySelector(`[data-field="${key}"]`);
+        if (!input) {
+          return;
+        }
+        const normalized = value ?? '';
+        if (input.tagName === 'SELECT') {
+          input.value = normalized;
+        } else if (input.tagName === 'INPUT') {
+          if (input.type === 'text') {
+            input.value = typeof normalized === 'string' ? normalized : String(normalized || '');
+          } else {
+            input.value = normalized;
+          }
+        } else {
+          input.value = normalized;
+        }
+      });
+      updateVehicleLabel();
+    }
+
     this.updateVehicleIndices();
+  }
+
+  loadVehicles(entries = []) {
+    if (!this.vehiclesContainer) return;
+    this.vehiclesContainer.innerHTML = '';
+
+    if (!Array.isArray(entries) || !entries.length) {
+      this.addVehicle();
+      return;
+    }
+
+    entries.forEach((vehicle) => {
+      const normalized = { ...(vehicle || {}) };
+      if (typeof normalized.vin === 'string') {
+        normalized.vin = normalized.vin.toUpperCase();
+      }
+      this.addVehicle(normalized);
+    });
   }
 
   updateVehicleIndices() {
@@ -2223,6 +2345,44 @@ class TrelloFormManager {
     return el ? el.value.trim() : '';
   }
 
+  formatDateToUs(value) {
+    if (!value) {
+      return '';
+    }
+
+    const raw = String(value).trim();
+    if (!raw) {
+      return '';
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+      return raw;
+    }
+
+    const isoMatch = raw.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+    if (isoMatch) {
+      const [, year, month, day] = isoMatch;
+      return `${month}/${day}/${year}`;
+    }
+
+    const digits = raw.replace(/[^0-9]/g, '');
+    if (digits.length === 8) {
+      const first = digits.slice(0, 2);
+      const second = digits.slice(2, 4);
+      const year = digits.slice(4, 8);
+      const firstNum = Number(first);
+      const secondNum = Number(second);
+
+      if (firstNum > 12 && secondNum >= 1 && secondNum <= 12) {
+        return `${second}/${first}/${year}`;
+      }
+
+      return `${first}/${second}/${year}`;
+    }
+
+    return raw;
+  }
+
   getRadioValue(name) {
     const el = this.form.querySelector(`input[name="${name}"]:checked`);
     return el ? el.value : '';
@@ -2252,7 +2412,8 @@ class TrelloFormManager {
             data[field] = input.value;
           }
         } else {
-          data[field] = input.value.trim();
+          const value = input.value.trim();
+          data[field] = field === 'data_nascimento' ? this.formatDateToUs(value) : value;
         }
       });
       return data;
@@ -2340,12 +2501,12 @@ class TrelloFormManager {
       endereco_cidade: this.getInputValue('trelloEnderecoCidade'),
       endereco_estado: this.getInputValue('trelloEnderecoEstado'),
       endereco_zipcode: this.getInputValue('trelloEnderecoZip'),
-      data_nascimento: this.getInputValue('trelloNascimento'),
+      data_nascimento: this.formatDateToUs(this.getInputValue('trelloNascimento')),
       tempo_de_seguro: this.getInputValue('trelloTempoSeguro'),
       tempo_no_endereco: this.getInputValue('trelloTempoEndereco'),
       nome_conjuge: this.getInputValue('trelloNomeConjuge'),
       documento_conjuge: this.getInputValue('trelloDocumentoConjuge'),
-      data_nascimento_conjuge: this.getInputValue('trelloNascimentoConjuge'),
+      data_nascimento_conjuge: this.formatDateToUs(this.getInputValue('trelloNascimentoConjuge')),
       observacoes: document.getElementById('trelloObservacoes')?.value.trim() || '',
       veiculos: this.collectVehicles(),
       pessoas: this.collectDrivers()
@@ -2450,3 +2611,15 @@ function initializeTrelloForm() {
     trelloFormManager.init();
   }
 }
+
+// Listen for prefill events from other modules
+window.addEventListener('trello:prefill', (event) => {
+  const data = event?.detail || {};
+  if (trelloFormManager && typeof trelloFormManager.prefill === 'function') {
+    trelloFormManager.prefill(data);
+  } else {
+    // ensure the form is initialized then prefill
+    initializeTrelloForm();
+    setTimeout(() => trelloFormManager?.prefill?.(data), 200);
+  }
+});

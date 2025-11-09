@@ -5,7 +5,8 @@ const PathResolver = require('../../automation/utils/path-resolver');
 const {
   listQuotes,
   getQuoteById,
-  upsertQuoteRecord
+  upsertQuoteRecord,
+  deleteQuoteById
 } = require('../../database');
 
 const LEGACY_QUOTES_FILE = path.join(PathResolver.getUserDataDir(), 'price', 'quotes.json');
@@ -57,6 +58,14 @@ class QuotesRepository {
       trelloCardId: card.id,
       trelloCardUrl: card.url || ''
     });
+  }
+
+  delete(id) {
+    const key = String(id || '').trim();
+    if (!key) {
+      throw new Error('ID inválido para exclusão de cotação.');
+    }
+    return deleteQuoteById(key);
   }
 
   _sanitizePayload(payload) {

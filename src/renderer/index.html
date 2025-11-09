@@ -581,6 +581,21 @@
           </section>
 
           <!-- Conteúdo do Preço -->
+          <section id="quotesView" class="flex-col gap-6" style="display: none;">
+            <div class="card space-y-6">
+              <header class="space-y-1">
+                <p class="text-sm uppercase tracking-wide text-slate-400">Cotações</p>
+                <h3 class="text-lg font-semibold text-white">Cotações salvas</h3>
+                <p class="text-sm text-slate-300">Lista de cotações salvas no repositório — abra, edite ou gere preços a partir daqui.</p>
+              </header>
+
+              <div id="quotesList" class="grid gap-4">
+                <!-- cards serão renderizados pelo módulo de cotações -->
+              </div>
+            </div>
+          </section>
+
+          <!-- Conteúdo do Preço -->
           <section id="priceView" class="flex-col gap-6" style="display: none;">
             <div id="priceGlobalAlert" class="price-alert hidden" role="alert">
               <span class="price-alert-icon" aria-hidden="true">⚠️</span>
@@ -1183,5 +1198,6 @@
 
     <script src="renderer.js"></script>
     <script type="module" src="price/index.js"></script>
+    <script type="module" src="quotes/index.js"></script>
   </body>
 </html>

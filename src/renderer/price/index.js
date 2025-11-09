@@ -364,6 +364,18 @@ const PriceModule = (() => {
     }
   }
 
+  // Allow other modules to programmatically select a quote
+  window.addEventListener('price-module:select-quote', (event) => {
+    const detail = event?.detail || {};
+    const id = detail.quoteId || detail.id || '';
+    if (!id || !elements.quoteSelect) return;
+    state.quoteId = id;
+    elements.quoteSelect.value = id;
+    // dispatch change so event listeners update state if needed
+    const ev = new Event('change', { bubbles: true });
+    elements.quoteSelect.dispatchEvent(ev);
+  });
+
   function onExit() {
     clearAlert();
   }

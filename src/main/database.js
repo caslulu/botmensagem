@@ -751,6 +751,30 @@ function upsertQuoteRecord(quote) {
   return getQuoteById(quote.id);
 }
 
+// Delete a quote by id
+function deleteQuoteById(id) {
+  if (!db || !id) {
+    return false;
+  }
+
+  const getStmt = db.prepare('SELECT id FROM quotes WHERE id = ? LIMIT 1');
+  getStmt.bind([id]);
+  const exists = getStmt.step();
+  getStmt.free();
+
+  if (!exists) {
+    return false;
+  }
+
+  const delStmt = db.prepare('DELETE FROM quotes WHERE id = ?');
+  delStmt.bind([id]);
+  delStmt.step();
+  delStmt.free();
+
+  saveDatabase();
+  return true;
+}
+
 module.exports = {
   initDatabase,
   getMessages,
@@ -773,5 +797,6 @@ module.exports = {
   listQuotes,
   getQuoteById,
   upsertQuoteRecord,
+  deleteQuoteById,
   MAX_PROFILES
 };
