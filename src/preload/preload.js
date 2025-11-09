@@ -42,6 +42,11 @@ contextBridge.exposeInMainWorld('trello', {
   createCard: (data) => ipcRenderer.invoke('trello:create-card', data)
 });
 
+contextBridge.exposeInMainWorld('price', {
+  listQuotes: () => ipcRenderer.invoke('price:list-quotes'),
+  generate: (payload) => ipcRenderer.invoke('price:generate', payload)
+});
+
 // Arquivos (salvar/abrir)
 contextBridge.exposeInMainWorld('files', {
   saveToDownloads: (srcPath, suggestedName) => ipcRenderer.invoke('file:save-to-downloads', srcPath, suggestedName),

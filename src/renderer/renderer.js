@@ -6,6 +6,7 @@ const sidebarOpenToggle = document.getElementById('sidebarOpenToggle');
 const mainViewport = document.querySelector('main');
 const rtaView = document.getElementById('rtaView');
 const trelloView = document.getElementById('trelloView');
+const priceView = document.getElementById('priceView');
 const rtaStatus = document.getElementById('rtaStatus');
 const rtaOutput = document.getElementById('rtaOutput');
 const rtaActions = document.getElementById('rtaActions');
@@ -199,6 +200,7 @@ function showProfileSelection() {
   if (controlView) controlView.style.display = 'none';
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -209,6 +211,7 @@ function showModuleSelection() {
   if (controlView) controlView.style.display = 'none';
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -219,6 +222,7 @@ function showControlModule() {
   if (controlView) controlView.style.display = 'flex';
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -229,6 +233,7 @@ function showRtaModule() {
   if (controlView) controlView.style.display = 'none';
   if (rtaView) rtaView.style.display = 'flex';
   if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -239,6 +244,7 @@ function showUnavailableModule() {
   if (controlView) controlView.style.display = 'none';
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -249,6 +255,18 @@ function showTrelloModule() {
   if (controlView) controlView.style.display = 'none';
   if (rtaView) rtaView.style.display = 'none';
   if (trelloView) trelloView.style.display = 'flex';
+  if (priceView) priceView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showPriceModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'flex';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -543,8 +561,285 @@ const FALLBACK_SERVICES = [
     icon: 'board',
     description: 'Sincronize dados e crie cards rapidamente no Trello.',
     requiresAdmin: false
+  },
+  {
+    id: 'price',
+    name: 'Preço automático',
+    icon: '💵',
+    description: 'Gere imagens de preço e envie para o Trello.',
+    requiresAdmin: true,
+    requiresProfile: true
   }
 ];
+
+const fallbackServiceById = Object.fromEntries(
+  FALLBACK_SERVICES.map((service) => [service.id, service])
+);
+
+function createModuleManager(options = {}) {
+  const modules = new Map();
+  let activeId = null;
+
+  const defaultEnter = () => {
+    showUnavailableModule();
+    setStatus('Módulo não configurado. Entre em contato com o administrador.');
+    updateStatusBadge('idle');
+    return false;
+  };
+
+  function ensureModule(id) {
+    if (!modules.has(id)) {
+      modules.set(id, {
+        id,
+        name: id,
+        icon: 'chat',
+        description: '',
+        requiresAdmin: false,
+        requiresProfile: true,
+        guard: null,
+        onEnter: defaultEnter,
+        onExit: null
+      });
+    }
+    return modules.get(id);
+  }
+
+  function serialize(entry) {
+    return {
+      id: entry.id,
+      name: entry.name,
+      icon: entry.icon,
+      description: entry.description,
+      requiresAdmin: entry.requiresAdmin,
+      requiresProfile: entry.requiresProfile
+    };
+  }
+
+  function register(definition) {
+    if (!definition?.id) {
+      throw new Error('Module registration requires an id.');
+    }
+
+    const entry = ensureModule(definition.id);
+
+    if (definition.name ?? definition.label) {
+      entry.name = definition.name ?? definition.label;
+    }
+    if (definition.icon) {
+      entry.icon = definition.icon;
+    }
+    if (definition.description !== undefined) {
+      entry.description = definition.description;
+    }
+    if (definition.requiresAdmin !== undefined) {
+      entry.requiresAdmin = !!definition.requiresAdmin;
+    }
+    if (definition.requiresProfile !== undefined) {
+      entry.requiresProfile = !!definition.requiresProfile;
+    }
+    if (definition.guard !== undefined) {
+      entry.guard = definition.guard;
+    }
+    if (definition.onEnter !== undefined) {
+      entry.onEnter = definition.onEnter || defaultEnter;
+    }
+    if (definition.onExit !== undefined) {
+      entry.onExit = definition.onExit || null;
+    }
+
+    return serialize(entry);
+  }
+
+  function updateMeta(id, meta = {}) {
+    const entry = ensureModule(id);
+    register({ id, ...meta });
+    return serialize(entry);
+  }
+
+  function select(id) {
+    const entry = modules.get(id);
+    if (!entry) {
+      options.onUnknownModule?.(id);
+      return false;
+    }
+
+    const profile = selectedProfile ?? null;
+    const profileId = selectedProfileId ?? null;
+
+    if (entry.requiresProfile && !profileId) {
+      showProfileSelection();
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
+      return false;
+    }
+
+    if (entry.requiresAdmin && (!profile || !profile.isAdmin)) {
+      appendLog(`Módulo "${entry.name}" disponível apenas para administradores.`);
+      setStatus('Este módulo está disponível apenas para administradores.');
+      updateStatusBadge('idle');
+      showModuleSelection();
+      return false;
+    }
+
+    const context = {
+      profile,
+      profileId,
+      automationRunning,
+      log: appendLog,
+      setStatus,
+      updateStatusBadge,
+      showProfileSelection,
+      showModuleSelection,
+      showControlModule,
+      showRtaModule,
+      showTrelloModule,
+      showPriceModule,
+      showUnavailableModule
+    };
+
+    if (entry.guard && entry.guard(context) === false) {
+      return false;
+    }
+
+    if (activeId && activeId !== id) {
+      const previous = modules.get(activeId);
+      previous?.onExit?.(context);
+    }
+
+    const result = entry.onEnter?.(context);
+    if (result === false) {
+      return false;
+    }
+
+    activeId = id;
+    options.onActiveChange?.(id);
+    return true;
+  }
+
+  function getActiveId() {
+    return activeId;
+  }
+
+  function canAccess(id, profile) {
+    const entry = modules.get(id);
+    if (!entry) {
+      return false;
+    }
+    if (entry.requiresAdmin && (!profile || !profile.isAdmin)) {
+      return false;
+    }
+    return true;
+  }
+
+  function list(ids = null) {
+    const entries = ids ? ids.map((item) => modules.get(item)).filter(Boolean) : Array.from(modules.values());
+    return entries.map(serialize);
+  }
+
+  function getModule(id) {
+    return modules.get(id) || null;
+  }
+
+  return { register, updateMeta, select, getActiveId, canAccess, list, getModule };
+}
+
+const moduleManager = createModuleManager({
+  onActiveChange: (id) => {
+    activeServiceId = id;
+    updateActiveServiceButton();
+  },
+  onUnknownModule: (id) => {
+    appendLog(`Módulo desconhecido: ${id}`);
+    if (selectedProfileId) {
+      showModuleSelection();
+    } else {
+      showProfileSelection();
+    }
+    setStatus('Módulo não reconhecido.');
+    updateStatusBadge('idle');
+  }
+});
+
+moduleManager.register({
+  id: 'mensagens',
+  ...(fallbackServiceById.mensagens || {}),
+  guard: ({ profileId }) => {
+    if (!profileId) {
+      showProfileSelection();
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
+      return false;
+    }
+    return true;
+  },
+  onEnter: ({ automationRunning: isRunning }) => {
+    showControlModule();
+    setStatus(isRunning ? 'Automação em execução.' : 'Pronto para iniciar os envios.');
+    updateStatusBadge(isRunning ? 'running' : 'stopped');
+  }
+});
+
+moduleManager.register({
+  id: 'rta',
+  ...(fallbackServiceById.rta || {}),
+  guard: ({ profileId }) => {
+    if (!profileId) {
+      showProfileSelection();
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
+      return false;
+    }
+    return true;
+  },
+  onEnter: () => {
+    showRtaModule();
+    setStatus('Preencha os dados para gerar o RTA.');
+    updateStatusBadge('idle');
+  }
+});
+
+moduleManager.register({
+  id: 'trello',
+  ...(fallbackServiceById.trello || {}),
+  guard: ({ profileId }) => {
+    if (!profileId) {
+      showProfileSelection();
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
+      return false;
+    }
+    return true;
+  },
+  onEnter: () => {
+    showTrelloModule();
+    initializeTrelloForm();
+    setStatus('Preencha os dados para criar o card no Trello.');
+    updateStatusBadge('idle');
+  }
+});
+
+moduleManager.register({
+  id: 'price',
+  ...(fallbackServiceById.price || {}),
+  guard: ({ profileId }) => {
+    if (!profileId) {
+      showProfileSelection();
+      setStatus('Selecione um operador para começar.');
+      updateStatusBadge('idle');
+      return false;
+    }
+    return true;
+  },
+  onEnter: (context) => {
+    showPriceModule();
+    setStatus('Configure os dados para gerar o preço automático.');
+    updateStatusBadge('idle');
+    window.dispatchEvent(new CustomEvent('price-module:enter', { detail: context }));
+  },
+  onExit: (context) => {
+    window.dispatchEvent(new CustomEvent('price-module:exit', { detail: context }));
+  }
+});
 
 function createServiceIcon(iconKey) {
   const key = iconKey || 'chat';
@@ -881,19 +1176,16 @@ function isServiceAccessible(service, profile) {
     return true;
   }
 
+  const moduleEntry = moduleManager.getModule(service.id);
+  if (moduleEntry) {
+    return moduleManager.canAccess(service.id, profile ?? null);
+  }
+
   if (service.requiresAdmin && profile && !profile.isAdmin) {
     return false;
   }
 
   return true;
-}
-
-function findServiceMeta(serviceId) {
-  return (
-    availableServices.find((service) => service.id === serviceId) ||
-    FALLBACK_SERVICES.find((service) => service.id === serviceId) ||
-    null
-  );
 }
 
 function renderServiceButtons(services) {
@@ -1005,6 +1297,32 @@ function renderModuleCards(services) {
   });
 }
 
+function refreshServiceNavigation() {
+  renderServiceButtons(availableServices);
+  renderModuleCards(availableServices);
+}
+
+function syncAvailableServices(services) {
+  const normalized = services.map((service) => moduleManager.updateMeta(service.id, service));
+  availableServices = normalized;
+  refreshServiceNavigation();
+  return availableServices;
+}
+
+function upsertModule(definition) {
+  const normalized = moduleManager.register(definition);
+  const existingIndex = availableServices.findIndex((service) => service.id === normalized.id);
+
+  if (existingIndex === -1) {
+    availableServices.push(normalized);
+  } else {
+    availableServices[existingIndex] = normalized;
+  }
+
+  refreshServiceNavigation();
+  return normalized;
+}
+
 async function loadServices() {
   let servicesToRender = FALLBACK_SERVICES.map((service) => ({ ...service }));
 
@@ -1019,7 +1337,8 @@ async function loadServices() {
             name: service.name || fallback?.name || service.id,
             icon: service.icon || fallback?.icon || 'chat',
             description: service.description || fallback?.description || '',
-            requiresAdmin: service.requiresAdmin ?? fallback?.requiresAdmin ?? false
+            requiresAdmin: service.requiresAdmin ?? fallback?.requiresAdmin ?? false,
+            requiresProfile: service.requiresProfile ?? fallback?.requiresProfile ?? true
           };
         });
       }
@@ -1028,84 +1347,44 @@ async function loadServices() {
     }
   }
 
-  availableServices = servicesToRender;
-  renderServiceButtons(servicesToRender);
-  renderModuleCards(servicesToRender);
+  syncAvailableServices(servicesToRender);
 }
 
 function selectService(id) {
-  let handled = false;
-  const serviceMeta = findServiceMeta(id);
-
-  if (selectedProfile && serviceMeta && !isServiceAccessible(serviceMeta, selectedProfile)) {
-    appendLog(`Módulo "${serviceMeta.name}" disponível apenas para administradores.`);
-    setStatus('Este módulo está disponível apenas para administradores.');
-    updateStatusBadge('idle');
+  const success = moduleManager.select(id);
+  if (!success && !moduleManager.getActiveId()) {
     activeServiceId = null;
     updateActiveServiceButton();
-    showModuleSelection();
-    return;
   }
-
-  switch (id) {
-    case 'mensagens': {
-      if (!selectedProfileId) {
-        showProfileSelection();
-        setStatus('Selecione um operador para começar.');
-        updateStatusBadge('idle');
-      } else {
-        showControlModule();
-        setStatus('Pronto para iniciar os envios.');
-        updateStatusBadge('stopped');
-      }
-      handled = true;
-      break;
-    }
-    case 'rta': {
-      if (!selectedProfileId) {
-        showProfileSelection();
-        setStatus('Selecione um operador para começar.');
-        updateStatusBadge('idle');
-      } else {
-        showRtaModule();
-        setStatus('Preencha os dados para gerar o RTA.');
-        updateStatusBadge('idle');
-        handled = true;
-      }
-      break;
-    }
-    case 'trello': {
-      if (!selectedProfileId) {
-        showProfileSelection();
-        setStatus('Selecione um operador para começar.');
-        updateStatusBadge('idle');
-      } else {
-        showTrelloModule();
-        initializeTrelloForm();
-        setStatus('Preencha os dados para criar o card no Trello.');
-        updateStatusBadge('idle');
-        handled = true;
-      }
-      break;
-    }
-    default: {
-      appendLog(`Módulo desconhecido: ${id}`);
-      if (selectedProfileId) {
-        showModuleSelection();
-      } else {
-        showProfileSelection();
-      }
-      setStatus('Módulo não reconhecido.');
-      updateStatusBadge('idle');
-    }
-  }
-
-  activeServiceId = handled ? id : null;
-  updateActiveServiceButton();
 }
 
 loadServices();
 selectService('mensagens');
+
+const rendererModulesApi = {
+  register: (definition) => moduleManager.register(definition),
+  enable: (definition) => upsertModule(definition),
+  sync: (services) => syncAvailableServices(services),
+  refresh: () => refreshServiceNavigation(),
+  select: (id) => selectService(id),
+  list: () => moduleManager.list(),
+  get: (id) => moduleManager.getModule(id),
+  getActiveId: () => moduleManager.getActiveId(),
+  canAccess: (id, profile = selectedProfile) => moduleManager.canAccess(id, profile)
+};
+
+window.rendererModules = window.rendererModules || {};
+Object.assign(window.rendererModules, rendererModulesApi);
+
+window.addEventListener('price-module:status', (event) => {
+  const payload = event?.detail || {};
+  if (payload.text) {
+    setStatus(payload.text);
+  }
+  if (payload.badge) {
+    updateStatusBadge(payload.badge);
+  }
+});
 
 // ===== Sidebar toggle =====
 function applySidebarState() {

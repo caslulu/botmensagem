@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "1.0.4",
+  "version": "1.1.0",
   "description": "Central de Disparos WhatsApp",
   "main": "src/main/main.js",
   "scripts": {
@@ -72,6 +72,7 @@
     "tailwindcss": "^3.4.14"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.51",
     "electron-log": "^5.4.3",
     "electron-updater": "^6.6.2",
     "pdf-lib": "^1.17.1",

@@ -23,6 +23,7 @@ const {
 // Serviços dos módulos (migrados do Python original)
 const rtaService = require('./rta/services/rtaService');
 const trelloService = require('./trello/services/trelloService');
+const priceService = require('./price/services/priceService');
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
@@ -187,7 +188,15 @@ ipcMain.handle('services:list', async () => {
   return [
     { id: 'mensagens', name: 'Enviar mensagem automática', icon: '💬', requiresAdmin: true },
     { id: 'rta', name: 'RTA automático', icon: '📄', requiresAdmin: false },
-    { id: 'trello', name: 'Integração Trello', icon: '📌', requiresAdmin: false }
+    { id: 'trello', name: 'Integração Trello', icon: '📌', requiresAdmin: false },
+    {
+      id: 'price',
+      name: 'Preço automático',
+      icon: '💵',
+      requiresAdmin: true,
+      requiresProfile: true,
+      description: 'Gere cards de preço com modelos multilíngues e envie para o Trello.'
+    }
   ];
 });
 
@@ -215,6 +224,25 @@ ipcMain.handle('trello:create-card', async (_event, data) => {
     const card = await trelloService.createTrelloCard(data || {});
     return { success: true, card };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// ===== Preço automático =====
+ipcMain.handle('price:list-quotes', async () => {
+  try {
+    return { success: true, quotes: priceService.getQuotes() };
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle('price:generate', async (_event, payload) => {
+  try {
+    const result = await priceService.generate(payload || {});
+    return { success: true, result };
+  } catch (error) {
+    console.error('Erro ao gerar preço automático:', error);
     return { success: false, error: error.message };
   }
 });

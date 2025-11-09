@@ -7,6 +7,7 @@
     <title>Bot Mensagem</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="rta-form.css" />
+  <link rel="stylesheet" href="price/price.css" />
     <style>
       /* Sidebar collapse */
       body.sidebar-collapsed #sidebar {
@@ -579,6 +580,177 @@
             </div>
           </section>
 
+          <!-- Conteúdo do Preço -->
+          <section id="priceView" class="flex-col gap-6" style="display: none;">
+            <div id="priceGlobalAlert" class="price-alert hidden" role="alert">
+              <span class="price-alert-icon" aria-hidden="true">⚠️</span>
+              <span>Por favor, selecione uma seguradora antes de gerar o preço.</span>
+            </div>
+
+            <div class="card space-y-6">
+              <header class="space-y-1">
+                <p class="text-sm uppercase tracking-wide text-slate-400">Preço Automático</p>
+                <h3 class="text-lg font-semibold text-white">Gerar imagens de preço</h3>
+                <p class="text-sm text-slate-300">Escolha a cotação, configure as taxas e gere modelos multilíngues prontos para enviar ao Trello.</p>
+              </header>
+
+              <div class="price-config-grid">
+                <div class="price-field">
+                  <label for="priceQuoteSelect" class="price-label">Cotação / Carta (opcional)</label>
+                  <select id="priceQuoteSelect" class="price-select" required>
+                    <option value="" disabled selected>Selecione uma cotação</option>
+                  </select>
+                  <p class="price-hint" id="priceQuoteHint">As cotações são carregadas automaticamente do repositório local. Se preferir gerar apenas o arquivo, deixe em branco.</p>
+                </div>
+
+                <div class="price-field">
+                  <span class="price-label">Taxa da cotação</span>
+                  <div class="price-radio-group" role="radiogroup" aria-label="Taxa da cotação">
+                    <label class="price-radio">
+                      <input type="radio" name="priceTax" value="320" checked />
+                      <span>$ 320,00</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceTax" value="400" />
+                      <span>$ 400,00</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceTax" value="500" />
+                      <span>$ 500,00</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="price-field">
+                  <span class="price-label">Seguradora</span>
+                  <div class="price-radio-group" id="priceInsurerGroup" role="radiogroup" aria-label="Seguradora">
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="Allstate" checked />
+                      <span>Allstate</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="Progressive" />
+                      <span>Progressive</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="Geico" />
+                      <span>Geico</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="Liberty" />
+                      <span>Liberty</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="State Farm" />
+                      <span>State Farm</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceInsurer" value="Travelers" />
+                      <span>Travelers</span>
+                    </label>
+                  </div>
+                </div>
+
+                <div class="price-field">
+                  <span class="price-label">Idioma da cotação</span>
+                  <div class="price-radio-group" role="radiogroup" aria-label="Idioma da cotação">
+                    <label class="price-radio">
+                      <input type="radio" name="priceLanguage" value="pt" checked />
+                      <span>Português</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceLanguage" value="en" />
+                      <span>Inglês</span>
+                    </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceLanguage" value="es" />
+                      <span>Espanhol</span>
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="price-forms-grid">
+              <form id="priceQuitadoForm" class="price-form card" autocomplete="off" novalidate>
+                <div class="price-form-header">
+                  <h4 class="price-form-title">Veículo Quitado</h4>
+                </div>
+                <div class="price-field">
+                  <label for="priceQuitadoNome" class="price-label">Nome do cliente</label>
+                  <input id="priceQuitadoNome" name="nome" class="price-input" placeholder="Nome do cliente" autocomplete="off" required />
+                </div>
+                <div class="price-columns">
+                  <div class="price-column">
+                    <h5 class="price-column-title">Básico</h5>
+                    <label class="price-label" for="priceEntradaBasico">Entrada ($)</label>
+                    <input id="priceEntradaBasico" name="entrada_basico" class="price-input" placeholder="Ex: 250" inputmode="decimal" required />
+                    <label class="price-label" for="priceMensalBasico">Mensalidade ($)</label>
+                    <input id="priceMensalBasico" name="mensal_basico" class="price-input" placeholder="Ex: 120" inputmode="decimal" required />
+                    <label class="price-label" for="priceTotalBasico">Total ($)</label>
+                    <input id="priceTotalBasico" name="valor_total_basico" class="price-input" placeholder="Ex: 1500" inputmode="decimal" required />
+                  </div>
+                  <div class="price-column">
+                    <h5 class="price-column-title">Completo</h5>
+                    <label class="price-label" for="priceEntradaCompletoQuitado">Entrada ($)</label>
+                    <input id="priceEntradaCompletoQuitado" name="entrada_completo" class="price-input" placeholder="Ex: 450" inputmode="decimal" required />
+                    <label class="price-label" for="priceMensalCompletoQuitado">Mensalidade ($)</label>
+                    <input id="priceMensalCompletoQuitado" name="mensal_completo" class="price-input" placeholder="Ex: 180" inputmode="decimal" required />
+                    <label class="price-label" for="priceTotalCompletoQuitado">Total ($)</label>
+                    <input id="priceTotalCompletoQuitado" name="valor_total_completo" class="price-input" placeholder="Ex: 2200" inputmode="decimal" required />
+                  </div>
+                </div>
+                <div class="price-actions">
+                  <button type="submit" class="btn-primary w-full">Gerar cotação quitado</button>
+                </div>
+              </form>
+
+              <form id="priceFinanciadoForm" class="price-form card" autocomplete="off" novalidate>
+                <div class="price-form-header">
+                  <h4 class="price-form-title">Veículo Financiado</h4>
+                </div>
+                <div class="price-field">
+                  <label for="priceFinanciadoNome" class="price-label">Nome do cliente</label>
+                  <input id="priceFinanciadoNome" name="nome" class="price-input" placeholder="Nome do cliente" autocomplete="off" required />
+                </div>
+                <div class="price-column single">
+                  <label class="price-label" for="priceEntradaCompletoFinanciado">Entrada ($)</label>
+                  <input id="priceEntradaCompletoFinanciado" name="entrada_completo" class="price-input" placeholder="Ex: 560" inputmode="decimal" required />
+                  <label class="price-label" for="priceMensalCompletoFinanciado">Mensalidade ($)</label>
+                  <input id="priceMensalCompletoFinanciado" name="mensal_completo" class="price-input" placeholder="Ex: 199" inputmode="decimal" required />
+                  <label class="price-label" for="priceTotalCompletoFinanciado">Total ($)</label>
+                  <input id="priceTotalCompletoFinanciado" name="valor_total_completo" class="price-input" placeholder="Ex: 2800" inputmode="decimal" required />
+                </div>
+                <div class="price-actions">
+                  <button type="submit" class="btn-primary w-full">Gerar cotação financiado</button>
+                </div>
+              </form>
+            </div>
+
+            <div id="priceResultPanel" class="card price-result hidden" aria-live="polite">
+              <div class="price-result-header">
+                <h4 class="price-form-title">Resultado da geração</h4>
+                <span id="priceResultStatus" class="price-status">Aguardando</span>
+              </div>
+              <p id="priceResultMessage" class="price-result-message">Gere uma cotação para visualizar os detalhes aqui.</p>
+              <dl class="price-result-details">
+                <div>
+                  <dt>Arquivo gerado</dt>
+                  <dd id="priceResultPath">—</dd>
+                </div>
+                <div>
+                  <dt>Anexado ao Trello</dt>
+                  <dd id="priceResultTrello">—</dd>
+                </div>
+              </dl>
+              <div class="price-result-actions">
+                <button id="priceOpenFileBtn" class="btn-secondary" disabled>📄 Abrir</button>
+                <button id="priceDownloadFileBtn" class="btn-secondary" disabled>💾 Baixar</button>
+                <button id="priceShowFolderBtn" class="btn-secondary" disabled>🗂️ Abrir pasta</button>
+              </div>
+            </div>
+          </section>
+
           <!-- Conteúdo do Trello -->
           <section id="trelloView" class="flex-col gap-6" style="display: none;">
             <div class="card space-y-6">
@@ -997,5 +1169,6 @@
     </div>
 
     <script src="renderer.js"></script>
+    <script type="module" src="price/index.js"></script>
   </body>
 </html>
