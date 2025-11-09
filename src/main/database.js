@@ -75,9 +75,26 @@ async function initDatabase() {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS quotes (
+      id TEXT PRIMARY KEY,
+      nome TEXT,
+      documento TEXT,
+      payload TEXT,
+      trello_card_id TEXT,
+      trello_card_url TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   // Create index for faster queries
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_profile_id ON messages(profile_id)
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at)
   `);
   
   // Garantir colunas opcionais mais recentes
@@ -98,6 +115,18 @@ function saveDatabase() {
     const data = db.export();
     const buffer = Buffer.from(data);
     fs.writeFileSync(DB_PATH, buffer);
+  }
+}
+
+function parseJsonSafe(value, fallback = {}) {
+  if (!value || typeof value !== 'string') {
+    return fallback;
+  }
+
+  try {
+    return JSON.parse(value);
+  } catch (_) {
+    return fallback;
   }
 }
 
@@ -614,6 +643,114 @@ function updateProfileSettings(profileId, sendLimit) {
   return true;
 }
 
+function normalizeQuoteRow(row) {
+  if (!row) {
+    return null;
+  }
+
+  const payload = parseJsonSafe(row.payload, {});
+
+  return {
+    id: row.id,
+    nome: row.nome || '',
+    documento: row.documento || '',
+    payload,
+    trelloCardId: row.trello_card_id || row.id || '',
+    trelloCardUrl: row.trello_card_url || '',
+    createdAt: row.created_at,
+    updatedAt: row.updated_at
+  };
+}
+
+function getQuoteById(id) {
+  if (!db || !id) {
+    return null;
+  }
+
+  const stmt = db.prepare(`
+    SELECT id, nome, documento, payload, trello_card_id, trello_card_url, created_at, updated_at
+    FROM quotes
+    WHERE id = ?
+    LIMIT 1
+  `);
+  stmt.bind([id]);
+
+  let quote = null;
+  if (stmt.step()) {
+    quote = normalizeQuoteRow(stmt.getAsObject());
+  }
+  stmt.free();
+
+  return quote;
+}
+
+function listQuotes() {
+  if (!db) {
+    return [];
+  }
+
+  const stmt = db.prepare(`
+    SELECT id, nome, documento, payload, trello_card_id, trello_card_url, created_at, updated_at
+    FROM quotes
+    ORDER BY datetime(created_at) DESC, datetime(updated_at) DESC
+  `);
+
+  const items = [];
+  while (stmt.step()) {
+    const row = stmt.getAsObject();
+    const normalized = normalizeQuoteRow(row);
+    if (normalized) {
+      items.push(normalized);
+    }
+  }
+  stmt.free();
+
+  return items;
+}
+
+function upsertQuoteRecord(quote) {
+  if (!db) {
+    throw new Error('Database not initialized');
+  }
+
+  if (!quote || !quote.id) {
+    throw new Error('Cotação inválida');
+  }
+
+  const nome = quote.nome || '';
+  const documento = quote.documento || '';
+  const trelloCardId = quote.trelloCardId || quote.id;
+  const trelloCardUrl = quote.trelloCardUrl || '';
+  const payloadJson = JSON.stringify(quote.payload || {});
+
+  const existsStmt = db.prepare('SELECT id FROM quotes WHERE id = ? LIMIT 1');
+  existsStmt.bind([quote.id]);
+  const exists = existsStmt.step();
+  existsStmt.free();
+
+  if (exists) {
+    const updateStmt = db.prepare(`
+      UPDATE quotes
+      SET nome = ?, documento = ?, payload = ?, trello_card_id = ?, trello_card_url = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `);
+    updateStmt.bind([nome, documento, payloadJson, trelloCardId, trelloCardUrl, quote.id]);
+    updateStmt.step();
+    updateStmt.free();
+  } else {
+    const insertStmt = db.prepare(`
+      INSERT INTO quotes (id, nome, documento, payload, trello_card_id, trello_card_url)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+    insertStmt.bind([quote.id, nome, documento, payloadJson, trelloCardId, trelloCardUrl]);
+    insertStmt.step();
+    insertStmt.free();
+  }
+
+  saveDatabase();
+  return getQuoteById(quote.id);
+}
+
 module.exports = {
   initDatabase,
   getMessages,
@@ -633,5 +770,8 @@ module.exports = {
   migrateSessionDirs,
   getProfileCount,
   createProfile,
+  listQuotes,
+  getQuoteById,
+  upsertQuoteRecord,
   MAX_PROFILES
 };

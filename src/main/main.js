@@ -24,6 +24,7 @@ const {
 const rtaService = require('./rta/services/rtaService');
 const trelloService = require('./trello/services/trelloService');
 const priceService = require('./price/services/priceService');
+const quotesRepository = require('./price/repositories/quotesRepository');
 
 const isDev = process.env.NODE_ENV === 'development';
 let mainWindow;
@@ -222,6 +223,11 @@ ipcMain.handle('trello:auth-check', async () => {
 ipcMain.handle('trello:create-card', async (_event, data) => {
   try {
     const card = await trelloService.createTrelloCard(data || {});
+    try {
+      quotesRepository.saveFromTrello(data || {}, card);
+    } catch (repoError) {
+      console.warn('Falha ao salvar cotação no banco de dados:', repoError.message);
+    }
     return { success: true, card };
   } catch (error) {
     return { success: false, error: error.message };
