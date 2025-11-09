@@ -806,6 +806,47 @@ messageModal.addEventListener('click', (e) => {
 
 // ===== RTA FORM HANDLER =====
 const rtaForm = document.getElementById('rtaForm');
+const titleStatusRadios = document.querySelectorAll('input[name="title_status"]');
+const previousTitleSection = document.getElementById('previousTitleSection');
+
+function toggleTitleSectionVisibility(status) {
+  if (!previousTitleSection) {
+    return;
+  }
+
+  const hide = status === 'financed';
+  previousTitleSection.style.display = hide ? 'none' : 'flex';
+  previousTitleSection.setAttribute('aria-hidden', hide ? 'true' : 'false');
+
+  const inputs = previousTitleSection.querySelectorAll('input');
+  inputs.forEach((input) => {
+    if (!input.dataset.originalRequired) {
+      input.dataset.originalRequired = input.required ? 'true' : 'false';
+    }
+
+    input.disabled = hide;
+    if (hide) {
+      input.required = false;
+      input.value = '';
+    } else {
+      input.required = input.dataset.originalRequired === 'true';
+    }
+  });
+}
+
+if (titleStatusRadios?.length) {
+  titleStatusRadios.forEach((radio) => {
+    radio.addEventListener('change', (event) => {
+      if (event.target.checked) {
+        toggleTitleSectionVisibility(event.target.value);
+      }
+    });
+  });
+
+  const initiallySelected = Array.from(titleStatusRadios).find((radio) => radio.checked)?.value ?? 'paid_off';
+  toggleTitleSectionVisibility(initiallySelected);
+}
+
 if (rtaForm) {
   rtaForm.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -818,11 +859,14 @@ if (rtaForm) {
       return el ? el.value : '';
     };
 
+    const titleStatus = Array.from(document.querySelectorAll('input[name="title_status"]')).find((input) => input.checked)?.value || 'paid_off';
+
     const data = {
       insurance_company: getVal('insurance_company'),
       purchase_date: getVal('purchase_date'),
       insurance_effective_date: getVal('insurance_effective_date'),
-  insurance_policy_change_date: getVal('insurance_policy_change_date'),
+    insurance_policy_change_date: getVal('insurance_policy_change_date'),
+      vehicle_title_status: titleStatus,
       seller_name: getVal('seller_name'),
       seller_street: getVal('seller_street'),
       seller_city: getVal('seller_city'),

@@ -214,114 +214,26 @@
                     <div class="rta-section-header">
                       <div class="rta-section-icon" aria-hidden="true">🛡️</div>
                       <div>
-                        <h4 class="rta-section-title" id="rta-insurance">Seguro e Datas</h4>
-                        <p class="rta-section-description">Selecione a seguradora e informe as datas conforme o RTA original.</p>
+                        <h4 class="rta-section-title" id="rta-insurance">Seguradora</h4>
+                        <p class="rta-section-description">Escolha a seguradora responsável antes de preencher os demais dados.</p>
                       </div>
                     </div>
                     <div class="rta-grid rta-grid-auto">
                       <div class="input-group">
-                        <label for="insurance_company">Seguradora (insurance_company)</label>
+                        <label for="insurance_company">Seguradora</label>
                         <select id="insurance_company" name="insurance_company" class="input-control">
+                          <option value="">Selecione</option>
                           <option value="allstate">Allstate</option>
                           <option value="progressive">Progressive</option>
                           <option value="geico">Geico</option>
                           <option value="liberty">Liberty</option>
                         </select>
                       </div>
-                      <div class="input-group">
-                        <label for="purchase_date">Purchase Date (purchase_date)</label>
-                        <input id="purchase_date" name="purchase_date" type="date" class="input-control" />
-                      </div>
-                      <div class="input-group">
-                        <label for="insurance_effective_date">Insurance Effective (insurance_effective_date)</label>
-                        <input id="insurance_effective_date" name="insurance_effective_date" type="date" class="input-control" />
-                      </div>
-                      <div class="input-group">
-                        <label for="insurance_policy_change_date">Policy Change Date (insurance_policy_change_date)</label>
-                        <input id="insurance_policy_change_date" name="insurance_policy_change_date" type="date" class="input-control" />
-                      </div>
                     </div>
                   </section>
-
-                  <section class="rta-section" aria-labelledby="rta-seller">
-                    <div class="rta-section-header">
-                      <div class="rta-section-icon" aria-hidden="true">🏪</div>
-                      <div>
-                        <h4 class="rta-section-title" id="rta-seller">Vendedor (Seller)</h4>
-                        <p class="rta-section-description">Informe os dados do vendedor exatamente como no formulário legado.</p>
-                      </div>
-                    </div>
-                    <div class="rta-grid rta-grid-wide">
-                      <div class="input-group">
-                        <label for="seller_name">Nome completo (seller_name)</label>
-                        <input id="seller_name" name="seller_name" class="input-control" placeholder="Ex: Nome completo" />
-                      </div>
-                      <div class="input-group">
-                        <label for="seller_street">Rua (seller_street)</label>
-                        <input id="seller_street" name="seller_street" class="input-control" placeholder="Ex: 123 Main St" />
-                      </div>
-                      <div class="input-group">
-                        <label for="seller_city">Cidade (seller_city)</label>
-                        <input id="seller_city" name="seller_city" class="input-control" placeholder="Ex: Boston" />
-                      </div>
-                      <div class="input-group">
-                        <label for="seller_state">Estado (seller_state)</label>
-                        <input id="seller_state" name="seller_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
-                      </div>
-                      <div class="input-group">
-                        <label for="seller_zipcode">CEP/ZIP (seller_zipcode)</label>
-                        <input id="seller_zipcode" name="seller_zipcode" class="input-control" placeholder="Ex: 02101" />
-                      </div>
-                      <div class="input-group">
-                        <label for="gross_sale_price">Preço bruto (gross_sale_price)</label>
-                        <input id="gross_sale_price" name="gross_sale_price" type="number" step="0.01" class="input-control" placeholder="Ex: 25000.00" />
-                      </div>
-                    </div>
-                  </section>
-
-                  <section class="rta-section" aria-labelledby="rta-owner">
-                    <div class="rta-section-header">
-                      <div class="rta-section-icon" aria-hidden="true">👤</div>
-                      <div>
-                        <h4 class="rta-section-title" id="rta-owner">Proprietário (Owner)</h4>
-                        <p class="rta-section-description">Preencha o bloco do proprietário seguindo a ordem do RTA web original.</p>
-                      </div>
-                    </div>
-                    <div class="rta-grid rta-grid-wide">
-                      <div class="input-group">
-                        <label for="owner_name">Nome completo (owner_name)</label>
-                        <input id="owner_name" name="owner_name" class="input-control" placeholder="Sobrenome, Nome, Nome do meio" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_dob">Nascimento (owner_dob)</label>
-                        <input id="owner_dob" name="owner_dob" type="date" class="input-control" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_license">Licença / ID / SSN (owner_license)</label>
-                        <input id="owner_license" name="owner_license" class="input-control" placeholder="Documento do proprietário" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_street">Rua (owner_street)</label>
-                        <input id="owner_street" name="owner_street" class="input-control" placeholder="Ex: 456 Oak Ave" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_city">Cidade (owner_city)</label>
-                        <input id="owner_city" name="owner_city" class="input-control" placeholder="Ex: Miami" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_state">Estado (owner_state)</label>
-                        <input id="owner_state" name="owner_state" maxlength="2" class="input-control" placeholder="Ex: FL" />
-                      </div>
-                      <div class="input-group">
-                        <label for="owner_zipcode">CEP/ZIP (owner_zipcode)</label>
-                        <input id="owner_zipcode" name="owner_zipcode" class="input-control" placeholder="Ex: 33101" />
-                      </div>
-                    </div>
-                  </section>
-
                   <section class="rta-section" aria-labelledby="rta-vehicle">
                     <div class="rta-section-header">
-                      <div class="rta-section-icon" aria-hidden="true">🚗</div>
+                      <div class="rta-section-icon" aria-hidden="true">�</div>
                       <div>
                         <h4 class="rta-section-title" id="rta-vehicle">Veículo</h4>
                         <p class="rta-section-description">Detalhes do veículo exatamente na mesma sequência do sistema legado.</p>
@@ -329,28 +241,28 @@
                     </div>
                     <div class="rta-grid rta-grid-compact">
                       <div class="input-group">
-                        <label for="vin">VIN (vin)</label>
+                        <label for="vin">VIN</label>
                         <input id="vin" name="vin" maxlength="17" class="input-control" placeholder="17 caracteres" />
                         <span class="input-hint">Use letras maiúsculas e números, sem espaços.</span>
                       </div>
                       <div class="input-group">
-                        <label for="body_style">Body Style (body_style)</label>
+                        <label for="body_style">Body Style</label>
                         <input id="body_style" name="body_style" class="input-control" placeholder="Ex: Sedan" />
                       </div>
                       <div class="input-group">
-                        <label for="year">Ano (year)</label>
+                        <label for="year">Ano</label>
                         <input id="year" name="year" type="number" class="input-control" placeholder="Ex: 2024" />
                       </div>
                       <div class="input-group">
-                        <label for="make">Marca (make)</label>
+                        <label for="make">Marca</label>
                         <input id="make" name="make" class="input-control" placeholder="Ex: Toyota" />
                       </div>
                       <div class="input-group">
-                        <label for="model">Modelo (model)</label>
+                        <label for="model">Modelo</label>
                         <input id="model" name="model" class="input-control" placeholder="Ex: Corolla" />
                       </div>
                       <div class="input-group">
-                        <label for="color">Cor (color)</label>
+                        <label for="color">Cor</label>
                         <select id="color" name="color" class="input-control">
                           <option value="">Selecione</option>
                           <option>Black</option>
@@ -368,44 +280,156 @@
                         </select>
                       </div>
                       <div class="input-group">
-                        <label for="cylinders">Cilindros (cylinders)</label>
+                        <label for="cylinders">Cilindros</label>
                         <input id="cylinders" name="cylinders" type="number" class="input-control" placeholder="Ex: 4" />
                       </div>
                       <div class="input-group">
-                        <label for="passengers">Passageiros (passengers)</label>
+                        <label for="passengers">Passageiros</label>
                         <input id="passengers" name="passengers" type="number" class="input-control" placeholder="Ex: 5" />
                       </div>
                       <div class="input-group">
-                        <label for="doors">Portas (doors)</label>
+                        <label for="doors">Portas</label>
                         <input id="doors" name="doors" type="number" class="input-control" placeholder="Ex: 4" />
                       </div>
                       <div class="input-group">
-                        <label for="odometer">Odômetro em milhas (odometer)</label>
+                        <label for="odometer">Odômetro em milhas</label>
                         <input id="odometer" name="odometer" type="number" step="0.1" class="input-control" placeholder="Ex: 25000" />
                       </div>
                     </div>
                   </section>
 
-                  <section class="rta-section" aria-labelledby="rta-previous-title">
+                  <section class="rta-section" aria-labelledby="rta-title">
                     <div class="rta-section-header">
-                      <div class="rta-section-icon" aria-hidden="true">📄</div>
+                      <div class="rta-section-icon" aria-hidden="true">�</div>
                       <div>
-                        <h4 class="rta-section-title" id="rta-previous-title">Título Anterior</h4>
-                        <p class="rta-section-description">Obrigatório para veículos quitados, seguindo a ordem do bloco C3.</p>
+                        <h4 class="rta-section-title" id="rta-title">Título e Seguro</h4>
+                        <p class="rta-section-description">Agrupe os dados do título anterior e das datas do seguro antes de gerar o PDF.</p>
                       </div>
                     </div>
-                    <div class="rta-grid rta-grid-auto">
+                    <fieldset class="rta-fieldset" aria-describedby="title-status-hint">
+                      <legend>Status do veículo em relação ao título</legend>
+                      <p id="title-status-hint" class="input-hint">Escolha se o veículo está financiado ou quitado para ajustar os campos necessários.</p>
+                      <div class="rta-radio-group">
+                        <label class="rta-radio-option">
+                          <input type="radio" name="title_status" value="financed" />
+                          <span>Financiado</span>
+                        </label>
+                        <label class="rta-radio-option">
+                          <input type="radio" name="title_status" value="paid_off" checked />
+                          <span>Quitado</span>
+                        </label>
+                      </div>
+                    </fieldset>
+                    <div class="rta-subsections">
+                      <div class="rta-subsection" id="previousTitleSection">
+                        <h5 class="rta-subsection-title">Título anterior</h5>
+                        <div class="rta-grid rta-grid-auto">
+                          <div class="input-group">
+                            <label for="previous_title_number">Número</label>
+                            <input id="previous_title_number" name="previous_title_number" class="input-control" placeholder="Ex: CN539192" />
+                          </div>
+                          <div class="input-group">
+                            <label for="previous_title_state">Estado</label>
+                            <input id="previous_title_state" name="previous_title_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
+                          </div>
+                          <div class="input-group">
+                            <label for="previous_title_country">País</label>
+                            <input id="previous_title_country" name="previous_title_country" class="input-control" placeholder="Ex: USA" />
+                          </div>
+                        </div>
+                      </div>
+                      <div class="rta-subsection">
+                        <h5 class="rta-subsection-title">Seguro e datas</h5>
+                        <div class="rta-grid rta-grid-auto">
+                          <div class="input-group">
+                            <label for="purchase_date">Data de compra</label>
+                            <input id="purchase_date" name="purchase_date" type="date" class="input-control" />
+                          </div>
+                          <div class="input-group">
+                            <label for="insurance_effective_date">Início do seguro</label>
+                            <input id="insurance_effective_date" name="insurance_effective_date" type="date" class="input-control" />
+                          </div>
+                          <div class="input-group">
+                            <label for="insurance_policy_change_date">Alteração da apólice</label>
+                            <input id="insurance_policy_change_date" name="insurance_policy_change_date" type="date" class="input-control" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-client">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">�</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-client">Cliente</h4>
+                        <p class="rta-section-description">Preencha o bloco do cliente seguindo a ordem do RTA web original.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-wide">
                       <div class="input-group">
-                        <label for="previous_title_number">Número (previous_title_number)</label>
-                        <input id="previous_title_number" name="previous_title_number" class="input-control" placeholder="Ex: CN539192" />
+                        <label for="owner_name">Nome completo</label>
+                        <input id="owner_name" name="owner_name" class="input-control" placeholder="Sobrenome, Nome, Nome do meio" />
                       </div>
                       <div class="input-group">
-                        <label for="previous_title_state">Estado (previous_title_state)</label>
-                        <input id="previous_title_state" name="previous_title_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
+                        <label for="owner_dob">Nascimento</label>
+                        <input id="owner_dob" name="owner_dob" type="date" class="input-control" />
                       </div>
                       <div class="input-group">
-                        <label for="previous_title_country">País (previous_title_country)</label>
-                        <input id="previous_title_country" name="previous_title_country" class="input-control" placeholder="Ex: USA" />
+                        <label for="owner_license">Licença / ID / SSN</label>
+                        <input id="owner_license" name="owner_license" class="input-control" placeholder="Documento do cliente" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_street">Rua</label>
+                        <input id="owner_street" name="owner_street" class="input-control" placeholder="Ex: 456 Oak Ave" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_city">Cidade</label>
+                        <input id="owner_city" name="owner_city" class="input-control" placeholder="Ex: Miami" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_state">Estado</label>
+                        <input id="owner_state" name="owner_state" maxlength="2" class="input-control" placeholder="Ex: FL" />
+                      </div>
+                      <div class="input-group">
+                        <label for="owner_zipcode">CEP/ZIP</label>
+                        <input id="owner_zipcode" name="owner_zipcode" class="input-control" placeholder="Ex: 33101" />
+                      </div>
+                    </div>
+                  </section>
+
+                  <section class="rta-section" aria-labelledby="rta-seller">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">🏪</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-seller">Vendedor</h4>
+                        <p class="rta-section-description">Informe os dados do vendedor exatamente como no formulário legado.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-wide">
+                      <div class="input-group">
+                        <label for="seller_name">Nome completo</label>
+                        <input id="seller_name" name="seller_name" class="input-control" placeholder="Ex: Nome completo" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_street">Rua</label>
+                        <input id="seller_street" name="seller_street" class="input-control" placeholder="Ex: 123 Main St" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_city">Cidade</label>
+                        <input id="seller_city" name="seller_city" class="input-control" placeholder="Ex: Boston" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_state">Estado</label>
+                        <input id="seller_state" name="seller_state" maxlength="2" class="input-control" placeholder="Ex: MA" />
+                      </div>
+                      <div class="input-group">
+                        <label for="seller_zipcode">CEP/ZIP</label>
+                        <input id="seller_zipcode" name="seller_zipcode" class="input-control" placeholder="Ex: 02101" />
+                      </div>
+                      <div class="input-group">
+                        <label for="gross_sale_price">Preço bruto</label>
+                        <input id="gross_sale_price" name="gross_sale_price" type="number" step="0.01" class="input-control" placeholder="Ex: 25000.00" />
                       </div>
                     </div>
                   </section>
