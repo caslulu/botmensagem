@@ -1,4 +1,4 @@
-# Central de Disparos WhatsApp
+# Insurance Helper
 
 Sistema desktop para gerenciar e enviar mensagens automatizadas no WhatsApp Web.
 
@@ -21,7 +21,7 @@ Sistema desktop para gerenciar e enviar mensagens automatizadas no WhatsApp Web.
 ## 🔧 Instalação
 
 1. Baixe o instalador mais recente em [Releases](https://github.com/caslulu/botmensagem/releases)
-2. Execute `Central de Disparos WhatsApp Setup.exe`
+2. Execute `Insurance Helper Setup.exe`
 3. Siga as instruções do instalador
 4. O aplicativo iniciará automaticamente após a instalação
 

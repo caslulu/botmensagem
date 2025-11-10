@@ -18,7 +18,7 @@ Isso irá:
 Após o build, o instalador estará em:
 
 ```
-dist/Central de Disparos WhatsApp Setup 1.0.0.exe
+dist/Insurance Helper Setup 1.0.0.exe
 ```
 
 ## 🎁 Entregar para o Cliente
@@ -53,7 +53,7 @@ npm run build:dir
 ```
 
 Isso cria uma pasta `dist/win-unpacked` com a aplicação sem instalar.
-Execute: `dist/win-unpacked/Central de Disparos WhatsApp.exe`
+Execute: `dist/win-unpacked/Insurance Helper.exe`
 
 ## 🎨 Personalizar
 

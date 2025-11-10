@@ -1,4 +1,5 @@
 const fs = require('fs');
+const { DEFAULT_AVATAR_TOKEN } = require('../constants/profile');
 
 /**
  * Converte um perfil do backend para o formato esperado pelo renderer.
@@ -10,8 +11,9 @@ function formatProfileForRenderer(profile) {
 
   let thumbnailData = null;
   const { imagePath } = profile;
+  const hasCustomImage = imagePath && imagePath !== DEFAULT_AVATAR_TOKEN;
 
-  if (imagePath && fs.existsSync(imagePath)) {
+  if (hasCustomImage && fs.existsSync(imagePath)) {
     try {
       const imageBuffer = fs.readFileSync(imagePath);
       const mimeType = imagePath.endsWith('.png') ? 'image/png' : 'image/jpeg';
@@ -25,7 +27,7 @@ function formatProfileForRenderer(profile) {
     id: profile.id,
     name: profile.name,
     message: profile.message,
-    imagePath,
+    imagePath: hasCustomImage ? imagePath : null,
     thumbnail: thumbnailData,
     isAdmin: !!profile.isAdmin
   };

@@ -4,11 +4,37 @@
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Bot Mensagem</title>
+  <title>Insurance Helper</title>
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="rta-form.css" />
   <link rel="stylesheet" href="price/price.css" />
     <style>
+      /* Sidebar layout */
+      #sidebar {
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        height: 100vh;
+        overflow-y: auto;
+        z-index: 30;
+      }
+      body.sidebar-visible #sidebar {
+        display: flex;
+      }
+
+      #appShell {
+        min-height: 100vh;
+        padding-left: 0;
+        transition: padding-left 0.2s ease;
+      }
+      body.sidebar-visible #appShell {
+        padding-left: 16rem;
+      }
+      body.sidebar-visible.sidebar-collapsed #appShell {
+        padding-left: 64px;
+      }
+
       /* Sidebar collapse */
       body.sidebar-collapsed #sidebar {
         width: 64px;
@@ -59,18 +85,24 @@
         border-color: rgba(59, 130, 246, 0.5);
       }
       .service-btn-icon {
-        width: 20px;
-        height: 20px;
+        width: 36px;
+        height: 36px;
+        border-radius: 12px;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
+        background: rgba(148, 163, 184, 0.15);
+        color: rgb(226, 232, 240);
         pointer-events: none;
       }
-      .service-btn svg {
+      .service-btn-icon svg {
         width: 20px;
         height: 20px;
         pointer-events: none;
+      }
+      .service-btn-icon .service-btn-emoji {
+        font-size: 18px;
       }
       .service-btn span {
         pointer-events: none;
@@ -86,6 +118,22 @@
         background: rgba(15, 23, 42, 0.5);
         color: rgb(148, 163, 184);
         border-color: rgba(51, 65, 85, 0.5);
+      }
+
+      .howto-steps {
+        list-style: decimal;
+        padding-left: 1.25rem;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        color: rgb(203, 213, 225);
+        font-size: 0.875rem;
+      }
+
+      .howto-note {
+        font-size: 0.75rem;
+        color: rgba(148, 163, 184, 0.8);
       }
 
       /* Views */
@@ -201,7 +249,7 @@
     </style>
   </head>
   <body class="antialiased">
-    <div class="min-h-screen flex">
+  <div id="appShell" class="min-h-screen flex">
   <!-- Sidebar à esquerda -->
   <aside id="sidebar" class="w-64 bg-slate-900/50 border-r border-slate-800 flex flex-col p-4 gap-4 hidden">
         <div class="flex items-center justify-between mb-2">
@@ -219,7 +267,7 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <button id="sidebarOpenToggle" class="hidden text-slate-400 hover:text-white text-2xl leading-none" title="Mostrar sidebar">☰</button>
-              <h1 class="text-3xl font-semibold text-white">Central de disparos WhatsApp</h1>
+              <h1 class="text-3xl font-semibold text-white">Insurance Helper</h1>
             </div>
             <p class="text-sm text-slate-400">Use os botões de serviços para trocar de módulo.</p>
           </div>
@@ -633,6 +681,15 @@
                       <input type="radio" name="priceTax" value="500" />
                       <span>$ 500,00</span>
                     </label>
+                    <label class="price-radio">
+                      <input type="radio" name="priceTax" value="custom" data-custom />
+                      <span>Personalizada</span>
+                    </label>
+                  </div>
+                  <div class="price-field mt-2">
+                    <label for="priceCustomTax" class="price-label">Valor personalizado ($)</label>
+                    <input id="priceCustomTax" type="number" class="price-input" placeholder="Ex: 450" min="0" step="0.01" inputmode="decimal" disabled />
+                    <p class="price-hint">Defina uma taxa específica quando selecionar "Personalizada".</p>
                   </div>
                 </div>
 
@@ -650,18 +707,6 @@
                     <label class="price-radio">
                       <input type="radio" name="priceInsurer" value="Geico" />
                       <span>Geico</span>
-                    </label>
-                    <label class="price-radio">
-                      <input type="radio" name="priceInsurer" value="Liberty" />
-                      <span>Liberty</span>
-                    </label>
-                    <label class="price-radio">
-                      <input type="radio" name="priceInsurer" value="State Farm" />
-                      <span>State Farm</span>
-                    </label>
-                    <label class="price-radio">
-                      <input type="radio" name="priceInsurer" value="Travelers" />
-                      <span>Travelers</span>
                     </label>
                   </div>
                 </div>
@@ -763,6 +808,83 @@
                 <button id="priceDownloadFileBtn" class="btn-secondary" disabled>💾 Baixar</button>
                 <button id="priceShowFolderBtn" class="btn-secondary" disabled>🗂️ Abrir pasta</button>
               </div>
+            </div>
+          </section>
+
+          <section id="howToView" class="flex-col gap-6" style="display: none;">
+            <div class="card space-y-3">
+              <header class="space-y-1">
+                <p class="text-sm uppercase tracking-wide text-slate-400">Guia rápido</p>
+                <h3 class="text-lg font-semibold text-white">Como usar cada módulo</h3>
+                <p class="text-sm text-slate-300">Resumo com passos essenciais para configurar e executar cada recurso do Insurance Helper.</p>
+              </header>
+            </div>
+
+            <div class="grid gap-5 md:grid-cols-2">
+              <article class="card space-y-3">
+                <header>
+                  <h4 class="text-lg font-semibold text-white">Disparos automáticos</h4>
+                  <p class="text-sm text-slate-400">Envie mensagens em massa pelo WhatsApp Web.</p>
+                </header>
+                <ol class="howto-steps">
+                  <li>Selecione ou cadastre um operador na tela inicial.</li>
+                  <li>Configure mensagens e limite de envios no painel lateral.</li>
+                  <li>Inicie a automação para abrir o WhatsApp Web e acompanhar os logs.</li>
+                </ol>
+                <p class="howto-note">Disponível apenas para operadores marcados como administradores.</p>
+              </article>
+
+              <article class="card space-y-3">
+                <header>
+                  <h4 class="text-lg font-semibold text-white">RTA automático</h4>
+                  <p class="text-sm text-slate-400">Gere documentos RTA completos em PDF.</p>
+                </header>
+                <ol class="howto-steps">
+                  <li>Preencha os dados do segurado, veículo e cobertura no formulário.</li>
+                  <li>Revise os campos obrigatórios destacados.</li>
+                  <li>Gere o arquivo e use as ações para abrir, salvar ou anexar.</li>
+                </ol>
+                <p class="howto-note">Use o status no topo do cartão para acompanhar o progresso.</p>
+              </article>
+
+              <article class="card space-y-3">
+                <header>
+                  <h4 class="text-lg font-semibold text-white">Integração Trello</h4>
+                  <p class="text-sm text-slate-400">Crie cards com dados completos e anexos.</p>
+                </header>
+                <ol class="howto-steps">
+                  <li>Preencha dados do cliente, veículos e drivers nas seções do formulário.</li>
+                  <li>Valide campos obrigatórios — erros aparecem logo abaixo de cada campo.</li>
+                  <li>Envie para gerar o card e receber o link de acompanhamento.</li>
+                </ol>
+                <p class="howto-note">Reaproveite cotações usando o botão “Editar” na aba correspondente.</p>
+              </article>
+
+              <article class="card space-y-3">
+                <header>
+                  <h4 class="text-lg font-semibold text-white">Preço automático</h4>
+                  <p class="text-sm text-slate-400">Monte artes com taxas e planos customizados.</p>
+                </header>
+                <ol class="howto-steps">
+                  <li>Escolha uma cotação opcional e a seguradora desejada.</li>
+                  <li>Selecione a taxa sugerida ou informe um valor personalizado.</li>
+                  <li>Preencha valores dos planos e gere a imagem com as ações finais.</li>
+                </ol>
+                <p class="howto-note">O painel de resultado indica se o arquivo foi anexado ao Trello e o caminho salvo.</p>
+              </article>
+
+              <article class="card space-y-3 md:col-span-2">
+                <header>
+                  <h4 class="text-lg font-semibold text-white">Cotações salvas</h4>
+                  <p class="text-sm text-slate-400">Gerencie registros para reutilizar dados em outros módulos.</p>
+                </header>
+                <ol class="howto-steps">
+                  <li>Revise as informações principais de cada cotação na grade.</li>
+                  <li>Use “Cotar” para rodar automações específicas da seguradora.</li>
+                  <li>Prefill no Trello via “Editar” ou exclua entradas com “Apagar”.</li>
+                </ol>
+                <p class="howto-note">A lista é atualizada automaticamente ao abrir a aba ou gerar uma nova cotação.</p>
+              </article>
             </div>
           </section>
 
@@ -1116,20 +1238,20 @@
           </div>
 
           <div>
-            <label for="profileImageInput" class="block text-sm font-medium text-slate-300 mb-1">Imagem do perfil</label>
+            <label for="profileImageInput" class="block text-sm font-medium text-slate-300 mb-1">Imagem do perfil (opcional)</label>
             <div class="flex gap-2">
               <input
                 type="text"
                 id="profileImageInput"
                 class="flex-1 rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
-                placeholder="Selecione um arquivo de imagem"
-                required
+                placeholder="Selecione um arquivo de imagem ou deixe em branco"
               />
               <button type="button" id="selectProfileImageBtn" class="btn-secondary whitespace-nowrap">
                 📁 Selecionar
               </button>
             </div>
-            <p class="text-xs text-slate-400 mt-1">Precisamos do arquivo salvo localmente para montar a vitrine do operador.</p>
+            <p class="text-xs text-slate-400 mt-1">Formatos aceitos: PNG ou JPG.</p>
+            <p class="text-xs text-slate-500">Se você não escolher uma imagem, aplicaremos automaticamente um avatar padrão.</p>
           </div>
 
           <label class="flex items-center gap-2 text-sm text-slate-300">

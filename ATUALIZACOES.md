@@ -165,7 +165,7 @@ Para a primeira release (versão 1.0.0 já compilada):
    - Tag: v1.0.0
    - Title: v1.0.0 - Versão Inicial
    - Descrição: Primeira versão do sistema
-   - Anexe o arquivo: `dist/Central de Disparos WhatsApp Setup 1.0.0.exe`
+   - Anexe o arquivo: `dist/Insurance Helper Setup 1.0.0.exe`
    - Marque como "Latest release"
    - Publique
 

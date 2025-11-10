@@ -10,7 +10,8 @@ function mapVehicleOwnership(value) {
   if (!normalized) return 'C';
   if (normalized.includes('menos')) return 'A';
   if (normalized.includes('1-3')) return 'B';
-  return 'C';
+  if (normalized.includes('3-5')) return 'C';
+  return 'D';
 }
 
 function mapInsuranceDuration(value) {
@@ -25,7 +26,10 @@ function mapInsuranceDuration(value) {
   if (normalized.includes('1-3')) {
     return { hasInsurance: true, option: 'B' };
   }
+  if (normalized.includes('3-5')) {
   return { hasInsurance: true, option: 'C' };
+  }
+  return { hasInsurance: true, option: 'D' };
 }
 
 function mapResidenceDuration(value) {
@@ -56,7 +60,7 @@ class ProgressiveQuoteAutomation {
 
     try {
       await this.paginaInicial(data.zipcode);
-      await page.waitForLoadState('networkidle').catch(() => {});
+      await this.waitForNetworkSettled(6000);
       await this.informacoesBasicas(data);
       await this.informacoesEndereco(data);
       if (Array.isArray(data.veiculos) && data.veiculos.length) {
@@ -89,6 +93,22 @@ class ProgressiveQuoteAutomation {
     }
   }
 
+  async waitForNetworkSettled(maxWait = 5000) {
+    const timeout = Math.max(0, Number(maxWait) || 0) || 5000;
+
+    try {
+      await Promise.race([
+        this.page.waitForLoadState('networkidle'),
+        this.page.waitForTimeout(timeout)
+      ]);
+    } catch (error) {
+      console.warn('[ProgressiveAutomation] Falha ao aguardar network idle:', error?.message || error);
+    }
+
+    // pequeno buffer para permitir que scripts agendem tarefas de paint
+    await this.page.waitForTimeout(250).catch(() => {});
+  }
+
   async paginaInicial(zipcode) {
     await this.page.goto('https://www.progressive.com/', { waitUntil: 'load' });
 
@@ -110,186 +130,32 @@ class ProgressiveQuoteAutomation {
 
   async informacoesBasicas(data) {
     const dateValue = data.dataNascimentoUs || formatDateForUs(data.dataNascimento) || '01/01/1990';
-    const dobInput = this.page.getByLabel('Date of birth*');
-
     await this.page.getByLabel('First Name', { exact: true }).fill(data.firstName, { timeout: 15000 });
     await this.page.getByLabel('Last Name', { exact: true }).fill(data.lastName, { timeout: 15000 });
     await this.page.getByLabel('Primary email address').fill(data.email, { timeout: 15000 });
-
-  await dobInput.click({ timeout: 15000 });
-  await dobInput.fill('', { timeout: 15000 });
-
-    // Fill programmatically to avoid masked inputs producing wrong characters
-    try {
-      await dobInput.evaluate((el, value) => {
-        el.value = value;
-        el.dispatchEvent(new Event('input', { bubbles: true }));
-        el.dispatchEvent(new Event('change', { bubbles: true }));
-      }, dateValue);
-    } catch (_) {
-      await dobInput.fill(dateValue, { timeout: 15000 });
-    }
-
-    await this.page.waitForTimeout(40);
-
-    // Ensure validation runs before moving on
-    try {
-      await dobInput.evaluate((el) => el.blur());
-    } catch (_) {}
-
-    await this.page.waitForTimeout(50);
-    await dobInput.press('Tab').catch(() => {});
-
-    const continueButton = this.page.getByRole('button', { name: 'Continue' });
-    await continueButton.waitFor({ state: 'visible', timeout: 15000 }).catch(() => {});
-
-  // Give the page a moment to register DOB validation before proceeding
-  await this.page.waitForTimeout(1000);
-
-    let advanced = false;
-    // Try normal click, then force click, then keyboard Enter as fallbacks.
-    for (let attempt = 0; attempt < 3 && !advanced; attempt += 1) {
-      await this.page.waitForTimeout(40);
-      try {
-        // first try a regular click
-        await continueButton.click({ timeout: 15000 });
-      } catch (err) {
-        // if normal click fails, try a forced click
-        try {
-          await continueButton.click({ force: true });
-        } catch (err2) {
-          // last resort: focus and send Enter
-          try {
-            await continueButton.focus();
-            await this.page.keyboard.press('Enter');
-          } catch (_) {}
-        }
-      }
-
-      try {
-        await this.page.waitForSelector("label:has-text('Street number and name')", { timeout: 4500 });
-        advanced = true;
-      } catch (_) {
-        await this.page.waitForTimeout(80);
-      }
-    }
-
-    if (!advanced) {
-      console.warn('[ProgressiveAutomation] Continue button did not advance after two attempts.');
-    }
+    await this.page.getByLabel('Date of birth*').fill(dateValue, { timeout: 15000 });
+    await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 15000 });
+    await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 15000 });
   }
 
   async informacoesEndereco(data) {
     const streetValue = (data.rua || '').trim() || 'Unknown';
   const aptValue = (data.apt || '').trim();
     const cityValue = (data.cidade || '').trim() || 'City';
+    const streetField = this.page.getByRole('combobox', { name: 'Street number and name' });
+    await streetField.click({ timeout: 15000 });
+    await streetField.fill(streetValue, { timeout: 15000 });
 
-  await this.page.waitForSelector("h2:has-text('Mailing address')", { timeout: 12000 }).catch(() => {});
-
-  const streetSelector = "input[name='MailingAddressStreet'], input[name='MailingAddressStreetNumber']";
-  const aptSelector = "input[name='MailingAddressApt'], input[name='MailingAddressUnit']";
-  const citySelector = "input[name='MailingAddressCity'], input[name='MailingAddressCityName']";
-
-  const streetInput = this.page.locator(streetSelector).first();
-  const aptInput = this.page.locator(aptSelector).first();
-  const cityInput = this.page.locator(citySelector).first();
-
-    const labelFallbackStreet = this.page.getByLabel('Street number and name');
-    const labelFallbackApt = this.page.getByLabel('Apt./Unit #');
-    const labelFallbackCity = this.page.getByLabel('City');
-
-    const typeWithSuggestion = async (
-      locator,
-      fallbackLocator,
-      value,
-      { selectSuggestion = false, keyDelay = 30 } = {}
-    ) => {
-      const target = (await locator.count()) ? locator : fallbackLocator;
-      await target.waitFor({ state: 'visible', timeout: 20000 }).catch(() => {});
-      await target.click({ timeout: 15000 }).catch(() => {});
-      // clear existing value with shortcut then fallback to fill
-      await this.page.keyboard.press('Control+A').catch(() => {});
-      await this.page.keyboard.press('Meta+A').catch(() => {});
-      await target.fill('', { timeout: 15000 }).catch(() => {});
-  await this.page.waitForTimeout(40);
-  await target.type(value, { delay: keyDelay });
-
-      if (selectSuggestion) {
-  await this.page.waitForTimeout(120);
-        const suggestionSelectors = [
-          "[role='listbox'] [role='option']",
-          "[data-testid*='address'] [role='option']",
-          "[data-testid='autocomplete-option']",
-          "div[role='option']"
-        ];
-
-        let suggestionClicked = false;
-        for (const selector of suggestionSelectors) {
-          const suggestion = this.page.locator(selector).first();
-          if (await suggestion.isVisible()) {
-            await suggestion.click().catch(() => {});
-            suggestionClicked = true;
-            break;
-          }
-        }
-
-        if (!suggestionClicked) {
-          await this.page.keyboard.press('Enter').catch(() => {});
-        }
-      }
-
-  await this.page.waitForTimeout(90);
-
-      return target;
-    };
-
-    const streetField = await typeWithSuggestion(streetInput, labelFallbackStreet, streetValue, {
-      selectSuggestion: true,
-      keyDelay: 40
-    });
-
-    // Ensure the value stayed populated; if not, try direct set as a fallback
-    try {
-      const streetStored = await streetField.evaluate((el) => el.value || '');
-      if (!streetStored) {
-        await streetField.evaluate((el, val) => {
-          el.value = val;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        }, streetValue);
-      }
-    } catch (_) {}
-
-    const twoLetterStateCodes = new Set([
-      'AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY','DC'
-    ]);
-
-    const shouldFillApt = (() => {
-      if (!aptValue) return false;
-      const lettersOnly = aptValue.replace(/[^A-Za-z]/g, '').toUpperCase();
-      if (lettersOnly.length === 2 && twoLetterStateCodes.has(lettersOnly)) {
-        return false;
-      }
-      return true;
-    })();
-
-    if (shouldFillApt) {
-      await typeWithSuggestion(aptInput, labelFallbackApt, aptValue, { keyDelay: 25 });
+    if (aptValue) {
+      const aptField = this.page.getByRole('textbox', { name: 'Apt./Unit #' });
+      await aptField.click({ timeout: 15000 });
+      await aptField.fill(aptValue, { timeout: 15000 });
     }
 
-    const cityField = await typeWithSuggestion(cityInput, labelFallbackCity, cityValue, { keyDelay: 35 });
-    try {
-      const cityStored = await cityField.evaluate((el) => el.value || '');
-      if (!cityStored) {
-        await cityField.evaluate((el, val) => {
-          el.value = val;
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-        }, cityValue);
-      }
-    } catch (_) {}
+    const cityField = this.page.getByRole('textbox', { name: 'City' });
+    await cityField.click({ timeout: 15000 });
+    await cityField.fill(cityValue, { timeout: 15000 });
 
-    await this.page.waitForTimeout(80);
     await this.page.getByRole('button', { name: 'Ok, start my quote' }).click({ timeout: 15000 });
   }
 
@@ -351,7 +217,7 @@ class ProgressiveQuoteAutomation {
         }
       } catch (_) {}
     }
-
+    await this.page.waitForTimeout(10000);
     await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
   }
 

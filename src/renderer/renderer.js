@@ -8,6 +8,7 @@ const rtaView = document.getElementById('rtaView');
 const trelloView = document.getElementById('trelloView');
 const priceView = document.getElementById('priceView');
 const quotesView = document.getElementById('quotesView');
+const howToView = document.getElementById('howToView');
 const rtaStatus = document.getElementById('rtaStatus');
 const rtaOutput = document.getElementById('rtaOutput');
 const rtaActions = document.getElementById('rtaActions');
@@ -70,10 +71,11 @@ console.log('Elementos DOM carregados:', {
 const placeholderAvatar =
   'data:image/svg+xml;charset=UTF-8,' +
   encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="480" viewBox="0 0 320 480" fill="none">
-      <rect width="320" height="480" rx="32" fill="white"/>
-      <path d="M160 132c28.719 0 52-23.281 52-52s-23.281-52-52-52-52 23.281-52 52 23.281 52 52 52Z" fill="#E2E8F0"/>
-      <path d="M160 168c-66.274 0-120 53.726-120 120v56h240v-56c0-66.274-53.726-120-120-120Z" fill="#E2E8F0"/>
+    `<svg xmlns="http://www.w3.org/2000/svg" width="320" height="320" viewBox="0 0 320 320" fill="none">
+      <rect width="320" height="320" rx="160" fill="#0f172a"/>
+      <path d="M160 84c26.51 0 48 21.49 48 48s-21.49 48-48 48-48-21.49-48-48 21.49-48 48-48Z" fill="#1e3a8a"/>
+      <path d="M160 192c-53 0-96 43-96 96v8c0 8.837 7.163 16 16 16h160c8.837 0 16-7.163 16-16v-8c0-53-43-96-96-96Z" fill="#1d4ed8"/>
+      <path d="M160 120c11.046 0 20 8.954 20 20 0 8.467-5.303 15.672-12.764 18.626A27.952 27.952 0 0 1 188 184c15.464 0 28 12.536 28 28v8a4 4 0 0 1-4 4H108a4 4 0 0 1-4-4v-8c0-15.464 12.536-28 28-28 8.113 0 15.413-3.516 20.548-9.183C148.536 179.611 144 173.336 144 166c0-11.046 8.954-20 20-20Z" fill="#93c5fd" opacity=".5"/>
     </svg>`
   );
 
@@ -187,6 +189,7 @@ function toggleSidebarVisibility(visible) {
   }
 
   sidebarEl.classList.toggle('hidden', !visible);
+  document.body.classList.toggle('sidebar-visible', visible);
 }
 
 function scrollMainToTop() {
@@ -203,6 +206,7 @@ function showProfileSelection() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -215,6 +219,7 @@ function showModuleSelection() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(false);
   scrollMainToTop();
 }
@@ -227,6 +232,7 @@ function showControlModule() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -239,6 +245,7 @@ function showRtaModule() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -251,6 +258,7 @@ function showUnavailableModule() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -263,6 +271,7 @@ function showTrelloModule() {
   if (trelloView) trelloView.style.display = 'flex';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -275,6 +284,7 @@ function showPriceModule() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'flex';
   if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'none';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -287,6 +297,20 @@ function showQuotesModule() {
   if (trelloView) trelloView.style.display = 'none';
   if (priceView) priceView.style.display = 'none';
   if (quotesView) quotesView.style.display = 'flex';
+  if (howToView) howToView.style.display = 'none';
+  toggleSidebarVisibility(true);
+  scrollMainToTop();
+}
+
+function showHowToModule() {
+  if (selectionView) selectionView.style.display = 'none';
+  if (moduleSelectionView) moduleSelectionView.style.display = 'none';
+  if (controlView) controlView.style.display = 'none';
+  if (rtaView) rtaView.style.display = 'none';
+  if (trelloView) trelloView.style.display = 'none';
+  if (priceView) priceView.style.display = 'none';
+  if (quotesView) quotesView.style.display = 'none';
+  if (howToView) howToView.style.display = 'flex';
   toggleSidebarVisibility(true);
   scrollMainToTop();
 }
@@ -597,6 +621,14 @@ const FALLBACK_SERVICES = [
     description: 'Gere imagens de preço e envie para o Trello.',
     requiresAdmin: true,
     requiresProfile: true
+  },
+  {
+    id: 'howto',
+    name: 'Como usar',
+    icon: '❔',
+    description: 'Passo a passo resumido de cada módulo disponível.',
+    requiresAdmin: false,
+    requiresProfile: false
   }
 ];
 
@@ -722,7 +754,8 @@ function createModuleManager(options = {}) {
       showRtaModule,
       showTrelloModule,
       showPriceModule,
-      showUnavailableModule
+      showUnavailableModule,
+      showHowToModule
     };
 
     if (entry.guard && entry.guard(context) === false) {
@@ -869,7 +902,6 @@ moduleManager.register({
   }
 });
 
-function createServiceIcon(iconKey) {
 moduleManager.register({
   id: 'cotacoes',
   ...(fallbackServiceById.cotacoes || {}),
@@ -887,6 +919,18 @@ moduleManager.register({
   }
 });
 
+moduleManager.register({
+  id: 'howto',
+  ...(fallbackServiceById.howto || {}),
+  guard: () => true,
+  onEnter: () => {
+    showHowToModule();
+    setStatus('Consulte os passos essenciais de cada módulo.');
+    updateStatusBadge('idle');
+  }
+});
+
+function createServiceIcon(iconKey) {
   const key = iconKey || 'chat';
   const svgIcons = ['chat', 'doc', 'board'];
 
@@ -1087,7 +1131,7 @@ async function handleProfileCreate(event) {
 
   identifier = slugify(identifier);
 
-  if (!name || !identifier || !message || !imagePath) {
+  if (!name || !identifier || !message) {
     if (profileError) {
       profileError.textContent = 'Preencha todos os campos obrigatórios.';
       profileError.classList.remove('hidden');
@@ -1115,9 +1159,12 @@ async function handleProfileCreate(event) {
       id: identifier,
       name,
       defaultMessage: message,
-      imagePath,
       isAdmin
     };
+
+    if (imagePath) {
+      payload.imagePath = imagePath;
+    }
 
     const response = await window.profile.create(payload);
     if (!response?.success) {
@@ -1248,9 +1295,10 @@ function renderServiceButtons(services) {
     button.dataset.serviceId = service.id;
     button.dataset.requiresAdmin = service.requiresAdmin ? 'true' : 'false';
 
-    const icon = createServiceIcon(service.icon);
-    icon.classList.add('service-btn-icon');
-    button.appendChild(icon);
+  const iconWrapper = document.createElement('span');
+  iconWrapper.className = 'service-btn-icon';
+  iconWrapper.appendChild(createServiceIcon(service.icon));
+  button.appendChild(iconWrapper);
 
     const label = document.createElement('span');
     label.textContent = service.name;

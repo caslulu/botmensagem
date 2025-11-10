@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 
 const PathResolver = require('./automation/utils/path-resolver');
+const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
 
 const MAX_PROFILES = 5;
 
@@ -175,7 +176,7 @@ function createProfile(profile) {
 
   const id = profile.id;
   const name = profile.name;
-  const imagePath = profile.imagePath || profile.image_path;
+  let imagePath = profile.imagePath || profile.image_path;
   const defaultMessage = profile.defaultMessage || profile.default_message || '';
   const isAdmin = profile.isAdmin ?? profile.is_admin ?? false;
 
@@ -184,10 +185,10 @@ function createProfile(profile) {
   }
 
   if (!imagePath) {
-    throw new Error('Perfil inválido: imagem obrigatória');
+    imagePath = DEFAULT_AVATAR_TOKEN;
   }
 
-  if (!fs.existsSync(imagePath)) {
+  if (imagePath !== DEFAULT_AVATAR_TOKEN && !fs.existsSync(imagePath)) {
     throw new Error('Perfil inválido: caminho da imagem não encontrado');
   }
 

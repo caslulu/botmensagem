@@ -12,7 +12,8 @@ const PriceModule = (() => {
     alert: document.getElementById('priceGlobalAlert'),
     quoteSelect: document.getElementById('priceQuoteSelect'),
     quoteHint: document.getElementById('priceQuoteHint'),
-    taxRadios: Array.from(document.querySelectorAll('input[name="priceTax"]')),
+  taxRadios: Array.from(document.querySelectorAll('input[name="priceTax"]')),
+  customTaxInput: document.getElementById('priceCustomTax'),
     insurerRadios: Array.from(document.querySelectorAll('input[name="priceInsurer"]')),
     languageRadios: Array.from(document.querySelectorAll('input[name="priceLanguage"]')),
     quitadoForm: document.getElementById('priceQuitadoForm'),
@@ -315,11 +316,34 @@ const PriceModule = (() => {
 
     elements.taxRadios.forEach((radio) => {
       radio.addEventListener('change', (event) => {
-        if (event.target.checked) {
-          state.tax = Number.parseFloat(event.target.value) || 0;
+        if (!event.target.checked) {
+          return;
         }
+
+        const isCustom = event.target.value === 'custom';
+        if (elements.customTaxInput) {
+          elements.customTaxInput.disabled = !isCustom;
+          if (!isCustom) {
+            elements.customTaxInput.value = '';
+          } else {
+            elements.customTaxInput.focus();
+          }
+        }
+
+        state.tax = isCustom ? Number.parseFloat(elements.customTaxInput?.value) || 0 : Number.parseFloat(event.target.value) || 0;
       });
     });
+
+    if (elements.customTaxInput) {
+      elements.customTaxInput.addEventListener('input', (event) => {
+        if (!elements.taxRadios.find((radio) => radio.value === 'custom')?.checked) {
+          return;
+        }
+
+        const value = Number.parseFloat(event.target.value);
+        state.tax = Number.isFinite(value) ? value : 0;
+      });
+    }
 
     elements.insurerRadios.forEach((radio) => {
       radio.addEventListener('change', (event) => {
@@ -388,6 +412,16 @@ const PriceModule = (() => {
     registerListeners();
     if (elements.insurerRadios?.length) {
       state.insurer = elements.insurerRadios.find((radio) => radio.checked)?.value || state.insurer;
+    }
+    if (elements.taxRadios?.length) {
+      const customRadio = elements.taxRadios.find((radio) => radio.value === 'custom');
+      if (customRadio && customRadio.checked && elements.customTaxInput) {
+        elements.customTaxInput.disabled = false;
+        const preset = Number.parseFloat(elements.customTaxInput.value);
+        if (Number.isFinite(preset)) {
+          state.tax = preset;
+        }
+      }
     }
   }
 

@@ -9,6 +9,7 @@ const {
   createProfile: createProfileRecord,
   MAX_PROFILES
 } = require('./database');
+const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
 
 /**
  * Shape returned:
@@ -20,10 +21,11 @@ function mapDbProfile(rawProfile) {
   if (!rawProfile) return null;
 
   // Base properties from profiles table
+  const storedImagePath = rawProfile.image_path;
   const profile = {
     id: rawProfile.id,
     name: rawProfile.name,
-    imagePath: rawProfile.image_path,
+    imagePath: storedImagePath === DEFAULT_AVATAR_TOKEN ? null : storedImagePath,
     message: rawProfile.default_message,
     sendLimit: 200,
     sessionDir: null,

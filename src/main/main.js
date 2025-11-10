@@ -10,7 +10,7 @@ const isDev = process.env.NODE_ENV === 'development';
 
 app.on('ready', async () => {
   if (process.platform === 'win32') {
-    app.setAppUserModelId('com.caslulu.botmensagem');
+    app.setAppUserModelId('com.caslulu.insurancehelper');
   }
 
   await initializeApp();

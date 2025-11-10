@@ -2,7 +2,7 @@
 
 ## 🏛️ Visão Geral
 
-O Central de Disparos WhatsApp é construído usando Electron, seguindo a arquitetura de processos múltiplos:
+O Insurance Helper é construído usando Electron, seguindo a arquitetura de processos múltiplos:
 
 ```
 ┌─────────────────────────────────────────┐
