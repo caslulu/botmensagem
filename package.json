@@ -29,6 +29,9 @@
       "imagem_thiago.jpg",
       "imagem_debora.jpg"
     ],
+    "asarUnpack": [
+      "node_modules/@napi-rs/canvas/**"
+    ],
     "win": {
       "target": [
         {
