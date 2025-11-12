@@ -27,6 +27,7 @@ dist/Insurance Helper Setup 1.0.0.exe
 2. Cliente executa o instalador
 3. Segue o assistente de instalação (pode escolher o diretório)
 4. Pronto! O ícone aparecerá na Área de Trabalho e Menu Iniciar
+5. Copie o arquivo `.env` com as credenciais (ou `trello.env`) para o diretório de instalação se precisar atualizar os dados depois
 
 ## ⚙️ O que está incluído no instalador
 
@@ -54,6 +55,7 @@ npm run build:dir
 
 Isso cria uma pasta `dist/win-unpacked` com a aplicação sem instalar.
 Execute: `dist/win-unpacked/Insurance Helper.exe`
+Copie o `.env` (ou `trello.env`) para essa pasta antes de iniciar o executável para validar o acesso ao Trello.
 
 ## 🎨 Personalizar
 

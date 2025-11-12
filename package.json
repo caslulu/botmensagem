@@ -5,12 +5,11 @@
   "main": "src/main/main.js",
   "scripts": {
     "start": "electron .",
-    "dev": "cross-env NODE_ENV=development electron .",
+    "dev": "NODE_ENV=development electron .",
     "build:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --minify",
     "dev:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --watch",
     "playwright:install": "playwright install chromium",
-    "rebuild:native": "electron-rebuild -f -w @napi-rs/canvas",
-    "build": "npm run build:css && npm run rebuild:native && electron-builder --win --x64",
+    "build": "npm run build:css && electron-builder --win --x64",
     "build:linux": "npm run build:css && electron-builder --linux",
     "build:dir": "npm run build:css && electron-builder --win --x64 --dir",
     "publish": "npm run build:css && electron-builder --win --x64 --publish always",
@@ -27,6 +26,8 @@
       "src/**/*",
       "node_modules/**/*",
       "package.json",
+      ".env",
+      "trello.env",
       "imagem_thiago.jpg",
       "imagem_debora.jpg"
     ],
@@ -72,8 +73,6 @@
     "autoprefixer": "^10.4.19",
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
-    "electron-rebuild": "^3.2.9",
-    "cross-env": "^7.0.3",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.14"
   },

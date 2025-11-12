@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const { app } = require('electron');
 const { formatVehicles, formatPeople } = require('../utils/formatters');
 
 const DEFAULT_API_URL = 'https://api.trello.com/1/cards';
@@ -162,18 +163,64 @@ function loadEnvFromFile(envPath) {
   return {};
 }
 
+function safeGetAppPath(key) {
+  try {
+    if (app && typeof app.getPath === 'function') {
+      return app.getPath(key);
+    }
+  } catch (_) {
+    // Ignore errors when app isn't ready
+  }
+  return undefined;
+}
+
+function appendEnvVariants(targetSet, basePath) {
+  if (!basePath) {
+    return;
+  }
+
+  const candidates = [
+    '.env',
+    'trello.env',
+    path.join('config', '.env'),
+    path.join('config', 'trello.env')
+  ];
+
+  for (const relative of candidates) {
+    targetSet.add(path.join(basePath, relative));
+  }
+}
+
+function getEnvSearchPaths() {
+  const paths = new Set();
+
+  appendEnvVariants(paths, process.cwd());
+  appendEnvVariants(paths, path.resolve(__dirname, '../../..'));
+  appendEnvVariants(paths, path.resolve(__dirname, '../../auto-trello'));
+
+  const resourcesDir = process.resourcesPath;
+  appendEnvVariants(paths, resourcesDir);
+
+  if (resourcesDir) {
+    appendEnvVariants(paths, path.join(resourcesDir, 'app.asar.unpacked'));
+  }
+
+  const exePath = safeGetAppPath('exe') || process.execPath;
+  if (exePath) {
+    appendEnvVariants(paths, path.dirname(exePath));
+  }
+
+  appendEnvVariants(paths, safeGetAppPath('userData'));
+
+  return Array.from(paths);
+}
+
 function resolveEnvValue(key) {
   if (process.env[key]) {
     return process.env[key];
   }
 
-  const searchPaths = [
-    path.resolve(process.cwd(), '.env'),
-    path.resolve(__dirname, '../../auto-trello/.env'),
-    path.resolve(__dirname, '../../auto-trello/.env.example')
-  ];
-
-  for (const envPath of searchPaths) {
+  for (const envPath of getEnvSearchPaths()) {
     const values = loadEnvFromFile(envPath);
     if (values[key]) {
       return values[key];
