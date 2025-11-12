@@ -1,6 +1,13 @@
 const path = require('path');
 const fs = require('fs');
-const { createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas');
+let createCanvas, loadImage, GlobalFonts;
+let canvasAvailable = true;
+try {
+  ({ createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas'));
+} catch (error) {
+  canvasAvailable = false;
+  console.error('[PriceService] Falha ao carregar @napi-rs/canvas:', error.message);
+}
 
 const os = require('os');
 const PathResolver = require('../../automation/utils/path-resolver');
@@ -50,12 +57,19 @@ class PriceService {
       return;
     }
 
-    if (!fs.existsSync(this.fontPath)) {
-      throw new Error(`Fonte não encontrada: ${this.fontPath}`);
+    if (!canvasAvailable) {
+      return; // Sem canvas, não tenta registrar fonte
     }
-
-    GlobalFonts.registerFromPath(this.fontPath, this.fontFamily);
-    this._fontRegistered = true;
+    if (!fs.existsSync(this.fontPath)) {
+      console.warn(`[PriceService] Fonte não encontrada: ${this.fontPath}`);
+      return;
+    }
+    try {
+      GlobalFonts.registerFromPath(this.fontPath, this.fontFamily);
+      this._fontRegistered = true;
+    } catch (err) {
+      console.warn('[PriceService] Falha ao registrar fonte:', err.message);
+    }
   }
 
   getQuotes() {
@@ -157,6 +171,9 @@ class PriceService {
   }
 
   async _renderImage(templatePath, overlayEntries, formType, language) {
+    if (!canvasAvailable) {
+      throw new Error('Módulo nativo @napi-rs/canvas indisponível (falha ao carregar binding)');
+    }
     if (!fs.existsSync(templatePath)) {
       throw new Error(`Template não encontrado: ${templatePath}`);
     }
