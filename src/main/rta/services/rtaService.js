@@ -1,5 +1,4 @@
-// Serviço RTA migrado de Python para Node.js
-// Implementa preenchimento real de PDF usando pdf-lib e templates existentes
+// Serviço RTA - Preenchimento de PDF usando pdf-lib e templates
 
 const path = require('path');
 const fs = require('fs');
@@ -86,7 +85,6 @@ class RtaService {
         const pdfDoc = await PDFDocument.load(pdfBytes, { updateFieldAppearances: true });
         const form = pdfDoc.getForm();
 
-        // Campos conforme Python
         const campos = {
             '(L1) Seller name (Please print)': String(data.seller_name || ''),
             '(L2) (Seller) Address': String(data.seller_street || ''),

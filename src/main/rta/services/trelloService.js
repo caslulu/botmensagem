@@ -1,4 +1,4 @@
-// Exemplo de serviço para Trello migrado de Python para Node.js
+// Serviço para integração com Trello
 
 function formatarVeiculos(veiculos) {
     return veiculos.map(v => v.modelo + ' - ' + v.placa).join(', ');

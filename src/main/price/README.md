@@ -1,6 +1,6 @@
-# Price Module (JavaScript)
+# Price Module
 
-This folder contains the Node.js implementation of the automatic price module migrated from the previous Python service.
+This folder contains the automatic price module implementation.
 
 ## Structure
 

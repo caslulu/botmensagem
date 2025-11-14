@@ -1,5 +1,6 @@
 const { chromium } = require('playwright');
 const { splitName, formatDateForUs } = require('../data-mapper');
+const ChromeDetector = require('../../utils/chrome-detector');
 
 function safeLower(value) {
   return typeof value === 'string' ? value.toLowerCase() : '';
@@ -49,6 +50,14 @@ class ProgressiveQuoteAutomation {
       headless: options.headless ?? this.headless,
       args: ['--incognito']
     };
+
+    const chromePath = ChromeDetector.detect();
+    if (chromePath) {
+      console.log(`[Progressive] Usando Google Chrome: ${chromePath}`);
+      launchOptions.executablePath = chromePath;
+    } else {
+      console.log('[Progressive] Chrome não encontrado. Usando Chromium do Playwright');
+    }
 
     const browser = await chromium.launch(launchOptions);
     const context = await browser.newContext();

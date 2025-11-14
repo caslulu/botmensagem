@@ -28,7 +28,6 @@ contextBridge.exposeInMainWorld('profile', {
   updateSendLimit: (profileId, sendLimit) => ipcRenderer.invoke('profile:update-send-limit', profileId, sendLimit)
 });
 
-// Serviços gerais e RTA (migrados do Python)
 contextBridge.exposeInMainWorld('services', {
   list: () => ipcRenderer.invoke('services:list')
 });
