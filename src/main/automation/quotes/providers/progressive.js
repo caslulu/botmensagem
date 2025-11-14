@@ -1,6 +1,9 @@
 const { chromium } = require('playwright');
 const { splitName, formatDateForUs } = require('../data-mapper');
 const ChromeDetector = require('../../utils/chrome-detector');
+const { exec } = require('child_process');
+const { promisify } = require('util');
+const execAsync = promisify(exec);
 
 function safeLower(value) {
   return typeof value === 'string' ? value.toLowerCase() : '';
@@ -46,36 +49,80 @@ class ProgressiveQuoteAutomation {
     this.browser = null;
     this.context = null;
     this.page = null;
+    this.browserProcess = null;
+  }
+
+  async killOrphanChrome() {
+    try {
+      if (process.platform === 'win32') {
+        // Matar apenas os processos Chrome iniciados em modo incognito/automation
+        await execAsync('taskkill /F /IM chrome.exe /FI "WINDOWTITLE eq Progressive*" 2>nul').catch(() => {});
+        await execAsync('taskkill /F /IM chromium.exe 2>nul').catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[Progressive] Não foi possível matar processos órfãos:', e.message);
+    }
   }
 
   async cleanup() {
+    console.log('[Progressive] Iniciando cleanup...');
+    
     try {
       if (this.page && !this.page.isClosed()) {
+        console.log('[Progressive] Fechando página...');
         await this.page.close().catch(() => {});
       }
     } catch (e) { /* ignore */ }
 
     try {
       if (this.context) {
+        console.log('[Progressive] Fechando contexto...');
         await this.context.close().catch(() => {});
       }
     } catch (e) { /* ignore */ }
 
     try {
       if (this.browser && this.browser.isConnected()) {
+        console.log('[Progressive] Fechando browser...');
         await this.browser.close().catch(() => {});
       }
     } catch (e) { /* ignore */ }
 
+    // Forçar encerramento do processo do browser se ainda existir
+    try {
+      if (this.browser && typeof this.browser.process === 'function') {
+        const proc = this.browser.process();
+        if (proc && !proc.killed) {
+          console.log('[Progressive] Matando processo do browser...');
+          proc.kill('SIGKILL');
+        }
+      }
+    } catch (_) { /* ignore */ }
+
+    // Aguardar um pouco para garantir que processos sejam finalizados
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // Matar processos órfãos se necessário
+    await this.killOrphanChrome();
+
     this.page = null;
     this.context = null;
     this.browser = null;
+    
+    console.log('[Progressive] Cleanup concluído');
   }
 
   async run(data, options = {}) {
     const launchOptions = {
       headless: options.headless ?? this.headless,
-      args: ['--incognito']
+      args: [
+        '--incognito',
+        '--disable-blink-features=AutomationControlled',
+        '--disable-dev-shm-usage',
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-gpu'
+      ]
     };
 
     const chromePath = ChromeDetector.detect();
@@ -86,31 +133,35 @@ class ProgressiveQuoteAutomation {
       console.log('[Progressive] Chrome não encontrado. Usando Chromium do Playwright');
     }
 
-    const browser = await chromium.launch(launchOptions);
-    const context = await browser.newContext();
-    const page = await context.newPage();
-
-    this.browser = browser;
-    this.context = context;
-    this.page = page;
-
-    // Listener para detectar quando a página/browser é fechado externamente
-    page.on('close', () => {
-      console.log('[Progressive] Página fechada - limpando recursos...');
-      this.cleanup();
-    });
-
-    context.on('close', () => {
-      console.log('[Progressive] Contexto fechado - limpando recursos...');
-      this.cleanup();
-    });
-
-    browser.on('disconnected', () => {
-      console.log('[Progressive] Browser desconectado - limpando recursos...');
-      this.cleanup();
-    });
+    let browser = null;
+    let context = null;
+    let page = null;
 
     try {
+      browser = await chromium.launch(launchOptions);
+      context = await browser.newContext();
+      page = await context.newPage();
+
+      this.browser = browser;
+      this.context = context;
+      this.page = page;
+
+      // Listeners para detectar quando a página/browser é fechado externamente
+      page.on('close', () => {
+        console.log('[Progressive] Página fechada externamente - limpando recursos...');
+        this.cleanup().catch(() => {});
+      });
+
+      context.on('close', () => {
+        console.log('[Progressive] Contexto fechado externamente - limpando recursos...');
+        this.cleanup().catch(() => {});
+      });
+
+      browser.on('disconnected', () => {
+        console.log('[Progressive] Browser desconectado - limpando recursos...');
+        this.cleanup().catch(() => {});
+      });
+
       await this.paginaInicial(data.zipcode);
       await this.waitForNetworkSettled(6000);
       await this.informacoesBasicas(data);

@@ -10,6 +10,7 @@ try {
 }
 
 const os = require('os');
+const { app } = require('electron');
 const PathResolver = require('../../automation/utils/path-resolver');
 const { parseCurrency, formatWithComma } = require('../utils/number');
 const quotesRepository = require('../repositories/quotesRepository');
@@ -30,12 +31,12 @@ function ensureFolder(dirPath) {
 
 class PriceService {
   constructor() {
-    // Resolve assets dir - funciona tanto em dev quanto no executável empacotado
-    const isDev = !process.resourcesPath;
-    if (isDev) {
+    // Resolve assets dir corretamente para dev vs build empacotado
+    const isPackaged = app && app.isPackaged;
+    if (!isPackaged) {
       this.assetsDir = path.resolve(__dirname, '../assets');
     } else {
-      // No executável, os assets estão em app.asar.unpacked
+      // No executável, os assets ficam fora do asar
       this.assetsDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'price', 'assets');
     }
     

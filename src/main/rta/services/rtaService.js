@@ -3,12 +3,13 @@
 const path = require('path');
 const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
+const { app } = require('electron');
 
 class RtaService {
     constructor() {
-        // Resolve assets dir - funciona tanto em dev quanto no executável empacotado
-        const isDev = !process.resourcesPath;
-        if (isDev) {
+        // Resolve assets dir corretamente para dev vs build empacotado
+        const isPackaged = app && app.isPackaged;
+        if (!isPackaged) {
             this.assetsDir = path.resolve(__dirname, '../assets');
         } else {
             // No executável, os assets estão em app.asar.unpacked
