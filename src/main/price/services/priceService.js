@@ -30,7 +30,15 @@ function ensureFolder(dirPath) {
 
 class PriceService {
   constructor() {
-    this.assetsDir = path.resolve(__dirname, '../assets');
+    // Resolve assets dir - funciona tanto em dev quanto no executável empacotado
+    const isDev = !process.resourcesPath;
+    if (isDev) {
+      this.assetsDir = path.resolve(__dirname, '../assets');
+    } else {
+      // No executável, os assets estão em app.asar.unpacked
+      this.assetsDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'price', 'assets');
+    }
+    
     this.fontPath = path.join(this.assetsDir, 'fonts', 'fonte.otf');
     this.fontFamily = 'PriceFont';
     this.templates = {

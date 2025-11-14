@@ -35,7 +35,9 @@
       "node_modules/@napi-rs/canvas/**",
       "node_modules/sql.js/**",
       "node_modules/pdf-lib/**",
-      "node_modules/playwright/**"
+      "node_modules/playwright/**",
+      "src/main/price/assets/**",
+      "src/main/rta/assets/**"
     ],
     "win": {
       "target": [

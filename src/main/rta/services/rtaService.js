@@ -6,9 +6,14 @@ const { PDFDocument } = require('pdf-lib');
 
 class RtaService {
     constructor() {
-        // estrutura simplificada: assets ficam em ../assets
-        const currentDir = __dirname;
-        this.assetsDir = path.resolve(currentDir, '../assets');
+        // Resolve assets dir - funciona tanto em dev quanto no executável empacotado
+        const isDev = !process.resourcesPath;
+        if (isDev) {
+            this.assetsDir = path.resolve(__dirname, '../assets');
+        } else {
+            // No executável, os assets estão em app.asar.unpacked
+            this.assetsDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'rta', 'assets');
+        }
         this.templates = {
             allstate: path.join(this.assetsDir, 'rta_template_allstate.pdf'),
             progressive: path.join(this.assetsDir, 'rta_template_progressive.pdf'),
