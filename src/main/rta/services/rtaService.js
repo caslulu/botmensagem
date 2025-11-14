@@ -80,99 +80,118 @@ class RtaService {
     }
 
     async preencherRtaAndSave(data) {
-        const insuranceCompany = data?.insurance_company || data?.seguradora || 'allstate';
-        const templatePath = this.getTemplatePath(insuranceCompany);
-        if (!fs.existsSync(templatePath)) {
-            throw new Error(`Template não encontrado: ${templatePath}`);
-        }
-
-        const pdfBytes = fs.readFileSync(templatePath);
-        const pdfDoc = await PDFDocument.load(pdfBytes, { updateFieldAppearances: true });
-        const form = pdfDoc.getForm();
-
-        const campos = {
-            '(L1) Seller name (Please print)': String(data.seller_name || ''),
-            '(L2) (Seller) Address': String(data.seller_street || ''),
-            '(L2) (Seller) City': String(data.seller_city || ''),
-            '(L2) (Seller) State': String(data.seller_state || ''),
-            '(L2) (Seller) Zip Code': String(data.seller_zipcode || ''),
-            '(I3) Gross Sale Price (Proof Required)': String(data.gross_sale_price || ''),
-            '(J1) Purchase Date': this._formatDate(data.purchase_date || ''),
-            '(K3) Effective Date of Insurance': this._formatDate(data.insurance_effective_date || ''),
-            '(K5) Policy Change Date': this._formatDate(data.insurance_policy_change_date || ''),
-            "(D2) (First Owner's) Name (Last, First, Middle)": String(data.owner_name || ''),
-            '(D3) (Owner 1) Date of Birth (MM [Month]/DD [Day]/YYYY[Year])': this._formatDate(data.owner_dob || ''),
-            '(D4) (Owner 1) License Number/ ID (Identification) Number / SSN (Social Security Number)': String(data.owner_license || ''),
-            '(D5) (Owner 1) Residential Address': String(data.owner_street || ''),
-            '(D5) (Owner 1) City': String(data.owner_city || ''),
-            '(D5) (Owner 1) State': String(data.owner_state || ''),
-            '(D5) (Owner 1) Zip Code': String(data.owner_zipcode || ''),
-            '(G1) (Garaging) Address': String(data.owner_street || ''),
-            '(G1) (Garaging Address) City': String(data.owner_city || ''),
-            '(G1) (Garaging Address) State': String(data.owner_state || ''),
-            '(G1) (Garaging Address) Zip Code': String(data.owner_zipcode || ''),
-            '(B1) Vehicle Identification Number (VIN)': String(data.vin || ''),
-            '(B2) Body Style': String(data.body_style || ''),
-            '(B5) Vehicle Year': String(data.year || ''),
-            '(B5) (Vehicle) Make': String(data.make || ''),
-            '(B5) (Vehicle) Model': String(data.model || ''),
-            '(B7) Number of cylinders': String(data.cylinders || ''),
-            '(B7) Number of passengers': String(data.passengers || ''),
-            '(B7) Number of doors': String(data.doors || ''),
-            '(B9) Odometer (Miles)': String(data.odometer || ''),
-            '(C3) Previous title number': String(data.previous_title_number || ''),
-            '(C3) Previous title state': String(data.previous_title_state || ''),
-            '(C3) Previous title country': String(data.previous_title_country || '')
-        };
-
-        // Preencher textos
-        for (const [fieldName, value] of Object.entries(campos)) {
-            try {
-                const field = form.getFieldMaybe?.(fieldName) || (() => { try { return form.getTextField(fieldName);} catch {return null;} })();
-                if (field && field.setText) {
-                    field.setText(String(value ?? ''));
-                }
-            } catch (e) {
-                try {
-                    const anyField = form.getField(fieldName);
-                    if (anyField.setText) anyField.setText(String(value ?? ''));
-                } catch {}
+        let pdfDoc = null;
+        
+        try {
+            const insuranceCompany = data?.insurance_company || data?.seguradora || 'allstate';
+            const templatePath = this.getTemplatePath(insuranceCompany);
+            if (!fs.existsSync(templatePath)) {
+                throw new Error(`Template não encontrado: ${templatePath}`);
             }
-        }
 
-        // Checkboxes de cores
-        const colors = ['Black','White','Brown','Blue','Yellow','Gray','Purple','Green','Orange','Red','Silver','Gold'];
-        const chosen = String(data.color || '').trim();
-        for (const color of colors) {
-            const nameVariants = [
-                `(B4) ${color}`,
-                color === 'White' || color === 'Purple' ? `(B4 ) ${color}` : null
-            ].filter(Boolean);
-            for (const fname of nameVariants) {
+            const pdfBytes = fs.readFileSync(templatePath);
+            pdfDoc = await PDFDocument.load(pdfBytes, { updateFieldAppearances: true });
+            const form = pdfDoc.getForm();
+
+            const campos = {
+                '(L1) Seller name (Please print)': String(data.seller_name || ''),
+                '(L2) (Seller) Address': String(data.seller_street || ''),
+                '(L2) (Seller) City': String(data.seller_city || ''),
+                '(L2) (Seller) State': String(data.seller_state || ''),
+                '(L2) (Seller) Zip Code': String(data.seller_zipcode || ''),
+                '(I3) Gross Sale Price (Proof Required)': String(data.gross_sale_price || ''),
+                '(J1) Purchase Date': this._formatDate(data.purchase_date || ''),
+                '(K3) Effective Date of Insurance': this._formatDate(data.insurance_effective_date || ''),
+                '(K5) Policy Change Date': this._formatDate(data.insurance_policy_change_date || ''),
+                "(D2) (First Owner's) Name (Last, First, Middle)": String(data.owner_name || ''),
+                '(D3) (Owner 1) Date of Birth (MM [Month]/DD [Day]/YYYY[Year])': this._formatDate(data.owner_dob || ''),
+                '(D4) (Owner 1) License Number/ ID (Identification) Number / SSN (Social Security Number)': String(data.owner_license || ''),
+                '(D5) (Owner 1) Residential Address': String(data.owner_street || ''),
+                '(D5) (Owner 1) City': String(data.owner_city || ''),
+                '(D5) (Owner 1) State': String(data.owner_state || ''),
+                '(D5) (Owner 1) Zip Code': String(data.owner_zipcode || ''),
+                '(G1) (Garaging) Address': String(data.owner_street || ''),
+                '(G1) (Garaging Address) City': String(data.owner_city || ''),
+                '(G1) (Garaging Address) State': String(data.owner_state || ''),
+                '(G1) (Garaging Address) Zip Code': String(data.owner_zipcode || ''),
+                '(B1) Vehicle Identification Number (VIN)': String(data.vin || ''),
+                '(B2) Body Style': String(data.body_style || ''),
+                '(B5) Vehicle Year': String(data.year || ''),
+                '(B5) (Vehicle) Make': String(data.make || ''),
+                '(B5) (Vehicle) Model': String(data.model || ''),
+                '(B7) Number of cylinders': String(data.cylinders || ''),
+                '(B7) Number of passengers': String(data.passengers || ''),
+                '(B7) Number of doors': String(data.doors || ''),
+                '(B9) Odometer (Miles)': String(data.odometer || ''),
+                '(C3) Previous title number': String(data.previous_title_number || ''),
+                '(C3) Previous title state': String(data.previous_title_state || ''),
+                '(C3) Previous title country': String(data.previous_title_country || '')
+            };
+
+            // Preencher textos
+            for (const [fieldName, value] of Object.entries(campos)) {
                 try {
-                    const field = form.getFieldMaybe?.(fname) || (() => { try { return form.getCheckBox(fname);} catch {return null;} })();
-                    if (field && field.check && field.uncheck) {
-                        if (this._isColor(chosen, color)) field.check(); else field.uncheck();
+                    const field = form.getFieldMaybe?.(fieldName) || (() => { try { return form.getTextField(fieldName);} catch {return null;} })();
+                    if (field && field.setText) {
+                        field.setText(String(value ?? ''));
                     }
-                } catch {
+                } catch (e) {
                     try {
-                        const anyField = form.getField(fname);
-                        if (anyField && anyField.check && anyField.uncheck) {
-                            if (this._isColor(chosen, color)) anyField.check(); else anyField.uncheck();
-                        }
+                        const anyField = form.getField(fieldName);
+                        if (anyField.setText) anyField.setText(String(value ?? ''));
                     } catch {}
                 }
             }
+
+            // Checkboxes de cores
+            const colors = ['Black','White','Brown','Blue','Yellow','Gray','Purple','Green','Orange','Red','Silver','Gold'];
+            const chosen = String(data.color || '').trim();
+            for (const color of colors) {
+                const nameVariants = [
+                    `(B4) ${color}`,
+                    color === 'White' || color === 'Purple' ? `(B4 ) ${color}` : null
+                ].filter(Boolean);
+                for (const fname of nameVariants) {
+                    try {
+                        const field = form.getFieldMaybe?.(fname) || (() => { try { return form.getCheckBox(fname);} catch {return null;} })();
+                        if (field && field.check && field.uncheck) {
+                            if (this._isColor(chosen, color)) field.check(); else field.uncheck();
+                        }
+                    } catch {
+                        try {
+                            const anyField = form.getField(fname);
+                            if (anyField && anyField.check && anyField.uncheck) {
+                                if (this._isColor(chosen, color)) anyField.check(); else anyField.uncheck();
+                            }
+                        } catch {}
+                    }
+                }
+            }
+
+            try { form.updateFieldAppearances(); } catch {}
+
+            const ts = new Date().toISOString().replace(/[:.]/g, '-');
+            const outPath = path.join(this.outputDir, `rta-${insuranceCompany}-${ts}.pdf`);
+            const outBytes = await pdfDoc.save();
+            fs.writeFileSync(outPath, outBytes);
+
+            return { path: outPath, template: templatePath };
+        } catch (error) {
+            console.error('[RtaService] Erro ao preencher RTA:', error);
+            throw error;
+        } finally {
+            // Garantir limpeza de recursos do PDF
+            pdfDoc = null;
+            
+            // Força garbage collection se disponível (apenas em modo dev)
+            if (global.gc) {
+                try {
+                    global.gc();
+                } catch (e) {
+                    // ignore
+                }
+            }
         }
-
-        try { form.updateFieldAppearances(); } catch {}
-
-        const ts = new Date().toISOString().replace(/[:.]/g, '-');
-        const outPath = path.join(this.outputDir, `rta-${insuranceCompany}-${ts}.pdf`);
-        const outBytes = await pdfDoc.save();
-        fs.writeFileSync(outPath, outBytes);
-
-        return { path: outPath, template: templatePath };
     }
 }
 

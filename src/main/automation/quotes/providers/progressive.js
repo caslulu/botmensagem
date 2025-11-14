@@ -43,6 +43,33 @@ function mapResidenceDuration(value) {
 class ProgressiveQuoteAutomation {
   constructor(options = {}) {
     this.headless = options.headless ?? false;
+    this.browser = null;
+    this.context = null;
+    this.page = null;
+  }
+
+  async cleanup() {
+    try {
+      if (this.page && !this.page.isClosed()) {
+        await this.page.close().catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+
+    try {
+      if (this.context) {
+        await this.context.close().catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+
+    try {
+      if (this.browser && this.browser.isConnected()) {
+        await this.browser.close().catch(() => {});
+      }
+    } catch (e) { /* ignore */ }
+
+    this.page = null;
+    this.context = null;
+    this.browser = null;
   }
 
   async run(data, options = {}) {
@@ -66,6 +93,22 @@ class ProgressiveQuoteAutomation {
     this.browser = browser;
     this.context = context;
     this.page = page;
+
+    // Listener para detectar quando a página/browser é fechado externamente
+    page.on('close', () => {
+      console.log('[Progressive] Página fechada - limpando recursos...');
+      this.cleanup();
+    });
+
+    context.on('close', () => {
+      console.log('[Progressive] Contexto fechado - limpando recursos...');
+      this.cleanup();
+    });
+
+    browser.on('disconnected', () => {
+      console.log('[Progressive] Browser desconectado - limpando recursos...');
+      this.cleanup();
+    });
 
     try {
       await this.paginaInicial(data.zipcode);
@@ -97,8 +140,7 @@ class ProgressiveQuoteAutomation {
       console.error('[ProgressiveAutomation] Erro geral:', error);
       return { success: false, error: error.message || String(error) };
     } finally {
-      await context.close().catch(() => {});
-      await browser.close().catch(() => {});
+      await this.cleanup();
     }
   }
 

@@ -42,6 +42,22 @@ class BrowserManager {
     this.context = await chromium.launchPersistentContext(sessionDir, launchOptions);
     this.page = this.context.pages()[0] || await this.context.newPage();
 
+    // Listeners para detectar fechamento externo
+    if (this.page) {
+      this.page.on('close', () => {
+        this.logger.warn('Página fechada externamente - limpando referências...');
+        this.page = null;
+      });
+    }
+
+    if (this.context) {
+      this.context.on('close', () => {
+        this.logger.warn('Contexto fechado externamente - limpando referências...');
+        this.context = null;
+        this.page = null;
+      });
+    }
+
     return { context: this.context, page: this.page };
   }
 
