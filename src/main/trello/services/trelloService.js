@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
 const { formatVehicles, formatPeople } = require('../utils/formatters');
+const trelloConfig = require('../../config/trello-config');
 
 const DEFAULT_API_URL = 'https://api.trello.com/1/cards';
 
@@ -216,10 +217,17 @@ function getEnvSearchPaths() {
 }
 
 function resolveEnvValue(key) {
+  // 1. Verifica se está no process.env
   if (process.env[key]) {
     return process.env[key];
   }
 
+  // 2. Verifica no arquivo de configuração compilado
+  if (trelloConfig && trelloConfig[key]) {
+    return trelloConfig[key];
+  }
+
+  // 3. Tenta ler de arquivos .env no sistema de arquivos
   for (const envPath of getEnvSearchPaths()) {
     const values = loadEnvFromFile(envPath);
     if (values[key]) {
