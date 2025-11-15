@@ -50,14 +50,16 @@ class ProgressiveQuoteAutomation {
     this.context = null;
     this.page = null;
     this.browserProcess = null;
+    this.isCleaningUp = false;
   }
 
   async killOrphanChrome() {
     try {
       if (process.platform === 'win32') {
-        // Matar apenas os processos Chrome iniciados em modo incognito/automation
-        await execAsync('taskkill /F /IM chrome.exe /FI "WINDOWTITLE eq Progressive*" 2>nul').catch(() => {});
-        await execAsync('taskkill /F /IM chromium.exe 2>nul').catch(() => {});
+        console.log('[Progressive] Matando processos Chrome/Chromium órfãos...');
+        await execAsync('taskkill /F /IM chrome.exe /T 2>nul').catch(() => {});
+        await execAsync('taskkill /F /IM chromium.exe /T 2>nul').catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 500));
       }
     } catch (e) {
       console.warn('[Progressive] Não foi possível matar processos órfãos:', e.message);
@@ -65,49 +67,91 @@ class ProgressiveQuoteAutomation {
   }
 
   async cleanup() {
+    if (this.isCleaningUp) {
+      console.log('[Progressive] Cleanup já em andamento, ignorando chamada duplicada');
+      return;
+    }
+
+    this.isCleaningUp = true;
     console.log('[Progressive] Iniciando cleanup...');
     
+    let browserProcess = null;
+    
+    try {
+      if (this.browser && typeof this.browser.process === 'function') {
+        browserProcess = this.browser.process();
+      }
+    } catch (_) { /* ignore */ }
+
     try {
       if (this.page && !this.page.isClosed()) {
         console.log('[Progressive] Fechando página...');
+        this.page.removeAllListeners();
         await this.page.close().catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     } catch (e) { /* ignore */ }
 
     try {
       if (this.context) {
         console.log('[Progressive] Fechando contexto...');
+        this.context.removeAllListeners();
         await this.context.close().catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 300));
       }
     } catch (e) { /* ignore */ }
 
     try {
       if (this.browser && this.browser.isConnected()) {
         console.log('[Progressive] Fechando browser...');
+        this.browser.removeAllListeners();
         await this.browser.close().catch(() => {});
+        await new Promise(resolve => setTimeout(resolve, 800));
       }
     } catch (e) { /* ignore */ }
 
-    // Forçar encerramento do processo do browser se ainda existir
-    try {
-      if (this.browser && typeof this.browser.process === 'function') {
-        const proc = this.browser.process();
-        if (proc && !proc.killed) {
-          console.log('[Progressive] Matando processo do browser...');
-          proc.kill('SIGKILL');
-        }
-      }
-    } catch (_) { /* ignore */ }
+    if (browserProcess && !browserProcess.killed) {
+      console.log('[Progressive] Forçando término do processo do browser...');
+      try {
+        browserProcess.kill('SIGKILL');
+        await new Promise(resolve => setTimeout(resolve, 800));
+      } catch (_) { /* ignore */ }
+    }
 
-    // Aguardar um pouco para garantir que processos sejam finalizados
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    // Matar processos órfãos se necessário
     await this.killOrphanChrome();
+
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    try {
+      const { BrowserWindow } = require('electron');
+      const allWindows = BrowserWindow.getAllWindows();
+      const mainWindow = allWindows.find(w => !w.isDestroyed()) || allWindows[0];
+      
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        console.log('[Progressive] Restaurando foco para janela principal...');
+        
+        if (mainWindow.isMinimized()) {
+          mainWindow.restore();
+        }
+        
+        mainWindow.show();
+        mainWindow.focus();
+        mainWindow.moveTop();
+        
+        mainWindow.setAlwaysOnTop(true);
+        await new Promise(resolve => setTimeout(resolve, 200));
+        mainWindow.setAlwaysOnTop(false);
+        
+        mainWindow.webContents.focus();
+      }
+    } catch (e) {
+      console.warn('[Progressive] Erro ao restaurar foco:', e.message);
+    }
 
     this.page = null;
     this.context = null;
     this.browser = null;
+    this.isCleaningUp = false;
     
     console.log('[Progressive] Cleanup concluído');
   }
