@@ -6,9 +6,11 @@ const { chromium } = require('playwright');
 const ChromeDetector = require('./utils/chrome-detector');
 const PathResolver = require('./utils/path-resolver');
 const config = require('./config');
+const EventEmitter = require('events');
 
-class BrowserManager {
+class BrowserManager extends EventEmitter {
   constructor(logger) {
+    super();
     this.logger = logger;
     this.context = null;
     this.page = null;
@@ -47,6 +49,8 @@ class BrowserManager {
       this.page.on('close', () => {
         this.logger.warn('Página fechada externamente - limpando referências...');
         this.page = null;
+        // Notificar controlador/UI
+        this.emit('closed', { source: 'page' });
       });
     }
 
@@ -55,6 +59,8 @@ class BrowserManager {
         this.logger.warn('Contexto fechado externamente - limpando referências...');
         this.context = null;
         this.page = null;
+        // Notificar controlador/UI
+        this.emit('closed', { source: 'context' });
       });
     }
 
@@ -75,6 +81,7 @@ class BrowserManager {
       } finally {
         this.context = null;
         this.page = null;
+        this.emit('closed', { source: 'manual' });
       }
     }
   }

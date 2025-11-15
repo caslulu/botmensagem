@@ -187,6 +187,20 @@ class AutomationController extends EventEmitter {
       this.whatsappService,
       this.messageSender
     );
+
+    if (this.browserManager && typeof this.browserManager.on === 'function') {
+      this.browserManager.on('closed', (evt) => {
+        const source = evt && evt.source ? evt.source : 'unknown';
+        this.logger.warn(`Navegador fechado (${source}). Atualizando estado para parado.`);
+        this.isRunning = false;
+        this.stopRequested = false;
+        this.emitStatus({
+          status: 'Automação parada (navegador fechado).',
+          startDisabled: false,
+          stopDisabled: true
+        });
+      });
+    }
   }
 
   /**
