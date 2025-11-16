@@ -1,5 +1,5 @@
 const { ipcMain } = require('electron');
-const { createProfile } = require('../profiles');
+const { createProfile, updateProfile } = require('../profiles');
 const { getProfileSettings, updateProfileSettings } = require('../database');
 const { formatProfileForRenderer } = require('../utils/profile-formatter');
 const { createSuccess, createError } = require('../utils/result');
@@ -31,6 +31,16 @@ function registerProfileHandlers() {
     } catch (error) {
       console.error('Erro ao atualizar limite de envios:', error);
       throw error;
+    }
+  });
+
+  ipcMain.handle('profile:update', async (_event, profileId, updates) => {
+    try {
+      const profile = updateProfile(profileId, updates);
+      return createSuccess({ profile: formatProfileForRenderer(profile) });
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error);
+      return createError(error);
     }
   });
 }

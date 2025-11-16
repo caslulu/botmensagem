@@ -562,6 +562,60 @@ function getProfileById(profileId) {
   return profile;
 }
 
+// Update profile basic fields (name, image_path, is_admin)
+function updateProfile(profileId, updates = {}) {
+  if (!db) throw new Error('Database not initialized');
+  if (!profileId) throw new Error('Perfil inválido');
+
+  const existing = getProfileById(profileId);
+  if (!existing) {
+    throw new Error('Perfil não encontrado');
+  }
+
+  const setters = [];
+  const values = [];
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'name')) {
+    const name = (updates.name || '').trim();
+    if (!name) {
+      throw new Error('Nome inválido');
+    }
+    setters.push('name = ?');
+    values.push(name);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'imagePath') || Object.prototype.hasOwnProperty.call(updates, 'image_path')) {
+    let imagePath = updates.imagePath ?? updates.image_path ?? '';
+    imagePath = (imagePath || '').trim();
+    if (!imagePath) {
+      // Volta para avatar padrão
+      imagePath = DEFAULT_AVATAR_TOKEN;
+    } else if (imagePath !== DEFAULT_AVATAR_TOKEN && !fs.existsSync(imagePath)) {
+      throw new Error('Caminho da imagem não encontrado');
+    }
+    setters.push('image_path = ?');
+    values.push(imagePath);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(updates, 'isAdmin') || Object.prototype.hasOwnProperty.call(updates, 'is_admin')) {
+    const isAdmin = !!(updates.isAdmin ?? updates.is_admin);
+    setters.push('is_admin = ?');
+    values.push(isAdmin ? 1 : 0);
+  }
+
+  if (setters.length === 0) {
+    return existing;
+  }
+
+  const sql = `UPDATE profiles SET ${setters.join(', ')}, updated_at = CURRENT_TIMESTAMP WHERE id = ?`;
+  const stmt = db.prepare(sql);
+  stmt.bind([...values, profileId]);
+  stmt.step();
+  stmt.free();
+  saveDatabase();
+  return getProfileById(profileId);
+}
+
 // Get session info for profile
 function getProfileSession(profileId) {
   if (!db) return null;
@@ -793,6 +847,7 @@ module.exports = {
   migrateSessionDirs,
   getProfileCount,
   createProfile,
+  updateProfile,
   listQuotes,
   getQuoteById,
   upsertQuoteRecord,

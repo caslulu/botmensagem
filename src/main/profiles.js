@@ -7,6 +7,7 @@ const {
   getProfileSession,
   updateProfileSessionUsage,
   createProfile: createProfileRecord,
+  updateProfile: updateProfileRecord,
   MAX_PROFILES
 } = require('./database');
 const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
@@ -73,4 +74,9 @@ function createProfile(profile) {
   return mapDbProfile(created);
 }
 
-module.exports = { getProfiles, findProfileById, createProfile };
+function updateProfile(id, updates) {
+  const updated = updateProfileRecord(id, updates);
+  return mapDbProfile(updated);
+}
+
+module.exports = { getProfiles, findProfileById, createProfile, updateProfile };

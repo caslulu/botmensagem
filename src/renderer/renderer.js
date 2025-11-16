@@ -27,6 +27,28 @@ const startButton = document.getElementById('startButton');
 const stopButton = document.getElementById('stopButton');
 const statusText = document.getElementById('statusText');
 const logContainer = document.getElementById('logContainer');
+const editProfileBtn = document.getElementById('editProfileBtn');
+
+// Edit Profile UI elements
+const profileEditModal = document.getElementById('profileEditModal');
+const profileEditForm = document.getElementById('profileEditForm');
+const profileEditNameInput = document.getElementById('profileEditNameInput');
+const profileEditIdDisplay = document.getElementById('profileEditIdDisplay');
+const profileEditImageInput = document.getElementById('profileEditImageInput');
+const selectProfileEditImageBtn = document.getElementById('selectProfileEditImageBtn');
+const saveProfileEditBtn = document.getElementById('saveProfileEditBtn');
+const cancelProfileEditModalBtn = document.getElementById('cancelProfileEditModalBtn');
+const closeProfileEditModalBtn = document.getElementById('closeProfileEditModalBtn');
+const profileEditError = document.getElementById('profileEditError');
+
+// Admin password modal elements
+const adminPasswordModal = document.getElementById('adminPasswordModal');
+const adminPasswordInput = document.getElementById('adminPasswordInput');
+const adminPasswordError = document.getElementById('adminPasswordError');
+const submitAdminPasswordBtn = document.getElementById('submitAdminPasswordBtn');
+const cancelAdminPasswordBtn = document.getElementById('cancelAdminPasswordBtn');
+
+let pendingAdminProfileId = null;
 
 // Messages UI elements
 const messagesList = document.getElementById('messagesList');
@@ -159,13 +181,27 @@ function updateStatusBadge(state) {
 
 function setSelectionEnabled(enabled) {
   selectionEnabled = enabled;
-  const inputs = profilesContainer.querySelectorAll('input[type="radio"]');
-  inputs.forEach((input) => {
-    input.disabled = !enabled;
-  });
+  
+  // Não desabilitar os inputs - deixar o handler do card controlar
+  // const inputs = profilesContainer.querySelectorAll('input[type="radio"]');
+  // inputs.forEach((input) => {
+  //   input.disabled = !enabled;
+  // });
 
+  // Aplicar opacidade mas NÃO bloquear pointer-events
   profilesContainer.classList.toggle('opacity-50', !enabled);
-  profilesContainer.classList.toggle('pointer-events-none', !enabled);
+  // REMOVIDO: profilesContainer.classList.toggle('pointer-events-none', !enabled);
+  
+  // Aplicar pointer-events nos cards individuais
+  const cards = profilesContainer.querySelectorAll('.profile-card');
+  cards.forEach((card) => {
+    if (!enabled) {
+      card.style.cursor = 'not-allowed';
+    } else {
+      card.style.cursor = 'pointer';
+    }
+  });
+  
   updateAddProfileButtonState();
 }
 
@@ -316,12 +352,18 @@ function showHowToModule() {
 }
 
 function selectProfile(profileId) {
+  console.log('🎯 selectProfile chamado com:', profileId);
+  console.log('selectionEnabled:', selectionEnabled);
+  
   if (!selectionEnabled) {
+    console.log('❌ Seleção desabilitada - abortando');
     return;
   }
 
-  selectedProfileId = profileId;
   const profile = profiles.find((item) => item.id === profileId);
+  console.log('👤 Perfil encontrado:', profile);
+
+  selectedProfileId = profileId;
   updateProfilesActiveState();
 
   if (profile) {
@@ -329,7 +371,11 @@ function selectProfile(profileId) {
     activeProfileNameEl.textContent = profile.name;
     activeProfileMessageEl.textContent = profile.message;
     startButton.disabled = !profile.isAdmin;
+    if (editProfileBtn) editProfileBtn.disabled = false;
+    
+    console.log('📺 Chamando showModuleSelection()');
     showModuleSelection();
+    
     activeServiceId = null;
     updateActiveServiceButton();
     if (profile.isAdmin) {
@@ -348,9 +394,14 @@ function selectProfile(profileId) {
       renderServiceButtons(availableServices);
       renderModuleCards(availableServices);
     }
+    
+    // Limpar pendingAdminProfileId após seleção bem-sucedida
+    pendingAdminProfileId = null;
   } else {
+    console.log('❌ Perfil não encontrado');
     selectedProfile = null;
     startButton.disabled = true;
+    if (editProfileBtn) editProfileBtn.disabled = true;
     setStatus('Selecione um operador para começar.');
     showProfileSelection();
   }
@@ -374,29 +425,61 @@ function renderProfiles(profileList) {
 
   profiles.forEach((profile) => {
     console.log('Criando card para:', profile.name, 'Thumbnail:', profile.thumbnail);
-    const card = document.createElement('label');
+    const card = document.createElement('div');
     card.className = 'profile-card';
     card.dataset.profileId = profile.id;
     card.dataset.active = selectedProfileId === profile.id ? 'true' : 'false';
+    
+    // Garantir que o card seja clicável
+    card.style.pointerEvents = 'auto';
+    card.style.cursor = 'pointer';
 
     const input = document.createElement('input');
     input.type = 'radio';
     input.name = 'profile';
     input.value = profile.id;
     input.checked = selectedProfileId === profile.id;
+    
+    // Garantir que o input não bloqueie cliques
+    input.style.pointerEvents = 'none';
 
-    input.addEventListener('change', () => {
+    // Interceptar clique no card
+    card.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      // Se já está selecionado, não fazer nada
+      if (selectedProfileId === profile.id) {
+        return;
+      }
+
+      // Se não pode selecionar, retornar
+      if (!selectionEnabled) {
+        appendLog('Finalize a automação antes de trocar de operador.');
+        return;
+      }
+
+      // Se for admin, pedir senha ANTES de selecionar
+      if (profile.isAdmin) {
+        pendingAdminProfileId = profile.id;
+        openAdminPasswordModal();
+        return;
+      }
+
+      // Perfil não-admin: selecionar diretamente
       selectProfile(profile.id);
     });
 
     const thumbWrapper = document.createElement('div');
     thumbWrapper.className = 'profile-thumbnail';
+    thumbWrapper.style.pointerEvents = 'none'; // Não bloquear clique no card
 
     const thumbnail = document.createElement('img');
     thumbnail.alt = `Foto de ${profile.name}`;
     thumbnail.src = profile.thumbnail || placeholderAvatar;
     thumbnail.loading = 'lazy';
     thumbnail.decoding = 'async';
+    thumbnail.style.pointerEvents = 'none';
     
     // Handle image loading errors
     thumbnail.onerror = () => {
@@ -405,10 +488,12 @@ function renderProfiles(profileList) {
 
     const info = document.createElement('div');
     info.className = 'profile-info';
+    info.style.pointerEvents = 'none'; // Não bloquear clique no card
 
     const name = document.createElement('p');
     name.className = 'profile-name';
     name.textContent = profile.name;
+    name.style.pointerEvents = 'none';
 
     thumbWrapper.appendChild(thumbnail);
     info.appendChild(name);
@@ -426,6 +511,7 @@ function renderProfiles(profileList) {
 
   profilesContainer.appendChild(fragment);
   setSelectionEnabled(selectionEnabled);
+  
   if (!selectedProfileId) {
     setStatus('Selecione um operador para começar.');
     updateStatusBadge('idle');
@@ -567,6 +653,7 @@ function handleBackToProfiles() {
   activeProfileMessageEl.textContent = '';
   startButton.disabled = true;
   stopButton.disabled = true;
+  if (editProfileBtn) editProfileBtn.disabled = true;
   showProfileSelection();
   activeServiceId = 'mensagens';
   updateActiveServiceButton();
@@ -1223,6 +1310,214 @@ if (profileModal) {
   profileModal.addEventListener('click', (event) => {
     if (event.target === profileModal && !saveProfileBtn?.disabled) {
       closeProfileModal();
+    }
+  });
+}
+
+// ===== ADMIN PASSWORD MODAL =====
+function openAdminPasswordModal() {
+  if (!adminPasswordModal) return;
+  if (adminPasswordError) {
+    adminPasswordError.textContent = '';
+    adminPasswordError.classList.add('hidden');
+  }
+  if (adminPasswordInput) {
+    adminPasswordInput.value = '';
+  }
+  adminPasswordModal.classList.remove('hidden');
+  requestAnimationFrame(() => adminPasswordInput?.focus());
+}
+
+function closeAdminPasswordModal() {
+  if (!adminPasswordModal) return;
+  adminPasswordModal.classList.add('hidden');
+  // NÃO limpar pendingAdminProfileId aqui - será limpo após a seleção
+  if (adminPasswordInput) adminPasswordInput.value = '';
+  if (adminPasswordError) {
+    adminPasswordError.textContent = '';
+    adminPasswordError.classList.add('hidden');
+  }
+}
+
+function handleAdminPasswordSubmit() {
+  const password = adminPasswordInput?.value || '';
+  
+  console.log('🔑 Verificando senha...');
+  console.log('Senha digitada:', password ? '***' : 'vazio');
+  console.log('pendingAdminProfileId:', pendingAdminProfileId);
+  
+  if (password !== '1029') {
+    if (adminPasswordError) {
+      adminPasswordError.textContent = 'Senha incorreta. Tente novamente.';
+      adminPasswordError.classList.remove('hidden');
+    }
+    appendLog('Senha incorreta. Acesso ao perfil administrador negado.');
+    adminPasswordInput?.select();
+    return;
+  }
+  
+  console.log('✅ Senha correta!');
+  appendLog('Senha correta. Acesso liberado.');
+  
+  const profileToSelect = pendingAdminProfileId;
+  console.log('🎯 Profile a selecionar:', profileToSelect);
+  
+  closeAdminPasswordModal();
+  
+  if (profileToSelect) {
+    console.log('🔐 Chamando selectProfile com:', profileToSelect);
+    // Usar setTimeout para garantir que o modal foi fechado
+    setTimeout(() => {
+      selectProfile(profileToSelect);
+    }, 100);
+  } else {
+    console.error('❌ pendingAdminProfileId está vazio!');
+  }
+}
+
+if (submitAdminPasswordBtn) {
+  submitAdminPasswordBtn.addEventListener('click', handleAdminPasswordSubmit);
+}
+
+if (cancelAdminPasswordBtn) {
+  cancelAdminPasswordBtn.addEventListener('click', () => {
+    appendLog('Acesso ao perfil administrador cancelado.');
+    pendingAdminProfileId = null; // Limpar ao cancelar
+    closeAdminPasswordModal();
+  });
+}
+
+if (adminPasswordInput) {
+  adminPasswordInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAdminPasswordSubmit();
+    }
+  });
+}
+
+if (adminPasswordModal) {
+  adminPasswordModal.addEventListener('click', (event) => {
+    if (event.target === adminPasswordModal) {
+      pendingAdminProfileId = null; // Limpar ao fechar clicando fora
+      closeAdminPasswordModal();
+    }
+  });
+}
+
+// ===== EDIT PROFILE MODAL =====
+function setProfileEditFormLoading(loading) {
+  if (saveProfileEditBtn) saveProfileEditBtn.disabled = loading;
+  if (cancelProfileEditModalBtn) cancelProfileEditModalBtn.disabled = loading;
+  if (closeProfileEditModalBtn) closeProfileEditModalBtn.disabled = loading;
+  if (selectProfileEditImageBtn) selectProfileEditImageBtn.disabled = loading;
+}
+
+function openProfileEditModal() {
+  if (!selectedProfile || !profileEditModal) {
+    appendLog('Selecione um operador antes de editar.');
+    return;
+  }
+  if (profileEditError) {
+    profileEditError.textContent = '';
+    profileEditError.classList.add('hidden');
+  }
+  profileEditNameInput.value = selectedProfile.name || '';
+  profileEditIdDisplay.value = selectedProfile.id || '';
+  profileEditImageInput.value = selectedProfile.imagePath || '';
+  profileEditModal.classList.remove('hidden');
+  requestAnimationFrame(() => profileEditNameInput?.focus());
+}
+
+function closeProfileEditModal() {
+  if (!profileEditModal) return;
+  profileEditModal.classList.add('hidden');
+  setProfileEditFormLoading(false);
+}
+
+async function handleProfileUpdate(event) {
+  event.preventDefault();
+  if (!selectedProfileId) {
+    appendLog('Nenhum perfil selecionado para editar.');
+    return;
+  }
+  const name = (profileEditNameInput?.value || '').trim();
+  const imagePathRaw = (profileEditImageInput?.value || '').trim();
+  if (!name) {
+    if (profileEditError) {
+      profileEditError.textContent = 'O nome não pode ficar vazio.';
+      profileEditError.classList.remove('hidden');
+    }
+    return;
+  }
+  if (!window.profile?.update) {
+    appendLog('API de atualização de perfil não disponível.');
+    return;
+  }
+  setProfileEditFormLoading(true);
+  try {
+    const updates = { name };
+    // Envie string vazia para voltar ao avatar padrão
+    updates.imagePath = imagePathRaw;
+    const result = await window.profile.update(selectedProfileId, updates);
+    if (!result?.success) {
+      throw new Error(result?.error || 'Falha ao atualizar perfil.');
+    }
+    appendLog('Perfil atualizado com sucesso.');
+    closeProfileEditModal();
+    await loadProfiles();
+    // Reselecionar para refletir mudanças
+    selectProfile(selectedProfileId);
+  } catch (error) {
+    console.error('Erro ao atualizar perfil:', error);
+    if (profileEditError) {
+      profileEditError.textContent = error?.message || 'Erro ao atualizar perfil.';
+      profileEditError.classList.remove('hidden');
+    }
+    appendLog('Erro ao atualizar perfil: ' + (error?.message || error));
+  } finally {
+    setProfileEditFormLoading(false);
+  }
+}
+
+if (editProfileBtn) {
+  editProfileBtn.addEventListener('click', openProfileEditModal);
+}
+if (profileEditForm) {
+  profileEditForm.addEventListener('submit', handleProfileUpdate);
+}
+if (cancelProfileEditModalBtn) {
+  cancelProfileEditModalBtn.addEventListener('click', () => {
+    if (!saveProfileEditBtn?.disabled) closeProfileEditModal();
+  });
+}
+if (closeProfileEditModalBtn) {
+  closeProfileEditModalBtn.addEventListener('click', () => {
+    if (!saveProfileEditBtn?.disabled) closeProfileEditModal();
+  });
+}
+if (profileEditModal) {
+  profileEditModal.addEventListener('click', (event) => {
+    if (event.target === profileEditModal && !saveProfileEditBtn?.disabled) {
+      closeProfileEditModal();
+    }
+  });
+}
+if (selectProfileEditImageBtn) {
+  selectProfileEditImageBtn.addEventListener('click', async () => {
+    if (!window.fileSystem?.selectImage) {
+      appendLog('Seleção de arquivos não está disponível.');
+      return;
+    }
+    try {
+      const result = await window.fileSystem.selectImage();
+      if (result?.success && result.path) {
+        profileEditImageInput.value = result.path;
+        appendLog(`Imagem do operador selecionada: ${result.path}`);
+      }
+    } catch (error) {
+      console.error('Erro ao selecionar imagem:', error);
+      appendLog(`Erro ao selecionar imagem: ${error.message ?? error}`);
     }
   });
 }

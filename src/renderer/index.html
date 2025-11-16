@@ -271,6 +271,7 @@
             </div>
             <div class="flex items-center gap-3">
               <p class="text-sm text-slate-400 hidden md:block">Use os botões de serviços para trocar de módulo.</p>
+              <button id="editProfileBtn" class="btn-secondary" disabled>✎ Editar perfil</button>
               <button id="backToProfilesGlobal" class="btn-secondary"><span aria-hidden="true">←</span> Trocar operador</button>
             </div>
           </div>
@@ -1270,6 +1271,89 @@
         <div class="modal-footer">
           <button id="cancelProfileModalBtn" class="btn-secondary" type="button">Cancelar</button>
           <button id="saveProfileBtn" class="btn-primary" type="submit" form="profileForm">Criar perfil</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal de senha para admin -->
+    <div id="adminPasswordModal" class="modal-overlay hidden">
+      <div class="modal-content max-w-md">
+        <div class="modal-header">
+          <h3 class="text-xl font-semibold text-white">Acesso Administrador</h3>
+        </div>
+        
+        <div class="modal-body">
+          <p class="text-sm text-slate-300 mb-4">Digite a senha de administrador para acessar este perfil:</p>
+          <input 
+            type="password" 
+            id="adminPasswordInput" 
+            class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+            placeholder="Senha"
+            autocomplete="off"
+          />
+          <p id="adminPasswordError" class="hidden text-sm text-rose-400 mt-2"></p>
+        </div>
+        
+        <div class="modal-footer">
+          <button id="cancelAdminPasswordBtn" class="btn-secondary" type="button">Cancelar</button>
+          <button id="submitAdminPasswordBtn" class="btn-primary" type="button">Confirmar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal para editar perfil -->
+    <div id="profileEditModal" class="modal-overlay hidden">
+      <div class="modal-content max-w-3xl">
+        <div class="modal-header">
+          <h3 class="text-xl font-semibold text-white">Editar perfil</h3>
+          <button id="closeProfileEditModalBtn" class="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <form id="profileEditForm" class="modal-body space-y-4">
+          <div class="grid gap-4 md:grid-cols-2">
+            <div>
+              <label for="profileEditNameInput" class="block text-sm font-medium text-slate-300 mb-1">Nome do operador</label>
+              <input
+                type="text"
+                id="profileEditNameInput"
+                class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="Ex: Joana"
+                required
+              />
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-slate-300 mb-1">Identificador (fixo)</label>
+              <input
+                type="text"
+                id="profileEditIdDisplay"
+                class="w-full rounded-lg bg-slate-900 border border-slate-800 text-slate-400 px-4 py-2"
+                disabled
+              />
+            </div>
+          </div>
+
+          <div>
+            <label for="profileEditImageInput" class="block text-sm font-medium text-slate-300 mb-1">Imagem do perfil</label>
+            <div class="flex gap-2">
+              <input
+                type="text"
+                id="profileEditImageInput"
+                class="flex-1 rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+                placeholder="Selecione um arquivo de imagem ou deixe vazio para usar o avatar padrão"
+              />
+              <button type="button" id="selectProfileEditImageBtn" class="btn-secondary whitespace-nowrap">
+                📁 Selecionar
+              </button>
+            </div>
+            <p class="text-xs text-slate-400 mt-1">Deixe vazio para usar o avatar padrão.</p>
+          </div>
+
+          <p id="profileEditError" class="hidden text-sm text-rose-400"></p>
+        </form>
+
+        <div class="modal-footer">
+          <button id="cancelProfileEditModalBtn" class="btn-secondary" type="button">Cancelar</button>
+          <button id="saveProfileEditBtn" class="btn-primary" type="submit" form="profileEditForm">Salvar alterações</button>
         </div>
       </div>
     </div>
