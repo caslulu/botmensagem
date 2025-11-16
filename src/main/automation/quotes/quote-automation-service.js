@@ -30,7 +30,7 @@ class QuoteAutomationService {
 
     const provider = this.getProvider(insurer);
     const data = mapQuoteToProgressive(quote);
-    const result = await provider.run(data, { headless });
+    const result = await provider.run(data, { headless, keepBrowserOnError: true });
     return {
       provider: 'progressive',
       result

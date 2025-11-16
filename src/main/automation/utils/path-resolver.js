@@ -22,10 +22,20 @@ class PathResolver {
    * @returns {string} Caminho absoluto
    */
   static resolve(filePath) {
-    if (path.isAbsolute(filePath)) {
-      return filePath;
+    if (filePath === undefined || filePath === null) {
+      return null;
     }
-    return path.join(process.cwd(), filePath);
+
+    const normalized = String(filePath).trim();
+    if (!normalized) {
+      return null;
+    }
+
+    if (path.isAbsolute(normalized)) {
+      return normalized;
+    }
+
+    return path.join(process.cwd(), normalized);
   }
 
   /**

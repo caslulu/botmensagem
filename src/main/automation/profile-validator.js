@@ -17,12 +17,22 @@ class ProfileValidator {
       throw new Error('Perfil inválido informado para automação.');
     }
 
-    // Resolver e validar caminho da imagem
+    // Resolver e validar caminho da imagem (opcional)
+    let preparedImagePath = null;
     const resolvedImagePath = PathResolver.resolve(profile.imagePath);
-    PathResolver.validate(
-      resolvedImagePath,
-      `Imagem do perfil ${profile.name} não encontrada em ${resolvedImagePath}`
-    );
+    if (resolvedImagePath) {
+      try {
+        PathResolver.validate(
+          resolvedImagePath,
+          `Imagem do perfil ${profile.name} não encontrada em ${resolvedImagePath}`
+        );
+        preparedImagePath = resolvedImagePath;
+      } catch (error) {
+        console.warn(`[Automation][ProfileValidator] ${error.message}. Mensagem será enviada sem imagem.`);
+      }
+    } else if (profile?.imagePath) {
+      console.warn(`[Automation][ProfileValidator] Caminho da imagem inválido para ${profile.name}. Mensagem será enviada sem imagem.`);
+    }
 
     // Validar mensagem
     const trimmedMessage = (profile.message ?? '').toString().trim();
@@ -31,12 +41,14 @@ class ProfileValidator {
     }
 
     // Resolver caminho da sessão
-    const resolvedSessionDir = PathResolver.resolve(profile.sessionDir);
+    const resolvedSessionDir =
+      PathResolver.resolve(profile.sessionDir) ||
+      PathResolver.getProfileSessionDir(profile.id);
 
     // Retornar perfil preparado
     return {
       ...profile,
-      imagePath: resolvedImagePath,
+      imagePath: preparedImagePath,
       message: trimmedMessage,
       sessionDir: resolvedSessionDir,
       sendLimit: profile.sendLimit || 200

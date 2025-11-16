@@ -630,6 +630,16 @@ window.automation.onStatus((payload) => {
     stopButton.disabled = payload.stopDisabled;
   }
 
+  if (payload?.startDisabled !== undefined || payload?.stopDisabled !== undefined) {
+    const startDisabled = payload?.startDisabled ?? startButton.disabled;
+    const stopDisabled = payload?.stopDisabled ?? stopButton.disabled;
+    if (startDisabled && !stopDisabled) {
+      automationRunning = true;
+    } else if (!startDisabled && stopDisabled) {
+      automationRunning = false;
+    }
+  }
+
   if (payload?.status) {
     if (payload.status.toLowerCase().includes('erro')) {
       updateStatusBadge('error');

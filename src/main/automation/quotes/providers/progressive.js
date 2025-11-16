@@ -53,6 +53,72 @@ class ProgressiveQuoteAutomation {
     this.isCleaningUp = false;
   }
 
+  hasActivePage() {
+    if (!this.page) {
+      return false;
+    }
+    if (typeof this.page.isClosed === 'function') {
+      return !this.page.isClosed();
+    }
+    return true;
+  }
+
+  async clickWithDelay(locator, options = {}, delayMs = 0) {
+    if (!locator || typeof locator.click !== 'function') {
+      throw new Error('Locator inválido informado para clickWithDelay');
+    }
+    if (delayMs > 0 && this.page?.waitForTimeout) {
+      await this.page.waitForTimeout(delayMs);
+    }
+    return locator.click(options);
+  }
+
+  async clickButton(locator, options = {}) {
+    return this.clickWithDelay(locator, options);
+  }
+
+  async selectWithPause(locator, values, pauseMs = 1000) {
+    if (!locator || typeof locator.selectOption !== 'function') {
+      throw new Error('Locator inválido informado para selectWithPause');
+    }
+    await locator.selectOption(values);
+    if (pauseMs > 0 && this.page?.waitForTimeout) {
+      await this.page.waitForTimeout(pauseMs);
+    }
+  }
+
+  async ensureFreshRun() {
+    if (this.hasActivePage()) {
+      throw new Error('Uma janela de cotação automática ainda está aberta. Finalize e feche o navegador antes de iniciar novamente.');
+    }
+
+    if (this.browser || this.context || this.page) {
+      await this.cleanup().catch(() => {});
+    }
+  }
+
+  async notifyManualFallback(error) {
+    const baseMessage = 'Automação interrompida. A janela ficará aberta para que você conclua manualmente.';
+    const detail = error?.message || String(error || '');
+    console.warn('[ProgressiveAutomation] Transferindo preenchimento para o usuário:', detail);
+
+    try {
+      const { dialog } = require('electron');
+      if (dialog?.showMessageBox) {
+        await dialog.showMessageBox({
+          type: 'warning',
+          title: 'Cotação automática interrompida',
+          message: baseMessage,
+          detail: detail || undefined,
+          buttons: ['Ok'],
+          defaultId: 0
+        });
+      }
+    } catch (_) {
+      // Ambiente CLI/testes - sem dialog
+    }
+  }
+
   async killOrphanChrome() {
     try {
       if (process.platform === 'win32') {
@@ -180,8 +246,11 @@ class ProgressiveQuoteAutomation {
     let browser = null;
     let context = null;
     let page = null;
+    const keepBrowserOnError = options.keepBrowserOnError ?? true;
+    let shouldCleanup = true;
 
     try {
+      await this.ensureFreshRun();
       browser = await chromium.launch(launchOptions);
       context = await browser.newContext();
       page = await context.newPage();
@@ -233,9 +302,20 @@ class ProgressiveQuoteAutomation {
       return { success: true };
     } catch (error) {
       console.error('[ProgressiveAutomation] Erro geral:', error);
-      return { success: false, error: error.message || String(error) };
+      const browserKeptOpen = keepBrowserOnError && this.hasActivePage();
+      if (browserKeptOpen) {
+        shouldCleanup = false;
+        await this.notifyManualFallback(error);
+      }
+      return {
+        success: false,
+        error: error?.message || String(error),
+        browserKeptOpen
+      };
     } finally {
-      await this.cleanup();
+      if (shouldCleanup) {
+        await this.cleanup();
+      }
     }
   }
 
@@ -261,17 +341,23 @@ class ProgressiveQuoteAutomation {
     try {
       const links = this.page.locator("a:has-text('Or, see all 30+ products'), a:has-text('See all 30+ products')");
       if ((await links.count()) > 0) {
-        await links.first().click();
+        await this.clickWithDelay(links.first());
       } else {
-        await this.page.getByRole('link', { name: /see all 30\+ products/i }).click();
+        await this.clickWithDelay(this.page.getByRole('link', { name: /see all 30\+ products/i }));
       }
     } catch (error) {
       console.warn('[ProgressiveAutomation] Link "see all products" não encontrado:', error?.message || error);
     }
 
-    await this.page.getByRole('option', { name: 'Auto', exact: true }).click({ timeout: 15000 });
+    await this.clickWithDelay(
+      this.page.getByRole('option', { name: 'Auto', exact: true }),
+      { timeout: 15000 }
+    );
     await this.page.getByRole('textbox', { name: 'Enter ZIP Code' }).fill(zipcode, { timeout: 15000 });
-    await this.page.getByRole('button', { name: 'Get a quote' }).click({ timeout: 15000 });
+    await this.clickButton(
+      this.page.getByRole('button', { name: 'Get a quote' }),
+      { timeout: 15000 }
+    );
   }
 
   async informacoesBasicas(data) {
@@ -280,8 +366,14 @@ class ProgressiveQuoteAutomation {
     await this.page.getByLabel('Last Name', { exact: true }).fill(data.lastName, { timeout: 15000 });
     await this.page.getByLabel('Primary email address').fill(data.email, { timeout: 15000 });
     await this.page.getByLabel('Date of birth*').fill(dateValue, { timeout: 15000 });
-    await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 15000 });
-    await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 15000 });
+    await this.clickButton(
+      this.page.getByRole('button', { name: 'Continue' }),
+      { timeout: 15000 }
+    );
+    await this.clickButton(
+      this.page.getByRole('button', { name: 'Continue' }),
+      { timeout: 15000 }
+    );
   }
 
   async informacoesEndereco(data) {
@@ -289,20 +381,23 @@ class ProgressiveQuoteAutomation {
   const aptValue = (data.apt || '').trim();
     const cityValue = (data.cidade || '').trim() || 'City';
     const streetField = this.page.getByRole('combobox', { name: 'Street number and name' });
-    await streetField.click({ timeout: 15000 });
+    await this.clickWithDelay(streetField, { timeout: 15000 });
     await streetField.fill(streetValue, { timeout: 15000 });
 
     if (aptValue) {
       const aptField = this.page.getByRole('textbox', { name: 'Apt./Unit #' });
-      await aptField.click({ timeout: 15000 });
+      await this.clickWithDelay(aptField, { timeout: 15000 });
       await aptField.fill(aptValue, { timeout: 15000 });
     }
 
     const cityField = this.page.getByRole('textbox', { name: 'City' });
-    await cityField.click({ timeout: 15000 });
+    await this.clickWithDelay(cityField, { timeout: 15000 });
     await cityField.fill(cityValue, { timeout: 15000 });
 
-    await this.page.getByRole('button', { name: 'Ok, start my quote' }).click({ timeout: 15000 });
+    await this.clickButton(
+      this.page.getByRole('button', { name: 'Ok, start my quote' }),
+      { timeout: 15000 }
+    );
   }
 
   async informacoesVeiculos(veiculos) {
@@ -310,7 +405,7 @@ class ProgressiveQuoteAutomation {
 
     try {
       this.page.setDefaultTimeout(7000);
-      await this.page.getByRole('button', { name: "No, I'll add my own" }).click();
+      await this.clickButton(this.page.getByRole('button', { name: "No, I'll add my own" }));
     } catch (_) {
       // ignore
     } finally {
@@ -328,43 +423,50 @@ class ProgressiveQuoteAutomation {
       }
 
       if (index > 0) {
-        await this.page.getByRole('button', { name: '+Add another vehicle' }).click({ timeout: 15000 });
+        await this.clickButton(
+          this.page.getByRole('button', { name: '+Add another vehicle' }),
+          { timeout: 15000 }
+        );
       }
 
       await this.page.waitForSelector("a:has-text('Enter by VIN')", { timeout: 20000 });
-      await this.page.click("a:has-text('Enter by VIN')");
+      await this.clickWithDelay(this.page.locator("a:has-text('Enter by VIN')"));
       await this.page.waitForSelector("input[name='VehiclesNew_embedded_questions_list_Vin']", { timeout: 20000 });
       await this.page.fill("input[name='VehiclesNew_embedded_questions_list_Vin']", veiculo.vin);
 
       try {
-        await this.page.getByLabel('Learn more aboutVehicle use*').selectOption('1');
+        await this.selectWithPause(this.page.getByLabel('Learn more aboutVehicle use*'), '1');
       } catch (_) {
         // ignore
       }
 
       try {
+        const ownLeaseField = this.page.getByLabel('Own or lease?');
         if (safeLower(veiculo.financiado).includes('financiado')) {
-          await this.page.getByLabel('Own or lease?').selectOption('2');
+          await this.selectWithPause(ownLeaseField, '2');
         } else {
-          await this.page.getByLabel('Own or lease?').selectOption('3');
+          await this.selectWithPause(ownLeaseField, '3');
         }
       } catch (_) {}
 
       try {
         const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
-        await this.page.getByLabel('How long have you had this').selectOption(ownership);
+        await this.selectWithPause(this.page.getByLabel('How long have you had this'), ownership);
       } catch (_) {}
 
       try {
         if (this.novaInterface) {
-          await this.page.getByLabel('Learn more aboutAnnual').selectOption('0 - 3,999');
+          await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), '0 - 3,999');
         } else {
-          await this.page.getByLabel('Learn more aboutAnnual').selectOption({ index: 1 });
+          await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), { index: 1 });
         }
       } catch (_) {}
     }
     await this.page.waitForTimeout(10000);
-    await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
+    await this.clickButton(
+      this.page.getByRole('button', { name: 'Continue' }),
+      { timeout: 20000 }
+    );
   }
 
   preparePessoasExtras(data) {
@@ -406,9 +508,9 @@ class ProgressiveQuoteAutomation {
       try {
         await this.page.getByLabel('Highest level of education*').selectOption('2');
         await this.page.getByLabel('Employment status*').selectOption('EM');
-        await this.page.getByRole('combobox', { name: 'Occupation view entire list' }).click();
+        await this.clickWithDelay(this.page.getByRole('combobox', { name: 'Occupation view entire list' }));
         await this.page.getByRole('combobox', { name: 'Occupation view entire list' }).fill('worker');
-        await this.page.getByText('Worker: All Other').click();
+        await this.clickWithDelay(this.page.getByText('Worker: All Other'));
         await this.page.getByLabel('Primary residence*').selectOption('R');
       } catch (error) {
         console.warn('[ProgressiveAutomation] Falha ao preencher campos adicionais de residência:', error?.message || error);
@@ -426,7 +528,10 @@ class ProgressiveQuoteAutomation {
       }
       await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
       await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
-      await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
+      await this.clickButton(
+        this.page.getByRole('button', { name: 'Continue' }),
+        { timeout: 20000 }
+      );
     } catch (error) {
       console.warn('[ProgressiveAutomation] Falha ao preencher dados de licença do titular:', error?.message || error);
     }
@@ -452,7 +557,10 @@ class ProgressiveQuoteAutomation {
         }
         await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
         await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
-        await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
+        await this.clickButton(
+          this.page.getByRole('button', { name: 'Continue' }),
+          { timeout: 20000 }
+        );
       } catch (error) {
         console.warn('[ProgressiveAutomation] Falha ao preencher dados do cônjuge:', error?.message || error);
       }
@@ -462,7 +570,10 @@ class ProgressiveQuoteAutomation {
       for (const pessoa of pessoasExtras) {
         try {
           const [firstName, lastName] = splitName(pessoa.nome || '');
-          await this.page.getByRole('button', { name: 'Add another person' }).click({ timeout: 20000 });
+          await this.clickButton(
+            this.page.getByRole('button', { name: 'Add another person' }),
+            { timeout: 20000 }
+          );
           await this.page.getByRole('textbox', { name: 'First name' }).fill(firstName || 'Driver');
           await this.page.getByRole('textbox', { name: 'Last name' }).fill(lastName || '');
 
@@ -481,7 +592,10 @@ class ProgressiveQuoteAutomation {
           await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
           await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
           await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
-          await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
+          await this.clickButton(
+            this.page.getByRole('button', { name: 'Continue' }),
+            { timeout: 20000 }
+          );
         } catch (error) {
           console.warn('[ProgressiveAutomation] Falha ao adicionar driver extra:', error?.message || error);
         }
@@ -513,7 +627,10 @@ class ProgressiveQuoteAutomation {
         console.warn('[ProgressiveAutomation] Falha ao selecionar tempo no endereço:', error?.message || error);
       }
 
-      await this.page.getByRole('button', { name: 'Continue' }).click({ timeout: 20000 });
+      await this.clickButton(
+        this.page.getByRole('button', { name: 'Continue' }),
+        { timeout: 20000 }
+      );
     } catch (error) {
       console.warn('[ProgressiveAutomation] Falha ao preencher seguro anterior:', error?.message || error);
     }

@@ -69,16 +69,31 @@ const QuotesModule = (() => {
       try {
         const response = await window.quotes.runAutomation({ quoteId: quote.id, insurer });
         if (!response?.success) {
-          throw new Error(response?.error || 'Falha ao iniciar a automação.');
+          const message = response?.error || 'Falha ao iniciar a automação.';
+          status.textContent = message;
+          emitStatus(message, 'error');
+          throw new Error(message);
         }
 
         const automationResult = response.result?.result;
-        if (!automationResult?.success) {
-          throw new Error(automationResult?.error || 'Automação finalizou com erro.');
+        if (!automationResult) {
+          throw new Error('Resultado da automação ausente.');
         }
 
-        status.textContent = 'Automação concluída com sucesso.';
-        emitStatus('Cotação automática concluída.', 'stopped');
+        if (automationResult.success) {
+          status.textContent = 'Automação concluída com sucesso.';
+          emitStatus('Cotação automática concluída.', 'stopped');
+        } else if (automationResult.browserKeptOpen) {
+          const manualMessage = `${automationResult.error || 'Automação interrompida.'} Continue manualmente na janela aberta e feche o navegador ao concluir.`;
+          status.textContent = manualMessage;
+          emitStatus('Cotação aguardando preenchimento manual.', 'running');
+          alert(manualMessage);
+        } else {
+          const errorMessage = automationResult.error || 'Automação finalizou com erro.';
+          status.textContent = errorMessage;
+          emitStatus('Erro ao executar cotação automática.', 'error');
+          throw new Error(errorMessage);
+        }
       } catch (error) {
         console.error('[QuotesModule] Automação falhou:', error);
         status.textContent = error.message || 'Erro ao executar automação.';

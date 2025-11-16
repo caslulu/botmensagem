@@ -18,31 +18,7 @@ class MessageSender {
    */
   async send(page, message, imagePath) {
     try {
-      // Abrir menu de anexos
-      const attachButton = page.getByRole('button', { name: 'Anexar' });
-      await attachButton.click();
-
-      // Selecionar fotos e vídeos
-      const photosButton = page.getByRole('button', { name: 'Fotos e vídeos' });
-      await photosButton.waitFor({ 
-        state: 'visible', 
-        timeout: config.ATTACHMENT_TIMEOUT_MS 
-      });
-
-      // Fazer upload da imagem
-      await photosButton.locator('input[type="file"]').setInputFiles(imagePath);
-
-      // Aguardar caixa de mensagem aparecer
-      const messageBox = page.getByRole('textbox', { name: 'Digite uma mensagem' });
-      await messageBox.waitFor({ 
-        state: 'visible', 
-        timeout: config.MESSAGE_BOX_TIMEOUT_MS 
-      });
-
-      // Preencher e enviar mensagem
-      await messageBox.fill(message);
-      await messageBox.press('Enter');
-
+      await this._sendInternal(page, message, imagePath);
       this.logger.success('Mensagem enviada com sucesso');
     } catch (error) {
       this.logger.error('Erro ao enviar mensagem', error);
@@ -70,13 +46,19 @@ class MessageSender {
   }
 
   async _sendInternal(page, message, imagePath) {
-    const attachButton = page.getByRole('button', { name: 'Anexar' });
-    await attachButton.click();
-    const photosButton = page.getByRole('button', { name: 'Fotos e vídeos' });
-    await photosButton.waitFor({ state: 'visible', timeout: config.ATTACHMENT_TIMEOUT_MS });
-    await photosButton.locator('input[type="file"]').setInputFiles(imagePath);
     const messageBox = page.getByRole('textbox', { name: 'Digite uma mensagem' });
-    await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+
+    if (imagePath) {
+      const attachButton = page.getByRole('button', { name: 'Anexar' });
+      await attachButton.click();
+      const photosButton = page.getByRole('button', { name: 'Fotos e vídeos' });
+      await photosButton.waitFor({ state: 'visible', timeout: config.ATTACHMENT_TIMEOUT_MS });
+      await photosButton.locator('input[type="file"]').setInputFiles(imagePath);
+      await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+    } else {
+      await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+    }
+
     await messageBox.fill(message);
     await messageBox.press('Enter');
   }
