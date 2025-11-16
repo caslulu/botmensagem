@@ -269,7 +269,10 @@
               <button id="sidebarOpenToggle" class="hidden text-slate-400 hover:text-white text-2xl leading-none" title="Mostrar sidebar">☰</button>
               <h1 class="text-3xl font-semibold text-white">Insurance Helper</h1>
             </div>
-            <p class="text-sm text-slate-400">Use os botões de serviços para trocar de módulo.</p>
+            <div class="flex items-center gap-3">
+              <p class="text-sm text-slate-400 hidden md:block">Use os botões de serviços para trocar de módulo.</p>
+              <button id="backToProfilesGlobal" class="btn-secondary"><span aria-hidden="true">←</span> Trocar operador</button>
+            </div>
           </div>
         </header>
 
@@ -301,7 +304,6 @@
           <section id="controlView" class="flex-col gap-6" style="display: none;">
           <div class="card flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <button id="backToProfiles" class="btn-secondary mb-4 md:mb-2"><span aria-hidden="true">←</span> Trocar operador</button>
               <div class="space-y-1">
                 <p class="text-sm uppercase tracking-wide text-slate-400">Operador selecionado</p>
                 <h2 id="activeProfileName" class="text-2xl font-semibold text-white">—</h2>
@@ -1238,16 +1240,7 @@
             </div>
           </div>
 
-          <div>
-            <label for="profileMessageInput" class="block text-sm font-medium text-slate-300 mb-1">Mensagem padrão</label>
-            <textarea
-              id="profileMessageInput"
-              rows="6"
-              class="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
-              placeholder="Mensagem inicial para os disparos"
-              required
-            ></textarea>
-          </div>
+          <!-- Campo de mensagem padrão removido por não ser mais obrigatório/necessário -->
 
           <div>
             <label for="profileImageInput" class="block text-sm font-medium text-slate-300 mb-1">Imagem do perfil (opcional)</label>

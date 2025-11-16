@@ -192,9 +192,7 @@ function createProfile(profile) {
     throw new Error('Perfil inválido: caminho da imagem não encontrado');
   }
 
-  if (!defaultMessage) {
-    throw new Error('Perfil inválido: mensagem padrão obrigatória');
-  }
+  // Mensagem padrão não é obrigatória; perfis podem ser criados sem mensagem
 
   if (getProfileCount() >= MAX_PROFILES) {
     throw new Error(`Limite máximo de ${MAX_PROFILES} perfis atingido`);

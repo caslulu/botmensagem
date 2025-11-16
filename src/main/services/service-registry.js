@@ -14,7 +14,7 @@ const SERVICES = [
     id: 'price',
     name: 'Preço automático',
     icon: '💵',
-    requiresAdmin: true,
+    requiresAdmin: false,
     requiresProfile: true,
     description: 'Gere cards de preço com modelos multilíngues e envie para o Trello.'
   }

@@ -438,7 +438,7 @@ if (window.rendererModules?.enable) {
     name: 'Preço automático',
     icon: '💵',
     description: 'Gere imagens de preço multilíngues e anexe ao Trello quando necessário.',
-    requiresAdmin: true,
+    requiresAdmin: false,
     requiresProfile: true
   });
 }

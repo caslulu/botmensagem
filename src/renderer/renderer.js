@@ -19,7 +19,7 @@ const selectionView = document.getElementById('selectionView');
 const moduleSelectionView = document.getElementById('moduleSelectionView');
 const moduleCardsContainer = document.getElementById('moduleCards');
 const controlView = document.getElementById('controlView');
-const backToProfilesButton = document.getElementById('backToProfiles');
+const backToProfilesGlobalButton = document.getElementById('backToProfilesGlobal');
 const activeProfileNameEl = document.getElementById('activeProfileName');
 const activeProfileMessageEl = document.getElementById('activeProfileMessage');
 const statusBadge = document.getElementById('statusBadge');
@@ -63,7 +63,7 @@ console.log('Elementos DOM carregados:', {
   profilesContainer: !!profilesContainer,
   selectionView: !!selectionView,
   controlView: !!controlView,
-  backToProfilesButton: !!backToProfilesButton,
+  backToProfilesGlobalButton: !!backToProfilesGlobalButton,
   startButton: !!startButton,
   stopButton: !!stopButton
 });
@@ -555,7 +555,7 @@ window.automation.onStatus((payload) => {
   }
 });
 
-backToProfilesButton.addEventListener('click', () => {
+function handleBackToProfiles() {
   if (automationRunning) {
     appendLog('Finalize ou pare a automação antes de trocar de operador.');
     return;
@@ -579,7 +579,9 @@ backToProfilesButton.addEventListener('click', () => {
     renderServiceButtons(availableServices);
     renderModuleCards(availableServices);
   }
-});
+}
+
+if (backToProfilesGlobalButton) backToProfilesGlobalButton.addEventListener('click', handleBackToProfiles);
 
 loadProfiles();
 
@@ -619,7 +621,8 @@ const FALLBACK_SERVICES = [
     name: 'Preço automático',
     icon: '💵',
     description: 'Gere imagens de preço e envie para o Trello.',
-    requiresAdmin: true,
+    // Todos os perfis podem acessar o módulo de preço
+    requiresAdmin: false,
     requiresProfile: true
   },
   {
@@ -1131,9 +1134,10 @@ async function handleProfileCreate(event) {
 
   identifier = slugify(identifier);
 
-  if (!name || !identifier || !message) {
+  // Mensagem padrão não é obrigatória (usada apenas no módulo WhatsApp)
+  if (!name || !identifier) {
     if (profileError) {
-      profileError.textContent = 'Preencha todos os campos obrigatórios.';
+      profileError.textContent = 'Preencha os campos obrigatórios (nome e identificador).';
       profileError.classList.remove('hidden');
     }
     return;
@@ -1158,7 +1162,8 @@ async function handleProfileCreate(event) {
     const payload = {
       id: identifier,
       name,
-      defaultMessage: message,
+      // Enviar string vazia quando não informado
+      defaultMessage: message || '',
       isAdmin
     };
 
