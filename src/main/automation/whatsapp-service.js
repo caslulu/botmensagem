@@ -10,6 +10,37 @@ class WhatsAppService {
   }
 
   /**
+   * Verifica se o WhatsApp Web está conectado/logado e operante
+   * @param {Page} page
+   * @returns {Promise<boolean>}
+   */
+  async isConnected(page) {
+    try {
+      const hasChatList = await page
+        .locator('[data-testid="chat-list"], div[role="grid"]')
+        .first()
+        .isVisible()
+        .catch(() => false);
+
+      const hasQr = await page
+        .locator('[data-testid="qrcode"], canvas[aria-label*="Scan" i], canvas[aria-label*="Escaneie" i], [data-ref]')
+        .first()
+        .isVisible()
+        .catch(() => false);
+
+      const reconnecting = await page
+        .locator('text=/Conectando|Tentando reconectar|Reconnecting|Phone (is|not) connected/i')
+        .first()
+        .isVisible()
+        .catch(() => false);
+
+      return Boolean(hasChatList) && !hasQr && !reconnecting;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
    * Abre o WhatsApp Web e aguarda login
    * @param {Page} page - Página do Playwright
    * @returns {Promise<void>}
@@ -62,8 +93,9 @@ class WhatsAppService {
    * @returns {Promise<Array>} Array de locators de chats
    */
   async getVisibleChats(page) {
-    const chatLocators = await page.getByRole('listitem').all();
-    return chatLocators;
+    const list = page.locator('[data-testid="chat-list"], div[role="grid"]').first();
+    const rows = await list.locator('div[role="row"], [role="listitem"]').all();
+    return rows;
   }
 
   /**
@@ -87,7 +119,9 @@ class WhatsAppService {
    * @returns {Promise<void>}
    */
   async openChat(chatLocator) {
-    await chatLocator.click();
+    await chatLocator.scrollIntoViewIfNeeded();
+    await chatLocator.waitFor({ state: 'visible', timeout: 5000 });
+    await chatLocator.click({ force: false });
   }
 
   /**
@@ -118,12 +152,62 @@ class WhatsAppService {
   async scrollChatList(page, iterations, checkStop) {
     this.logger.info(`Rolando lista de chats (${iterations}x)...`);
     
+    await page.bringToFront();
+    
     for (let i = 0; i < iterations; i++) {
       if (checkStop && checkStop()) {
         break;
       }
+      const prev = await this.getLastVisibleChatTitle(page);
       await page.keyboard.press('PageDown');
       await page.waitForTimeout(config.SCROLL_DELAY_MS);
+      await this.waitForChatListSettled(page, prev, config.CHAT_LIST_SETTLE_TIMEOUT_MS).catch(() => {});
+    }
+  }
+
+  async getLastVisibleChatTitle(page) {
+    try {
+      const list = page.locator('[data-testid="chat-list"], div[role="grid"]').first();
+      const titles = await list.locator('span[title]').all();
+      if (!titles.length) return null;
+      const last = titles[titles.length - 1];
+      return await last.getAttribute('title');
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async waitForChatListSettled(page, previousLastTitle, timeoutMs) {
+    const start = Date.now();
+    while (Date.now() - start < (timeoutMs || 4000)) {
+      const current = await this.getLastVisibleChatTitle(page);
+      if (current && current !== previousLastTitle) {
+        await page.waitForAnimation?.().catch(() => {});
+        await page.waitForTimeout(50);
+        return;
+      }
+      await page.waitForTimeout(100);
+    }
+  }
+
+  async isChatBlocked(page) {
+    try {
+      const panel = page.locator('[data-testid="conversation-panel"], main[role="main"]').first();
+      const composer = panel.locator('[data-testid="conversation-composer"], div[contenteditable="true"]').first();
+      const composerVisible = await composer.isVisible().catch(() => false);
+      let composerEditable = false;
+      if (composerVisible) {
+        try {
+          const attr = await composer.getAttribute('contenteditable');
+          composerEditable = attr === null || attr === 'true';
+        } catch { composerEditable = true; }
+      }
+
+      const blockedBanner = await panel.locator('text=/não pode enviar mensagens|Only admins can send messages|You can\’t send messages|You can\'t send messages/i').first().isVisible().catch(() => false);
+      const composerDisabled = composerVisible && !composerEditable;
+      return Boolean(blockedBanner || composerDisabled);
+    } catch (_) {
+      return false;
     }
   }
 }

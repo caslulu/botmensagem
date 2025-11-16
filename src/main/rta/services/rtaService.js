@@ -12,8 +12,27 @@ class RtaService {
         if (!isPackaged) {
             this.assetsDir = path.resolve(__dirname, '../assets');
         } else {
-            // No executável, os assets estão em app.asar.unpacked
-            this.assetsDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'rta', 'assets');
+            // No executável, tentar múltiplos caminhos possíveis
+            const possiblePaths = [
+                path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'rta', 'assets'),
+                path.join(process.resourcesPath, 'src', 'main', 'rta', 'assets'),
+                path.join(path.dirname(process.execPath), 'resources', 'app.asar.unpacked', 'src', 'main', 'rta', 'assets'),
+                path.join(path.dirname(process.execPath), 'resources', 'src', 'main', 'rta', 'assets')
+            ];
+            
+            this.assetsDir = null;
+            for (const p of possiblePaths) {
+                if (fs.existsSync(p)) {
+                    this.assetsDir = p;
+                    console.log('[RtaService] Assets encontrados em:', p);
+                    break;
+                }
+            }
+            
+            if (!this.assetsDir) {
+                console.error('[RtaService] Assets não encontrados. Caminhos testados:', possiblePaths);
+                this.assetsDir = possiblePaths[0]; // Fallback para o primeiro
+            }
         }
         this.templates = {
             allstate: path.join(this.assetsDir, 'rta_template_allstate.pdf'),
@@ -83,14 +102,24 @@ class RtaService {
     async preencherRtaAndSave(data) {
         let pdfDoc = null;
         
+        let pdfBytes = null;
+        let outBytes = null;
         try {
             const insuranceCompany = data?.insurance_company || data?.seguradora || 'allstate';
             const templatePath = this.getTemplatePath(insuranceCompany);
             if (!fs.existsSync(templatePath)) {
+                console.error('[RtaService] Template não encontrado:', templatePath);
+                console.error('[RtaService] assetsDir:', this.assetsDir);
+                console.error('[RtaService] Insurance company:', insuranceCompany);
+                if (fs.existsSync(this.assetsDir)) {
+                    console.error('[RtaService] Conteúdo do diretório assets:', fs.readdirSync(this.assetsDir));
+                } else {
+                    console.error('[RtaService] Diretório assets não existe:', this.assetsDir);
+                }
                 throw new Error(`Template não encontrado: ${templatePath}`);
             }
 
-            const pdfBytes = fs.readFileSync(templatePath);
+            pdfBytes = fs.readFileSync(templatePath);
             pdfDoc = await PDFDocument.load(pdfBytes, { updateFieldAppearances: true });
             const form = pdfDoc.getForm();
 
@@ -173,7 +202,7 @@ class RtaService {
 
             const ts = new Date().toISOString().replace(/[:.]/g, '-');
             const outPath = path.join(this.outputDir, `rta-${insuranceCompany}-${ts}.pdf`);
-            const outBytes = await pdfDoc.save();
+            outBytes = await pdfDoc.save();
             fs.writeFileSync(outPath, outBytes);
 
             return { path: outPath, template: templatePath };
@@ -183,6 +212,8 @@ class RtaService {
         } finally {
             // Garantir limpeza de recursos do PDF
             pdfDoc = null;
+            pdfBytes = null;
+            outBytes = null;
             
             // Força garbage collection se disponível (apenas em modo dev)
             if (global.gc) {

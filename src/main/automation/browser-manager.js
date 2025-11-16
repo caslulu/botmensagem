@@ -31,7 +31,12 @@ class BrowserManager extends EventEmitter {
     const launchOptions = {
       headless: false,
       slowMo: config.BROWSER_SLOW_MO,
-      viewport: config.BROWSER_VIEWPORT
+      viewport: config.BROWSER_VIEWPORT,
+      args: [
+        '--disable-background-timer-throttling',
+        '--disable-backgrounding-occluded-windows',
+        '--disable-renderer-backgrounding'
+      ]
     };
 
     if (chromePath) {
@@ -43,6 +48,8 @@ class BrowserManager extends EventEmitter {
 
     this.context = await chromium.launchPersistentContext(sessionDir, launchOptions);
     this.page = this.context.pages()[0] || await this.context.newPage();
+    
+    await this.page.bringToFront();
 
     // Listeners para detectar fechamento externo
     if (this.page) {

@@ -50,6 +50,83 @@ class MessageSender {
     }
   }
 
+  async sendWithConfirmation(page, message, imagePath) {
+    try {
+      const prevCount = await this.getOutgoingMessageCount(page);
+      await this._sendInternal(page, message, imagePath);
+      const ok = await this.waitForSendConfirmation(page, message, prevCount, config.SEND_CONFIRM_TIMEOUT_MS);
+      if (ok) return true;
+      for (let i = 0; i < (config.SEND_RETRY_MAX || 0); i++) {
+        await page.waitForTimeout(config.SEND_RETRY_DELAY_MS || 1000);
+        await this._sendInternal(page, message, imagePath);
+        const again = await this.waitForSendConfirmation(page, message, prevCount, config.SEND_CONFIRM_TIMEOUT_MS);
+        if (again) return true;
+      }
+      return false;
+    } catch (error) {
+      this.logger.error('Erro ao enviar mensagem com confirmação', error);
+      return false;
+    }
+  }
+
+  async _sendInternal(page, message, imagePath) {
+    const attachButton = page.getByRole('button', { name: 'Anexar' });
+    await attachButton.click();
+    const photosButton = page.getByRole('button', { name: 'Fotos e vídeos' });
+    await photosButton.waitFor({ state: 'visible', timeout: config.ATTACHMENT_TIMEOUT_MS });
+    await photosButton.locator('input[type="file"]').setInputFiles(imagePath);
+    const messageBox = page.getByRole('textbox', { name: 'Digite uma mensagem' });
+    await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+    await messageBox.fill(message);
+    await messageBox.press('Enter');
+  }
+
+  async waitForSendConfirmation(page, message, prevCount, timeoutMs) {
+    const start = Date.now();
+    while (Date.now() - start < (timeoutMs || 15000)) {
+      const count = await this.getOutgoingMessageCount(page);
+      if (count > prevCount) return true;
+      const lastText = await this.getLastOutgoingMessageText(page);
+      if (lastText && this._normalizeText(lastText).includes(this._normalizeText(message))) {
+        return true;
+      }
+      await page.waitForTimeout(200);
+    }
+    return false;
+  }
+
+  _normalizeText(t) {
+    return String(t || '').replace(/\s+/g, ' ').trim();
+  }
+
+  async getOutgoingMessageCount(page) {
+    const panel = page.locator('[data-testid="conversation-panel"], main[role="main"]').first();
+    const bubbles = await panel.locator('[data-testid="msg-container"], [data-testid^="message-"], div[role="row"]').all();
+    let count = 0;
+    for (const b of bubbles) {
+      const aria = (await b.getAttribute('aria-label')) || '';
+      const classes = (await b.getAttribute('class')) || '';
+      if (/sent|outgoing/i.test(aria) || /message-out|to-right|right/i.test(classes)) count++;
+    }
+    return count;
+  }
+
+  async getLastOutgoingMessageText(page) {
+    const panel = page.locator('[data-testid="conversation-panel"], main[role="main"]').first();
+    const bubbles = await panel.locator('[data-testid="msg-container"], [data-testid^="message-"], div[role="row"]').all();
+    for (let i = bubbles.length - 1; i >= 0; i--) {
+      const b = bubbles[i];
+      const aria = (await b.getAttribute('aria-label')) || '';
+      const classes = (await b.getAttribute('class')) || '';
+      const outgoing = /sent|outgoing/i.test(aria) || /message-out|to-right|right/i.test(classes);
+      if (!outgoing) continue;
+      const text = await b.locator('[data-testid="msg-text"], span.selectable-text, div.copyable-text').allTextContents().catch(() => []);
+      const joined = Array.isArray(text) ? text.join(' ').trim() : '';
+      if (joined) return joined;
+    }
+    return '';
+  }
+
   /**
    * Aguarda o intervalo entre mensagens
    * @param {Page} page - Página do Playwright

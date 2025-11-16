@@ -36,8 +36,27 @@ class PriceService {
     if (!isPackaged) {
       this.assetsDir = path.resolve(__dirname, '../assets');
     } else {
-      // No executável, os assets ficam fora do asar
-      this.assetsDir = path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'price', 'assets');
+      // No executável, tentar múltiplos caminhos possíveis
+      const possiblePaths = [
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'src', 'main', 'price', 'assets'),
+        path.join(process.resourcesPath, 'src', 'main', 'price', 'assets'),
+        path.join(path.dirname(process.execPath), 'resources', 'app.asar.unpacked', 'src', 'main', 'price', 'assets'),
+        path.join(path.dirname(process.execPath), 'resources', 'src', 'main', 'price', 'assets')
+      ];
+      
+      this.assetsDir = null;
+      for (const p of possiblePaths) {
+        if (fs.existsSync(p)) {
+          this.assetsDir = p;
+          console.log('[PriceService] Assets encontrados em:', p);
+          break;
+        }
+      }
+      
+      if (!this.assetsDir) {
+        console.error('[PriceService] Assets não encontrados. Caminhos testados:', possiblePaths);
+        this.assetsDir = possiblePaths[0]; // Fallback para o primeiro
+      }
     }
     
     this.fontPath = path.join(this.assetsDir, 'fonts', 'fonte.otf');
@@ -184,29 +203,46 @@ class PriceService {
       throw new Error('Módulo nativo @napi-rs/canvas indisponível (falha ao carregar binding)');
     }
     if (!fs.existsSync(templatePath)) {
+      console.error('[PriceService] Template não encontrado:', templatePath);
+      console.error('[PriceService] Assets dir:', this.assetsDir);
+      console.error('[PriceService] Arquivos na pasta assets:', fs.existsSync(this.assetsDir) ? fs.readdirSync(this.assetsDir) : 'pasta não existe');
       throw new Error(`Template não encontrado: ${templatePath}`);
     }
 
     this._ensureFontRegistered();
 
-    const baseImage = await loadImage(templatePath);
-    const width = baseImage.width || 1600;
-    const height = baseImage.height || 2000;
+    let baseImage = null;
+    let canvas = null;
+    let ctx = null;
+    let buffer = null;
+    try {
+      baseImage = await loadImage(templatePath);
+      const width = baseImage.width || 1600;
+      const height = baseImage.height || 2000;
 
-    const canvas = createCanvas(width, height);
-    const ctx = canvas.getContext('2d');
+      canvas = createCanvas(width, height);
+      ctx = canvas.getContext('2d');
 
-    ctx.drawImage(baseImage, 0, 0, width, height);
-    this._drawOverlay(ctx, overlayEntries);
+      ctx.drawImage(baseImage, 0, 0, width, height);
+      this._drawOverlay(ctx, overlayEntries);
 
-    ensureFolder(DEFAULT_OUTPUT_DIR);
-    const fileName = this._formatOutputName(formType, language);
-    const outputPath = path.join(DEFAULT_OUTPUT_DIR, fileName);
+      ensureFolder(DEFAULT_OUTPUT_DIR);
+      const fileName = this._formatOutputName(formType, language);
+      const outputPath = path.join(DEFAULT_OUTPUT_DIR, fileName);
 
-    const buffer = canvas.toBuffer('image/png');
-    await fs.promises.writeFile(outputPath, buffer);
+      buffer = canvas.toBuffer('image/png');
+      await fs.promises.writeFile(outputPath, buffer);
 
-    return { outputPath, fileName };
+      return { outputPath, fileName };
+    } finally {
+      buffer = null;
+      ctx = null;
+      canvas = null;
+      baseImage = null;
+      if (global.gc) {
+        try { global.gc(); } catch (_) {}
+      }
+    }
   }
 
   async generate(options) {

@@ -29,6 +29,13 @@ class ChatProcessor {
         break;
       }
 
+      // Verificar conexão e aguardar reconexão se necessário
+      const connected = await this.whatsappService.isConnected(page);
+      if (!connected) {
+        const resumed = await this.waitUntilConnected(page, checkStop);
+        if (!resumed) break;
+      }
+
       // Obter chats visíveis
       const chatLocators = await this.whatsappService.getVisibleChats(page);
       
@@ -99,11 +106,36 @@ class ChatProcessor {
     
     this.logger.info(`Processando "${chatName}" (${currentCount}/${totalLimit})`);
 
+    await page.bringToFront();
+
+    // Verificar conexão antes de abrir/enviar
+    const connected = await this.whatsappService.isConnected(page);
+    if (!connected) {
+      const resumed = await this.waitUntilConnected(page, null);
+      if (!resumed) {
+        this.logger.warn(`Sem conexão. Pulando "${chatName}" por enquanto.`);
+        return;
+      }
+    }
+
     // Abrir chat
     await this.whatsappService.openChat(chatLocator);
 
-    // Enviar mensagem
-    await this.messageSender.send(page, profile.message, profile.imagePath);
+    const blocked = await this.whatsappService.isChatBlocked(page);
+    if (blocked) {
+      this.logger.warn(`Chat bloqueado. Pulando: ${chatName}`);
+      this.processedChats.add(chatName);
+      await this.whatsappService.backToChatList(page);
+      return;
+    }
+
+    const ok = await this.messageSender.sendWithConfirmation(page, profile.message, profile.imagePath);
+    if (!ok) {
+      this.logger.warn(`Envio sem confirmação. Pulando: ${chatName}`);
+      this.processedChats.add(chatName);
+      await this.whatsappService.backToChatList(page);
+      return;
+    }
 
     // Marcar como processado
     this.processedChats.add(chatName);
@@ -117,6 +149,34 @@ class ChatProcessor {
     // Scroll periódico
     if (this.processedChats.size > 0 && this.processedChats.size % config.SCROLL_AFTER_SENDS === 0) {
       await this.whatsappService.scrollChatList(page, config.SCROLL_DISTANCE, null);
+    }
+  }
+
+  /**
+   * Aguarda até reconectar (com backoff), ou interrompe se solicitado
+   * @param {Page} page
+   * @param {Function|null} checkStop
+   * @returns {Promise<boolean>} true se reconectou, false se interrompeu
+   */
+  async waitUntilConnected(page, checkStop) {
+    this.logger.warn('Conexão com WhatsApp perdida. Aguardando reconexão...');
+    let delay = 1000;
+    const maxDelay = 10000;
+
+    while (true) {
+      if (checkStop && checkStop()) {
+        this.logger.warn('Parada solicitada durante reconexão. Encerrando.');
+        return false;
+      }
+
+      const ok = await this.whatsappService.isConnected(page);
+      if (ok) {
+        this.logger.success('Reconectado ao WhatsApp Web. Retomando envios.');
+        return true;
+      }
+
+      await page.waitForTimeout(delay);
+      delay = Math.min(maxDelay, Math.floor(delay * 1.5));
     }
   }
 
