@@ -60,16 +60,21 @@ class ChatProcessor {
         try {
           // Obter nome do chat
           const chatName = await this.whatsappService.getChatName(chatLocator);
+          const chatIdentifier = await this.whatsappService.getChatIdentifier(chatLocator);
+          const processedKey = chatIdentifier || chatName;
+          if (!processedKey) {
+            continue;
+          }
 
           // Pular se já processado ou sem nome
-          if (!chatName || this.processedChats.has(chatName)) {
+          if (this.processedChats.has(processedKey)) {
             continue;
           }
 
           newChatsOnScreen++;
           
           // Processar chat
-          await this.processChat(page, chatLocator, chatName, profile);
+          await this.processChat(page, chatLocator, processedKey, chatName, profile);
           
           newChatsProcessed++;
           
@@ -96,15 +101,18 @@ class ChatProcessor {
    * Processa um chat individual
    * @param {Page} page - Página do Playwright
    * @param {Locator} chatLocator - Locator do chat
-   * @param {string} chatName - Nome do chat
+  * @param {string} processedKey - Identificador único do chat
+  * @param {string} chatName - Nome do chat
    * @param {Object} profile - Perfil ativo
    * @returns {Promise<void>}
    */
   async processChat(page, chatLocator, chatName, profile) {
+  async processChat(page, chatLocator, processedKey, chatName, profile) {
     const currentCount = this.processedChats.size + 1;
     const totalLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
+    const displayName = chatName || processedKey || 'Chat sem nome';
     
-    this.logger.info(`Processando "${chatName}" (${currentCount}/${totalLimit})`);
+    this.logger.info(`Processando "${displayName}" (${currentCount}/${totalLimit})`);
 
     await page.bringToFront();
 
@@ -123,22 +131,22 @@ class ChatProcessor {
 
     const blocked = await this.whatsappService.isChatBlocked(page);
     if (blocked) {
-      this.logger.warn(`Chat bloqueado. Pulando: ${chatName}`);
-      this.processedChats.add(chatName);
+      this.logger.warn(`Chat bloqueado. Pulando: ${displayName}`);
+      this.processedChats.add(processedKey);
       await this.whatsappService.backToChatList(page);
       return;
     }
 
     const ok = await this.messageSender.sendWithConfirmation(page, profile.message, profile.imagePath);
     if (!ok) {
-      this.logger.warn(`Envio sem confirmação. Pulando: ${chatName}`);
-      this.processedChats.add(chatName);
+      this.logger.warn(`Envio sem confirmação. Pulando: ${displayName}`);
+      this.processedChats.add(processedKey);
       await this.whatsappService.backToChatList(page);
       return;
     }
 
     // Marcar como processado
-    this.processedChats.add(chatName);
+    this.processedChats.add(processedKey);
 
     // Aguardar delay
     await this.messageSender.waitDelay(page);

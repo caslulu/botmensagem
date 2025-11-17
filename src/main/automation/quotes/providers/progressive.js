@@ -601,6 +601,10 @@ class ProgressiveQuoteAutomation {
         }
       }
     }
+          await this.clickButton(
+        this.page.getByRole('button', { name: 'Continue' }),
+        { timeout: 20000 }
+      );
   }
 
   async informacoesSeguroAnterior({ tempoDeSeguro, tempoNoEndereco }) {

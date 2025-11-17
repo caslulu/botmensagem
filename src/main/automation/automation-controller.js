@@ -134,6 +134,7 @@ class AutomationController extends EventEmitter {
 
       // 2. Abrir WhatsApp Web
       await this.whatsappService.open(page);
+      await this.whatsappService.waitUntilReady(page, () => this.stopRequested);
       this.checkStopRequested();
 
       // 3. Navegar para arquivados

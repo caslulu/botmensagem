@@ -56,6 +56,25 @@ class WhatsAppService {
     this.logger.success('WhatsApp Web carregado');
   }
 
+  async waitUntilReady(page, checkStop) {
+    const timeout = config.WHATSAPP_READY_TIMEOUT_MS || 60000;
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < timeout) {
+      if (checkStop && checkStop()) {
+        throw new Error('Execução interrompida durante preparação do WhatsApp.');
+      }
+
+      if (await this.isConnected(page)) {
+        this.logger.success('WhatsApp Web pronto para enviar.');
+        return true;
+      }
+
+      await page.waitForTimeout(1000);
+    }
+
+    throw new Error('WhatsApp Web não ficou pronto a tempo. Verifique a conexão.');
+  }
+
   /**
    * Navega para a seção de chats arquivados
    * @param {Page} page - Página do Playwright
@@ -63,8 +82,21 @@ class WhatsAppService {
    */
   async goToArchivedChats(page) {
     this.logger.info('Acessando seção de Arquivadas...');
-    await page.getByRole('button', { name: 'Arquivadas' }).click();
-    this.logger.success('Seção Arquivadas aberta');
+    const archivedButton = page.locator(
+      'button:has-text("Arquivadas"), button:has-text("Arquivadas."), button:has-text("Archived"), button:has-text("Archive")'
+    ).first();
+
+    const found = await archivedButton
+      .waitFor({ state: 'visible', timeout: config.WHATSAPP_TIMEOUT_MS })
+      .then(() => true)
+      .catch(() => false);
+
+    if (found) {
+      await archivedButton.click();
+      this.logger.success('Seção Arquivadas aberta');
+    } else {
+      this.logger.warn('Botão "Arquivadas" não encontrado. Continuando na lista principal.');
+    }
   }
 
   /**
@@ -108,6 +140,33 @@ class WhatsAppService {
       const titleLocator = chatLocator.locator('span[title]').first();
       await titleLocator.waitFor({ state: 'attached', timeout: 1000 });
       return await titleLocator.getAttribute('title');
+    } catch (error) {
+      return null;
+    }
+  }
+
+  async getChatIdentifier(chatLocator) {
+    try {
+      const identifier = await chatLocator.evaluate((node) => {
+        const directId = node.dataset?.id || node.getAttribute('data-id');
+        if (directId) return directId;
+
+        const rowId = node.getAttribute('data-row-id') || node.getAttribute('data-rowindex');
+        if (rowId) return `row:${rowId}`;
+
+        const aria = node.getAttribute('aria-label');
+        if (aria) return aria;
+
+        const nestedWithId = node.querySelector('[data-id]');
+        if (nestedWithId) {
+          return nestedWithId.getAttribute('data-id');
+        }
+
+        const text = node.textContent || '';
+        return text.slice(0, 80);
+      });
+
+      return (identifier || '').trim() || null;
     } catch (error) {
       return null;
     }
