@@ -101,12 +101,11 @@ class ChatProcessor {
    * Processa um chat individual
    * @param {Page} page - Página do Playwright
    * @param {Locator} chatLocator - Locator do chat
-  * @param {string} processedKey - Identificador único do chat
-  * @param {string} chatName - Nome do chat
+   * @param {string} processedKey - Identificador único do chat
+   * @param {string} chatName - Nome do chat
    * @param {Object} profile - Perfil ativo
    * @returns {Promise<void>}
    */
-  async processChat(page, chatLocator, chatName, profile) {
   async processChat(page, chatLocator, processedKey, chatName, profile) {
     const currentCount = this.processedChats.size + 1;
     const totalLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
@@ -121,7 +120,7 @@ class ChatProcessor {
     if (!connected) {
       const resumed = await this.waitUntilConnected(page, null);
       if (!resumed) {
-        this.logger.warn(`Sem conexão. Pulando "${chatName}" por enquanto.`);
+        this.logger.warn(`Sem conexão. Pulando "${displayName}" por enquanto.`);
         return;
       }
     }
