@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "1.4.5",
+  "version": "1.4.6",
   "description": "Insurance Helper",
   "main": "src/main/main.js",
   "scripts": {

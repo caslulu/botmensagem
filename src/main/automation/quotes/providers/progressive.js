@@ -434,33 +434,81 @@ class ProgressiveQuoteAutomation {
       await this.page.waitForSelector("input[name='VehiclesNew_embedded_questions_list_Vin']", { timeout: 20000 });
       await this.page.fill("input[name='VehiclesNew_embedded_questions_list_Vin']", veiculo.vin);
 
+      // Aguarda um pouco para a interface atualizar após o VIN
+      await this.page.waitForTimeout(2000);
+
+      // Verifica se é o fluxo da Califórnia (campos específicos)
+      let isCaliforniaFlow = false;
       try {
-        await this.selectWithPause(this.page.getByLabel('Learn more aboutVehicle use*'), '1');
-      } catch (_) {
-        // ignore
+        // Tenta esperar pelo seletor específico da Califórnia por 3 segundos
+        await this.page.getByLabel('Learn more aboutPrimary use*').waitFor({ state: 'visible', timeout: 3000 });
+        isCaliforniaFlow = true;
+      } catch (e) {
+        isCaliforniaFlow = false;
       }
 
-      try {
-        const ownLeaseField = this.page.getByLabel('Own or lease?');
-        if (safeLower(veiculo.financiado).includes('financiado')) {
-          await this.selectWithPause(ownLeaseField, '2');
-        } else {
-          await this.selectWithPause(ownLeaseField, '3');
-        }
-      } catch (_) {}
+      console.log(`Fluxo Califórnia detectado: ${isCaliforniaFlow}`);
 
-      try {
-        const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
-        await this.selectWithPause(this.page.getByLabel('How long have you had this'), ownership);
-      } catch (_) {}
-
-      try {
-        if (this.novaInterface) {
-          await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), '0 - 3,999');
-        } else {
-          await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), { index: 1 });
+      if (isCaliforniaFlow) {
+        console.log('Preenchendo campos do fluxo Califórnia...');
+        
+        // Primary use -> Commute (Option 1)
+        try {
+          await this.page.getByLabel('Learn more aboutPrimary use*').selectOption('1');
+        } catch (e) {
+          console.warn('Erro ao preencher Primary use (CA):', e.message);
         }
-      } catch (_) {}
+
+        // Estimated annual mileage -> 3000
+        try {
+          await this.page.getByRole('textbox', { name: 'Estimated annual mileage' }).click();
+          await this.page.getByRole('textbox', { name: 'Estimated annual mileage' }).fill('3000');
+        } catch (e) {
+          console.warn('Erro ao preencher Annual Mileage (CA):', e.message);
+        }
+
+        // Own or lease?
+        try {
+          const ownLeaseField = this.page.getByLabel('Own or lease?');
+          if (safeLower(veiculo.financiado).includes('financiado')) {
+            await ownLeaseField.selectOption('2');
+          } else {
+            await ownLeaseField.selectOption('3');
+          }
+        } catch (e) {
+          console.warn('Erro ao preencher Own/Lease (CA):', e.message);
+        }
+
+      } else {
+        // Fluxo Padrão
+        try {
+          await this.selectWithPause(this.page.getByLabel('Learn more aboutVehicle use*'), '1');
+        } catch (_) {
+          // ignore
+        }
+
+        try {
+          const ownLeaseField = this.page.getByLabel('Own or lease?');
+          if (safeLower(veiculo.financiado).includes('financiado')) {
+            await this.selectWithPause(ownLeaseField, '2');
+          } else {
+            await this.selectWithPause(ownLeaseField, '3');
+          }
+        } catch (_) {}
+
+        try {
+          const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
+          await this.selectWithPause(this.page.getByLabel('How long have you had this'), ownership);
+        } catch (_) {}
+
+        try {
+          if (this.novaInterface) {
+            await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), '0 - 3,999');
+          } else {
+            await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), { index: 1 });
+          }
+        } catch (_) {}
+      }
     }
     await this.page.waitForTimeout(10000);
     await this.clickButton(
@@ -647,6 +695,7 @@ class ProgressiveQuoteAutomation {
 
         // Seletores para os diferentes fluxos
         const usLicenseType = this.page.getByLabel('U.S. License type');
+        const ageFirstLicensed = this.page.getByLabel('Age first licensed*');
         const yearsLicensedLong = this.page.getByLabel(/Years licensed in the U.S. or/i);
         const validLicense = this.page.getByRole('group', { name: 'Has your license been valid' });
 
@@ -675,6 +724,24 @@ class ProgressiveQuoteAutomation {
             await suspensions.getByLabel('No').check();
           }
 
+        }
+        // 1.5 Verifica Fluxo California (Status + Age First Licensed)
+        else if (await ageFirstLicensed.isVisible()) {
+          console.log('Fluxo California (Age first licensed) detectado.');
+          await ageFirstLicensed.fill('16');
+          
+          console.log('Aguardando 10s para conferência manual da idade...');
+          await this.page.waitForTimeout(10000);
+
+          const status = this.page.getByLabel('U.S. License status');
+          if (await status.isVisible()) {
+            await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
+          }
+          
+          const expired = this.page.getByRole('group', { name: /License expired, suspended or revoked/i });
+          if (await expired.isVisible()) {
+            await expired.getByLabel('No').check();
+          }
         } 
         // 2. Verifica Fluxo Intermediário (Apenas Years Licensed longo)
         else if (await yearsLicensedLong.isVisible()) {
@@ -715,10 +782,24 @@ class ProgressiveQuoteAutomation {
       }
 
       await this.page.waitForTimeout(1000);
-      await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
+
+      // Accidents
+      try {
+        await this.page.getByRole('group', { name: /Accidents, claims, or other/i }).getByLabel('No').check();
+      } catch (e) { console.warn('Erro ao marcar Accidents:', e.message); }
       
-      await this.page.waitForTimeout(1000);
-      await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
+      // DWIs (California e outros estados)
+      try {
+        const dwiGroup = this.page.getByRole('group', { name: /DWIs/i });
+        if (await dwiGroup.isVisible()) {
+          await dwiGroup.getByLabel('No').check();
+        }
+      } catch (e) { console.warn('Erro ao marcar DWIs:', e.message); }
+
+      // Tickets
+      try {
+        await this.page.getByRole('group', { name: /Tickets or violations/i }).getByLabel('No').check();
+      } catch (e) { console.warn('Erro ao marcar Tickets:', e.message); }
       
       await this.page.waitForTimeout(1500);
       await this.clickButton(
