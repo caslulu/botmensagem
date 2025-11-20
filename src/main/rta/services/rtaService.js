@@ -155,7 +155,10 @@ class RtaService {
                 '(B9) Odometer (Miles)': String(data.odometer || ''),
                 '(C3) Previous title number': String(data.previous_title_number || ''),
                 '(C3) Previous title state': String(data.previous_title_state || ''),
-                '(C3) Previous title country': String(data.previous_title_country || '')
+                '(C3) Previous title country': String(data.previous_title_country || ''),
+                '(Lienholder) 1st (First) Lien Code': String(data.lienholder_code || ''),
+                '(Lienholder) (First Lien Code) Name': String(data.lienholder_name || ''),
+                '(Lienholder) (First Lien Code) Address': String(data.lienholder_address || '')
             };
 
             // Preencher textos
@@ -195,6 +198,31 @@ class RtaService {
                             }
                         } catch {}
                     }
+                }
+            }
+
+            // Transaction Type Checkbox
+            const transactionType = data.transaction_type;
+            if (transactionType) {
+                try {
+                    // Uncheck all transaction types first (optional, but good practice if template has defaults)
+                    const transactionFields = [
+                        'Reg and Title a Vehicle', 'Transfer Plate', 'Reinstate Reg', 'Apply for salvage title',
+                        'Apply for title', 'Registration only', 'Transfer plate', 'Register prev title',
+                        'Title prev reg vehicle', 'Transfer vehicle to spouse', 'Change plate', 'Renew reg'
+                    ];
+                    
+                    for (const fieldName of transactionFields) {
+                         try {
+                            const field = form.getCheckBox(fieldName);
+                            if (field) field.uncheck();
+                        } catch {}
+                    }
+
+                    const checkbox = form.getCheckBox(transactionType);
+                    if (checkbox) checkbox.check();
+                } catch (e) {
+                    console.error(`[RtaService] Failed to check transaction type: ${transactionType}`, e);
                 }
             }
 

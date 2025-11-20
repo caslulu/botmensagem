@@ -382,6 +382,35 @@
                 <h3 class="text-lg font-semibold text-white">Gerar RTA</h3>
               </header>
                 <form id="rtaForm" class="rta-form">
+                  <section class="rta-section" aria-labelledby="rta-transaction">
+                    <div class="rta-section-header">
+                      <div class="rta-section-icon" aria-hidden="true">📋</div>
+                      <div>
+                        <h4 class="rta-section-title" id="rta-transaction">Tipo de Transação</h4>
+                        <p class="rta-section-description">Selecione o tipo de operação que deseja realizar.</p>
+                      </div>
+                    </div>
+                    <div class="rta-grid rta-grid-auto">
+                      <div class="input-group">
+                        <label for="transaction_type">I want to:</label>
+                        <select id="transaction_type" name="transaction_type" class="input-control">
+                          <option value="Reg and Title a Vehicle" selected>Register and title a vehicle</option>
+                          <option value="Transfer Plate">Transfer plate to a new vehicle</option>
+                          <option value="Reinstate Reg">Reinstate a registration</option>
+                          <option value="Apply for salvage title">Apply for a salvage title</option>
+                          <option value="Apply for title">Apply for a title only</option>
+                          <option value="Registration only">Apply for a registration only</option>
+                          <option value="Transfer plate">Transfer a plate between two vehicles</option>
+                          <option value="Register prev title">Register previously titled vehicle</option>
+                          <option value="Title prev reg vehicle">Title previously registered vehicle</option>
+                          <option value="Transfer vehicle to spouse">Transfer vehicle to surviving spouse</option>
+                          <option value="Change plate">Change plate on existing vehicle with no amendments</option>
+                          <option value="Renew reg">Renew a registration</option>
+                        </select>
+                      </div>
+                    </div>
+                  </section>
+
                   <section class="rta-section" aria-labelledby="rta-insurance">
                     <div class="rta-section-header">
                       <div class="rta-section-icon" aria-hidden="true">🛡️</div>
@@ -472,7 +501,7 @@
 
                   <section class="rta-section" aria-labelledby="rta-title">
                     <div class="rta-section-header">
-                      <div class="rta-section-icon" aria-hidden="true">�</div>
+                      <div class="rta-section-icon" aria-hidden="true">📝</div>
                       <div>
                         <h4 class="rta-section-title" id="rta-title">Título e Seguro</h4>
                         <p class="rta-section-description">Agrupe os dados do título anterior e das datas do seguro antes de gerar o PDF.</p>
@@ -498,7 +527,7 @@
                         <div class="rta-grid rta-grid-auto">
                           <div class="input-group">
                             <label for="previous_title_number">Número</label>
-                            <input id="previous_title_number" name="previous_title_number" class="input-control" placeholder="Ex: CN539192" />
+                            <input id="previous_title_number" name="previous_title_number" class="input-control" placeholder="Ex: CN539192" required />
                           </div>
                           <div class="input-group">
                             <label for="previous_title_state">Estado</label>
@@ -510,6 +539,25 @@
                           </div>
                         </div>
                       </div>
+
+                      <div class="rta-subsection hidden" id="lienholderSection">
+                        <h5 class="rta-subsection-title">Informações do Financiamento (Lienholder)</h5>
+                        <div class="rta-grid rta-grid-auto">
+                          <div class="input-group">
+                            <label for="lienholder_code">Lien Code</label>
+                            <input id="lienholder_code" name="lienholder_code" class="input-control" placeholder="Ex: C01234" />
+                          </div>
+                          <div class="input-group">
+                            <label for="lienholder_name">Nome da Instituição</label>
+                            <input id="lienholder_name" name="lienholder_name" class="input-control" placeholder="Ex: Bank of America" />
+                          </div>
+                          <div class="input-group">
+                            <label for="lienholder_address">Endereço</label>
+                            <input id="lienholder_address" name="lienholder_address" class="input-control" placeholder="Ex: 123 Bank St, City, ST 12345" />
+                          </div>
+                        </div>
+                      </div>
+
                       <div class="rta-subsection">
                         <h5 class="rta-subsection-title">Seguro e datas</h5>
                         <div class="rta-grid rta-grid-auto">
@@ -518,11 +566,11 @@
                             <input id="purchase_date" name="purchase_date" type="date" class="input-control" />
                           </div>
                           <div class="input-group">
-                            <label for="insurance_effective_date">Início do seguro</label>
+                            <label for="insurance_effective_date">Início da vigência</label>
                             <input id="insurance_effective_date" name="insurance_effective_date" type="date" class="input-control" />
                           </div>
                           <div class="input-group">
-                            <label for="insurance_policy_change_date">Alteração da apólice</label>
+                            <label for="insurance_policy_change_date">Data de alteração</label>
                             <input id="insurance_policy_change_date" name="insurance_policy_change_date" type="date" class="input-control" />
                           </div>
                         </div>
@@ -691,7 +739,7 @@
                   </div>
                   <div class="price-field mt-2">
                     <label for="priceCustomTax" class="price-label">Valor personalizado ($)</label>
-                    <input id="priceCustomTax" type="number" class="price-input" placeholder="Ex: 450" min="0" step="0.01" inputmode="decimal" disabled />
+                    <input id="priceCustomTax" type="number" class="price-input" placeholder="Ex: 450" min="0" step="0.01" disabled />
                     <p class="price-hint">Defina uma taxa específica quando selecionar "Personalizada".</p>
                   </div>
                 </div>

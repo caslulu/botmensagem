@@ -2080,30 +2080,49 @@ messageModal.addEventListener('click', (e) => {
 const rtaForm = document.getElementById('rtaForm');
 const titleStatusRadios = document.querySelectorAll('input[name="title_status"]');
 const previousTitleSection = document.getElementById('previousTitleSection');
+const lienholderSection = document.getElementById('lienholderSection');
 
 function toggleTitleSectionVisibility(status) {
-  if (!previousTitleSection) {
-    return;
+  const isFinanced = status === 'financed';
+
+  if (previousTitleSection) {
+    const hide = isFinanced;
+    previousTitleSection.style.display = hide ? 'none' : 'flex';
+    previousTitleSection.setAttribute('aria-hidden', hide ? 'true' : 'false');
+
+    const inputs = previousTitleSection.querySelectorAll('input');
+    inputs.forEach((input) => {
+      if (!input.dataset.originalRequired) {
+        input.dataset.originalRequired = input.required ? 'true' : 'false';
+      }
+
+      input.disabled = hide;
+      if (hide) {
+        input.required = false;
+        input.removeAttribute('required');
+        input.value = '';
+      } else {
+        if (input.dataset.originalRequired === 'true') {
+          input.required = true;
+          input.setAttribute('required', '');
+        }
+      }
+    });
   }
 
-  const hide = status === 'financed';
-  previousTitleSection.style.display = hide ? 'none' : 'flex';
-  previousTitleSection.setAttribute('aria-hidden', hide ? 'true' : 'false');
-
-  const inputs = previousTitleSection.querySelectorAll('input');
-  inputs.forEach((input) => {
-    if (!input.dataset.originalRequired) {
-      input.dataset.originalRequired = input.required ? 'true' : 'false';
-    }
-
-    input.disabled = hide;
-    if (hide) {
-      input.required = false;
-      input.value = '';
-    } else {
-      input.required = input.dataset.originalRequired === 'true';
-    }
-  });
+  if (lienholderSection) {
+    const show = isFinanced;
+    lienholderSection.style.display = show ? 'block' : 'none'; // Using block or flex depending on CSS, but block is safe for div
+    lienholderSection.classList.toggle('hidden', !show);
+    
+    const inputs = lienholderSection.querySelectorAll('input');
+    inputs.forEach((input) => {
+      input.disabled = !show;
+      if (!show) {
+        input.value = '';
+      }
+    });
+  }
 }
 
 if (titleStatusRadios?.length) {
@@ -2134,6 +2153,7 @@ if (rtaForm) {
     const titleStatus = Array.from(document.querySelectorAll('input[name="title_status"]')).find((input) => input.checked)?.value || 'paid_off';
 
     const data = {
+      transaction_type: getVal('transaction_type'),
       insurance_company: getVal('insurance_company'),
       purchase_date: getVal('purchase_date'),
       insurance_effective_date: getVal('insurance_effective_date'),
@@ -2164,6 +2184,9 @@ if (rtaForm) {
       previous_title_number: getVal('previous_title_number'),
       previous_title_state: getVal('previous_title_state'),
       previous_title_country: getVal('previous_title_country'),
+      lienholder_code: getVal('lienholder_code'),
+      lienholder_name: getVal('lienholder_name'),
+      lienholder_address: getVal('lienholder_address'),
       color: getVal('color')
     };
 
