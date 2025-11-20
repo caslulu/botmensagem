@@ -501,19 +501,139 @@ class ProgressiveQuoteAutomation {
       console.warn('[ProgressiveAutomation] Falha ao selecionar estado civil:', error?.message || error);
     }
 
+    // 1. Tenta preencher campos de Educação/Emprego (se existirem)
     try {
-      this.page.setDefaultTimeout(7000);
-      await this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence').selectOption('T');
-    } catch (_) {
+      const educationId = '#DriversAddPniDetails_embedded_questions_list_HighestLevelOfEducation';
+      const employmentId = '#DriversAddPniDetails_embedded_questions_list_EmploymentStatus';
+
+      // Education
+      const educationLoc = this.page.locator(educationId);
+      if (await educationLoc.isVisible()) {
+        await educationLoc.selectOption('2');
+      } else {
+        const educationSelect = this.page.getByLabel(/Highest level of education/i);
+        if (await educationSelect.isVisible()) {
+          await educationSelect.selectOption('2');
+        }
+      }
+
+      // Employment
+      const employmentLoc = this.page.locator(employmentId);
+      if (await employmentLoc.isVisible()) {
+        await employmentLoc.selectOption('EM');
+      } else {
+        const employmentSelect = this.page.getByLabel(/Employment status/i);
+        if (await employmentSelect.isVisible()) {
+          await employmentSelect.selectOption('EM');
+        }
+      }
+
+      // Occupation
       try {
-        await this.page.getByLabel('Highest level of education*').selectOption('2');
-        await this.page.getByLabel('Employment status*').selectOption('EM');
-        await this.clickWithDelay(this.page.getByRole('combobox', { name: 'Occupation view entire list' }));
-        await this.page.getByRole('combobox', { name: 'Occupation view entire list' }).fill('worker');
-        await this.clickWithDelay(this.page.getByText('Worker: All Other'));
-        await this.page.getByLabel('Primary residence*').selectOption('R');
+        console.log('Tentando preencher Occupation...');
+        
+        const searchInput = this.page.getByPlaceholder('Search for your job title...');
+        const combobox = this.page.getByRole('combobox', { name: 'Occupation view entire list' });
+
+        let targetInput = null;
+        let isNewVariation = false;
+
+        // Verifica qual está visível
+        if (await searchInput.isVisible()) {
+          targetInput = searchInput;
+          isNewVariation = true;
+        } else if (await combobox.isVisible()) {
+          targetInput = combobox;
+        } else {
+          // Se nenhum visível, espera um pouco
+          try {
+            await searchInput.waitFor({ state: 'visible', timeout: 3000 });
+            targetInput = searchInput;
+            isNewVariation = true;
+          } catch {
+            try {
+              await combobox.waitFor({ state: 'visible', timeout: 3000 });
+              targetInput = combobox;
+            } catch {
+              console.log('Nenhum input principal de Occupation apareceu no tempo limite.');
+            }
+          }
+        }
+
+        if (targetInput) {
+          console.log(isNewVariation ? 'Variação "Search" encontrada.' : 'Variação "Combobox" encontrada.');
+          await targetInput.click();
+          await this.page.waitForTimeout(500);
+          
+          // Usa pressSequentially para garantir que o site registre a digitação
+          await targetInput.pressSequentially('worker', { delay: 100 });
+          await this.page.waitForTimeout(1000);
+          
+          if (isNewVariation) {
+            const searchBtn = this.page.getByRole('button', { name: 'Search' });
+            if (await searchBtn.isVisible()) {
+              await searchBtn.click();
+              await this.page.waitForTimeout(1000);
+            }
+
+            // Para a variação de busca, tenta selecionar "Transportation Worker"
+            const transOption = this.page.getByText('Transportation Worker').first();
+            if (await transOption.isVisible()) {
+              await transOption.click();
+            } else {
+              // Fallback se não achar Transportation Worker
+              const option = this.page.getByText(/Worker.*All Other/i).first();
+              if (await option.isVisible()) {
+                await option.click();
+              } else {
+                await targetInput.press('Enter');
+              }
+            }
+          } else {
+            // Variação Combobox
+            const option = this.page.getByText(/Worker.*All Other/i).first();
+            if (await option.isVisible()) {
+              await option.click();
+            } else {
+              console.log('Opção não encontrada, tentando Enter...');
+              await targetInput.press('Enter');
+            }
+          }
+        } else {
+          throw new Error('Nenhum input principal encontrado');
+        }
+      } catch (e) {
+        console.error('Erro ao preencher Occupation (tentativa principal):', e.message);
+        
+        // Fallback: Tenta pelo label genérico se o role específico falhar
+        try {
+          console.log('Tentando fallback para Occupation...');
+          // Usa .first() para evitar erro de strict mode se houver múltiplos elementos (ex: input + botão search)
+          const fallbackInput = this.page.getByLabel(/Occupation/i).first();
+          if (await fallbackInput.isVisible()) {
+            await fallbackInput.click();
+            await fallbackInput.fill('worker');
+            await this.page.waitForTimeout(1000);
+            await fallbackInput.press('Enter');
+          }
+        } catch (fallbackError) {
+          console.error('Erro no fallback de Occupation:', fallbackError.message);
+        }
+      }
+    } catch (e) {
+      console.log('Campos extras de emprego/educação não encontrados ou erro ao preencher:', e.message);
+    }
+
+    // 2. Tenta preencher Residência
+    try {
+      this.page.setDefaultTimeout(5000);
+      await this.page.getByLabel('Primary residence*').selectOption('T');
+    } catch (_) {
+      console.log('[Progressive] Falha no seletor principal de residência, tentando fallback...');
+      try {
+        await this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence').selectOption('T');
       } catch (error) {
-        console.warn('[ProgressiveAutomation] Falha ao preencher campos adicionais de residência:', error?.message || error);
+        console.warn('[ProgressiveAutomation] Falha ao preencher residência (fallback):', error?.message || error);
       }
     } finally {
       this.page.setDefaultTimeout(30000);
@@ -521,13 +641,86 @@ class ProgressiveQuoteAutomation {
 
     try {
       if (safeLower(estadoDocumento) !== 'it') {
-        await this.page.getByRole('group', { name: 'Has your license been valid' }).getByLabel('Yes').check();
-        await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
+        console.log('Verificando campos de histórico de licença...');
+        
+        await this.page.waitForTimeout(1000);
+
+        // Seletores para os diferentes fluxos
+        const usLicenseType = this.page.getByLabel('U.S. License type');
+        const yearsLicensedLong = this.page.getByLabel(/Years licensed in the U.S. or/i);
+        const validLicense = this.page.getByRole('group', { name: 'Has your license been valid' });
+
+        // 1. Verifica Fluxo Detalhado (Type + Status + Years)
+        if (await usLicenseType.isVisible()) {
+          console.log('Fluxo detalhado (Type/Status) detectado.');
+          
+          // U.S. License type -> Personal
+          await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
+          
+          // U.S. License status -> Valid
+          const status = this.page.getByLabel('U.S. License status');
+          if (await status.isVisible()) {
+            await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
+          }
+
+          // Years licensed (qualquer variação do label)
+          const yearsAny = this.page.getByLabel(/Years licensed/i);
+          if (await yearsAny.isVisible()) {
+            await yearsAny.selectOption('3');
+          }
+
+          // Suspensions
+          const suspensions = this.page.getByRole('group', { name: /Any license suspensions/i });
+          if (await suspensions.isVisible()) {
+            await suspensions.getByLabel('No').check();
+          }
+
+        } 
+        // 2. Verifica Fluxo Intermediário (Apenas Years Licensed longo)
+        else if (await yearsLicensedLong.isVisible()) {
+          console.log('Campo "Years licensed" (fluxo simplificado) detectado.');
+          await yearsLicensedLong.selectOption('3');
+        } 
+        // 3. Verifica Fluxo Antigo (Valid License Checkbox)
+        else if (await validLicense.isVisible()) {
+          console.log('Campo "Has your license been valid" detectado.');
+          await validLicense.getByLabel('Yes').check();
+          await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
+        } 
+        // 4. Fallback: Espera explícita se nada apareceu ainda
+        else {
+          console.log('Nenhum campo visível imediatamente. Aguardando...');
+          try {
+            // Tenta esperar pelo License Type primeiro (novo fluxo comum)
+            await usLicenseType.waitFor({ state: 'visible', timeout: 3000 });
+            // Se apareceu, chama recursivamente ou repete a lógica (aqui vou repetir simplificado)
+            await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
+            const status = this.page.getByLabel('U.S. License status');
+            if (await status.isVisible()) await status.selectOption({ label: 'Valid' }).catch(() => {});
+            const years = this.page.getByLabel(/Years licensed/i);
+            if (await years.isVisible()) await years.selectOption('3');
+            const susp = this.page.getByRole('group', { name: /Any license suspensions/i });
+            if (await susp.isVisible()) await susp.getByLabel('No').check();
+          } catch (e) {
+            // Se falhar, tenta o fluxo antigo como último recurso
+            console.log('Fallback final para fluxo antigo...');
+            if (await validLicense.isVisible()) {
+               await validLicense.getByLabel('Yes').check();
+               await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
+            }
+          }
+        }
       } else {
         await this.page.getByLabel('U.S. License type').selectOption('F');
       }
+
+      await this.page.waitForTimeout(1000);
       await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
+      
+      await this.page.waitForTimeout(1000);
       await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
+      
+      await this.page.waitForTimeout(1500);
       await this.clickButton(
         this.page.getByRole('button', { name: 'Continue' }),
         { timeout: 20000 }
@@ -602,6 +795,10 @@ class ProgressiveQuoteAutomation {
       }
     }
           await this.clickButton(
+        this.page.getByRole('button', { name: 'Continue' }),
+        { timeout: 20000 }
+      );
+                await this.clickButton(
         this.page.getByRole('button', { name: 'Continue' }),
         { timeout: 20000 }
       );
