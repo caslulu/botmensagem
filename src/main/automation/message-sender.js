@@ -46,21 +46,27 @@ class MessageSender {
   }
 
   async _sendInternal(page, message, imagePath) {
-    const messageBox = page.getByRole('textbox', { name: 'Digite uma mensagem' });
+    // 1. Clicar no botão de anexo (Clip/Mais) usando o seletor fornecido
+    await page.getByRole('button').filter({ hasText: 'plus-rounded' }).click();
 
-    if (imagePath) {
-      const attachButton = page.getByRole('button', { name: 'Anexar' });
-      await attachButton.click();
-      const photosButton = page.getByRole('button', { name: 'Fotos e vídeos' });
-      await photosButton.waitFor({ state: 'visible', timeout: config.ATTACHMENT_TIMEOUT_MS });
-      await photosButton.locator('input[type="file"]').setInputFiles(imagePath);
-      await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
-    } else {
-      await messageBox.waitFor({ state: 'visible', timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+    // 2. Clicar em "Fotos e vídeos" e tratar o upload via FileChooser
+    // Como clicar no botão abre a janela do sistema, precisamos esperar o evento de filechooser
+    const fileChooserPromise = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: 'Fotos e vídeos' }).click();
+    const fileChooser = await fileChooserPromise;
+    await fileChooser.setFiles(imagePath);
+
+    // Pequena pausa para garantir que a interface reaja ao arquivo e abra o modal
+    await page.waitForTimeout(2000);
+
+    // 3. Preencher a legenda (o campo já vem focado, segundo observação)
+    if (message) {
+      // Cola o texto de uma vez para evitar quebras de linha acionando o envio
+      await page.keyboard.insertText(message);
     }
-
-    await messageBox.fill(message);
-    await messageBox.press('Enter');
+    
+    // 4. Enviar (Enter)
+    await page.keyboard.press('Enter');
   }
 
   async waitForSendConfirmation(page, message, prevCount, timeoutMs) {

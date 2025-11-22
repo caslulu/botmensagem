@@ -437,46 +437,60 @@ class ProgressiveQuoteAutomation {
       // Aguarda um pouco para a interface atualizar após o VIN
       await this.page.waitForTimeout(2000);
 
-      // Verifica se é o fluxo da Califórnia (campos específicos)
-      let isCaliforniaFlow = false;
+      // Verifica se é o fluxo com inputs de texto (CA, FL, etc)
+      let isTextFlow = false;
       try {
-        // Tenta esperar pelo seletor específico da Califórnia por 3 segundos
-        await this.page.getByLabel('Learn more aboutPrimary use*').waitFor({ state: 'visible', timeout: 3000 });
-        isCaliforniaFlow = true;
+        // Tenta esperar pelo seletor específico da Califórnia ou Florida (Mileage Textbox)
+        const primaryUse = this.page.getByLabel('Learn more aboutPrimary use*');
+        const annualMileage = this.page.getByRole('textbox', { name: 'Estimated annual mileage' });
+
+        await Promise.race([
+          primaryUse.waitFor({ state: 'visible', timeout: 3000 }),
+          annualMileage.waitFor({ state: 'visible', timeout: 3000 })
+        ]);
+        isTextFlow = true;
       } catch (e) {
-        isCaliforniaFlow = false;
+        isTextFlow = false;
       }
 
-      console.log(`Fluxo Califórnia detectado: ${isCaliforniaFlow}`);
+      console.log(`Fluxo Texto (CA/FL) detectado: ${isTextFlow}`);
 
-      if (isCaliforniaFlow) {
-        console.log('Preenchendo campos do fluxo Califórnia...');
+      if (isTextFlow) {
+        console.log('Preenchendo campos do fluxo Texto (CA/FL)...');
         
         // Primary use -> Commute (Option 1)
         try {
-          await this.page.getByLabel('Learn more aboutPrimary use*').selectOption('1');
+          const primaryUse = this.page.getByLabel('Learn more aboutPrimary use*');
+          if (await primaryUse.isVisible()) {
+            await primaryUse.selectOption('1');
+          }
         } catch (e) {
-          console.warn('Erro ao preencher Primary use (CA):', e.message);
+          console.warn('Erro ao preencher Primary use (CA/FL):', e.message);
         }
 
         // Estimated annual mileage -> 3000
         try {
-          await this.page.getByRole('textbox', { name: 'Estimated annual mileage' }).click();
-          await this.page.getByRole('textbox', { name: 'Estimated annual mileage' }).fill('3000');
+          const annualMileage = this.page.getByRole('textbox', { name: 'Estimated annual mileage' });
+          if (await annualMileage.isVisible()) {
+            await annualMileage.click();
+            await annualMileage.fill('3000');
+          }
         } catch (e) {
-          console.warn('Erro ao preencher Annual Mileage (CA):', e.message);
+          console.warn('Erro ao preencher Annual Mileage (CA/FL):', e.message);
         }
 
         // Own or lease?
         try {
           const ownLeaseField = this.page.getByLabel('Own or lease?');
-          if (safeLower(veiculo.financiado).includes('financiado')) {
-            await ownLeaseField.selectOption('2');
-          } else {
-            await ownLeaseField.selectOption('3');
+          if (await ownLeaseField.isVisible()) {
+            if (safeLower(veiculo.financiado).includes('financiado')) {
+              await ownLeaseField.selectOption('2');
+            } else {
+              await ownLeaseField.selectOption('3');
+            }
           }
         } catch (e) {
-          console.warn('Erro ao preencher Own/Lease (CA):', e.message);
+          console.warn('Erro ao preencher Own/Lease (CA/FL):', e.message);
         }
 
       } else {
@@ -509,8 +523,23 @@ class ProgressiveQuoteAutomation {
           }
         } catch (_) {}
       }
+
+      // Tenta clicar em "Done" para salvar o veículo atual antes de prosseguir
+      // Isso é crucial para voltar à lista de veículos e permitir adicionar o próximo
+      try {
+        const doneBtn = this.page.getByRole('button', { name: 'Done' });
+        if (await doneBtn.isVisible({ timeout: 2000 })) {
+          await doneBtn.click();
+          await this.page.waitForTimeout(1000);
+        }
+      } catch (e) {
+        console.log('[Progressive] Botão Done não encontrado ou não necessário:', e.message);
+      }
     }
-    await this.page.waitForTimeout(10000);
+    await this.page.waitForTimeout(2000);
+    
+    // Se houver mais de um veículo, pode ser necessário clicar em "Continue" para sair da lista
+    // Mas o loop já tratou de adicionar todos. Agora finalizamos a seção.
     await this.clickButton(
       this.page.getByRole('button', { name: 'Continue' }),
       { timeout: 20000 }

@@ -143,12 +143,14 @@ class PriceService {
         y = 0,
         size = 48,
         color = '#ffffff',
-        weight = 500
+        weight = 500,
+        align = 'left'
       } = entry;
 
       const fontWeight = Number.isFinite(weight) ? String(weight) : weight || 'normal';
       ctx.font = `${fontWeight} ${size}px "${this.fontFamily}", "Segoe UI", sans-serif`;
       ctx.fillStyle = color;
+      ctx.textAlign = align;
       ctx.fillText(String(text), x, y);
     });
   }
@@ -270,28 +272,42 @@ class PriceService {
 
     let processed;
     let overlayEntries;
+    const Y_OFFSET = 15;
 
     if (formType === 'quitado') {
       processed = this.processQuitado(campos, tax);
+      // Ajuste de X para mover valores para a direita (evitar sobreposição com labels)
+      const X_OFFSET_LEFT = 40; // Deslocamento para coluna esquerda (reduzido para centralizar na caixa)
+      const X_OFFSET_RIGHT = 80; // Deslocamento para coluna direita
+
       overlayEntries = [
-        { text: seguradora, x: 370, y: 543, size: 40, color: '#ffffff' },
-        { text: seguradora, x: 1030, y: 543, size: 40, color: '#ffffff' },
-        { text: processed.entrada_basico, x: 440, y: 1375, size: 55, color: '#000000' },
-        { text: processed.entrada_completo, x: 1090, y: 1375, size: 55, color: '#000000' },
-        { text: processed.mensal_basico, x: 480, y: 1525, size: 45, color: '#000000' },
-        { text: processed.mensal_completo, x: 1130, y: 1525, size: 45, color: '#000000' },
-        { text: processed.valor_total_basico, x: 440, y: 1655, size: 55, color: '#000000' },
-        { text: processed.valor_total_completo, x: 1090, y: 1655, size: 55, color: '#000000' },
-        { text: processed.nome, x: 490, y: 1890, size: 45, color: '#ffffff' }
+        { text: seguradora, x: 510, y: 543 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
+        { text: seguradora, x: 1150, y: 543 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
+        
+        // Coluna Esquerda (Básico)
+        { text: processed.entrada_basico, x: 510 + X_OFFSET_LEFT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.mensal_basico, x: 510 + X_OFFSET_LEFT, y: 1525 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
+        { text: processed.valor_total_basico, x: 510 + X_OFFSET_LEFT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        
+        // Coluna Direita (Completo)
+        { text: processed.entrada_completo, x: 1150 + X_OFFSET_RIGHT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.mensal_completo, x: 1150 + X_OFFSET_RIGHT, y: 1525 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
+        { text: processed.valor_total_completo, x: 1150 + X_OFFSET_RIGHT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        
+        { text: processed.nome, x: 490, y: 1890 + Y_OFFSET, size: 45, color: '#ffffff', align: 'left' }
       ];
     } else {
       processed = this.processFinanciado(campos, tax);
+      const X_OFFSET_CENTER = 160; // Deslocamento para coluna central
+
       overlayEntries = [
-        { text: seguradora, x: 800, y: 562, size: 40, color: '#ffffff' },
-        { text: processed.entrada_completo, x: 870, y: 1400, size: 55, color: '#000000' },
-        { text: processed.mensal_completo, x: 885, y: 1545, size: 45, color: '#000000' },
-        { text: processed.valor_total_completo, x: 850, y: 1695, size: 55, color: '#000000' },
-        { text: processed.nome, x: 490, y: 1908, size: 45, color: '#ffffff' }
+        { text: seguradora, x: 800 + X_OFFSET_CENTER, y: 562 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
+        
+        { text: processed.entrada_completo, x: 800 + X_OFFSET_CENTER, y: 1400 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.mensal_completo, x: 800 + X_OFFSET_CENTER, y: 1545 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
+        { text: processed.valor_total_completo, x: 800 + X_OFFSET_CENTER, y: 1695 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        
+        { text: processed.nome, x: 490, y: 1908 + Y_OFFSET, size: 45, color: '#ffffff', align: 'left' }
       ];
     }
 

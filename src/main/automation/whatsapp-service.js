@@ -82,20 +82,32 @@ class WhatsAppService {
    */
   async goToArchivedChats(page) {
     this.logger.info('Acessando seção de Arquivadas...');
-    const archivedButton = page.locator(
-      'button:has-text("Arquivadas"), button:has-text("Arquivadas."), button:has-text("Archived"), button:has-text("Archive")'
-    ).first();
+    
+    // Check if already there (Back button or Header Title)
+    const isBackVisible = await page.locator('span[data-icon="back"], [aria-label="Voltar"], [aria-label="Back"]').first().isVisible().catch(() => false);
+    const isTitleVisible = await page.locator('header').getByText(/Arquivadas|Archived/i).first().isVisible().catch(() => false);
+    
+    if (isBackVisible || isTitleVisible) {
+        this.logger.info('Já estamos na seção Arquivadas.');
+        return;
+    }
 
-    const found = await archivedButton
-      .waitFor({ state: 'visible', timeout: config.WHATSAPP_TIMEOUT_MS })
-      .then(() => true)
-      .catch(() => false);
-
-    if (found) {
-      await archivedButton.click();
+    // Simple approach as requested
+    try {
+      // Try by text first (as in the example)
+      const archivedButton = page.getByRole('button', { name: 'Arquivadas' }).or(page.getByRole('button', { name: 'Archived' }));
+      if (await archivedButton.isVisible()) {
+        await archivedButton.click();
+      } else {
+        // Fallback to icon if text fails
+        await page.locator('span[data-icon="archived"]').click();
+      }
+      
       this.logger.success('Seção Arquivadas aberta');
-    } else {
-      this.logger.warn('Botão "Arquivadas" não encontrado. Continuando na lista principal.');
+      await page.waitForTimeout(2000);
+    } catch (error) {
+      this.logger.error('Erro ao acessar Arquivadas', error);
+      throw error;
     }
   }
 
@@ -108,12 +120,11 @@ class WhatsAppService {
   async initialScroll(page, checkStop) {
     this.logger.info('Pré-carregando lista de chats...');
     
-    for (let i = 0; i < config.SCROLL_ITERATIONS; i++) {
-      if (checkStop && checkStop()) {
-        break;
-      }
+    // Scroll 30 times as in the example
+    for (let i = 0; i < 30; i++) {
+      if (checkStop && checkStop()) break;
       await page.keyboard.press('PageDown');
-      await page.waitForTimeout(config.SCROLL_DELAY_MS);
+      await page.waitForTimeout(500);
     }
 
     this.logger.success('Lista de chats carregada');
@@ -126,7 +137,11 @@ class WhatsAppService {
    */
   async getVisibleChats(page) {
     const list = page.locator('[data-testid="chat-list"], div[role="grid"]').first();
+    // Get all rows but filter out the "Archived" button if it appears as a row (just in case)
     const rows = await list.locator('div[role="row"], [role="listitem"]').all();
+    
+    // Optional: Filter out rows that are likely not chats (e.g. headers)
+    // This is tricky because Playwright locators are lazy, but we can do it in the loop in chat-processor
     return rows;
   }
 
@@ -178,9 +193,22 @@ class WhatsAppService {
    * @returns {Promise<void>}
    */
   async openChat(chatLocator) {
+    // Simple and robust click
     await chatLocator.scrollIntoViewIfNeeded();
-    await chatLocator.waitFor({ state: 'visible', timeout: 5000 });
-    await chatLocator.click({ force: false });
+    // Force click helps with overlays
+    await chatLocator.click({ force: true });
+    
+    // Wait for conversation panel to appear
+    // This confirms the chat was actually opened
+    try {
+      const panel = chatLocator.page().locator('[data-testid="conversation-panel"], main[role="main"]').first();
+      await panel.waitFor({ state: 'visible', timeout: 10000 });
+    } catch (e) {
+      // If panel didn't open, maybe click failed? Retry once
+      await chatLocator.click({ force: true });
+      const panel = chatLocator.page().locator('[data-testid="conversation-panel"], main[role="main"]').first();
+      await panel.waitFor({ state: 'visible', timeout: 10000 });
+    }
   }
 
   /**

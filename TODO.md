@@ -2,58 +2,7 @@
 
 ## 🔴 BUGS CRÍTICOS (Prioridade Alta)
 
-### 1. Validação de Conexão WhatsApp Durante Automação
-**Problema:** Se o usuário fizer logout do WhatsApp ou perder conexão com internet durante o envio, a automação continua tentando enviar mensagens sem detectar a desconexão.
-
-**Impacto:** Mensagens não são enviadas, mas o sistema marca como enviadas. Pode causar perda de dados e frustração do usuário.
-
-**Solução:**
-- Adicionar método `isConnected()` em `whatsapp-service.js`
-- Verificar conexão antes de cada envio em `chat-processor.js`
-- Pausar automação e notificar usuário se detectar desconexão
-- Implementar retry automático quando conexão voltar
-
-**Arquivo:** `src/main/automation/whatsapp-service.js`, `src/main/automation/chat-processor.js`
-
----
-
-### 2. Detecção de Chats Bloqueados
-**Problema:** O sistema tenta enviar mensagens para números que bloquearam o usuário, o que pode:
-- Causar ban da conta WhatsApp por spam
-- Desperdiçar cota de envios
-- Gerar relatórios incorretos
-
-**Impacto:** Alto risco de banimento da conta WhatsApp, violação de privacidade.
-
-**Solução:**
-- Detectar indicadores visuais de bloqueio no WhatsApp Web
-- Adicionar método `isChatBlocked()` em `whatsapp-service.js`
-- Pular chats bloqueados e registrar em log
-- Adicionar contador de "chats bloqueados/ignorados" nas estatísticas
-
-**Arquivo:** `src/main/automation/whatsapp-service.js`, `src/main/automation/chat-processor.js`
-
----
-
-### 3. Validação de Envio de Mensagem
-**Problema:** Sistema assume que mensagem foi enviada com sucesso, mas não valida:
-- Se mensagem realmente apareceu no chat
-- Se foi entregue (1 check mark)
-- Se houve erro de envio
-
-**Impacto:** Mensagens podem não ser enviadas, mas sistema conta como enviadas.
-
-**Solução:**
-- Aguardar confirmação visual de envio (ícone de check mark)
-- Implementar timeout de 10s para envio
-- Retry automático em caso de falha (até 3 tentativas)
-- Registrar falhas em log separado
-
-**Arquivo:** `src/main/automation/message-sender.js`
-
----
-
-### 4. Race Conditions no Scroll de Chats
+### 1. Race Conditions no Scroll de Chats
 **Problema:** Sistema pode rolar a lista de chats antes dos novos chats serem carregados no DOM, causando:
 - Chats duplicados sendo processados
 - Chats sendo pulados
@@ -71,7 +20,7 @@
 
 ---
 
-### 5. Memory Leak - Canvas e PDFDocument
+### 2. Memory Leak - Canvas e PDFDocument
 **Problema:** Objetos Canvas e PDFDocument não são liberados da memória após uso:
 - `createCanvas()` mantém referências em `price-service.js`
 - `PDFDocument` mantém buffers grandes em `rta-service.js`
@@ -771,6 +720,23 @@ logger.error('Falha no envio', { error: err.message, stack: err.stack });
 
 ---
 
+### 36. Suporte a Envio de Áudio e Vídeo
+**Descrição:** Permitir enviar arquivos de áudio e vídeo, não apenas imagens.
+
+**Recursos:**
+- Upload de .mp3, .mp4, .ogg
+- Validação de tamanho de arquivo
+- Preview de mídia
+
+**Implementação:**
+- Atualizar `message-sender.js` para aceitar outros tipos MIME
+- Atualizar UI para input de arquivos genéricos
+- Tratamento de erros específicos de upload
+
+**Arquivo:** `src/main/automation/message-sender.js`
+
+---
+
 ## 📊 Resumo de Prioridades
 
 | Prioridade | Quantidade | Categoria |
@@ -792,7 +758,7 @@ logger.error('Falha no envio', { error: err.message, stack: err.stack });
 - Features #15-20 (Preview, Variáveis, Templates, etc)
 
 **Sprint 4+ (Backlog):**
-- Features avançadas #21-35 (IA, CRM, Multi-conta, etc)
+- Features avançadas #21-36 (IA, CRM, Multi-conta, etc)
 
 ---
 

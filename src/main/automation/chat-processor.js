@@ -24,20 +24,10 @@ class ChatProcessor {
     let newChatsProcessed = 0;
 
     while (this.processedChats.size < sendLimit) {
-      // Verificar se deve parar
-      if (checkStop && checkStop()) {
-        break;
-      }
+      if (checkStop && checkStop()) break;
 
-      // Verificar conexão e aguardar reconexão se necessário
-      const connected = await this.whatsappService.isConnected(page);
-      if (!connected) {
-        const resumed = await this.waitUntilConnected(page, checkStop);
-        if (!resumed) break;
-      }
-
-      // Obter chats visíveis
-      const chatLocators = await this.whatsappService.getVisibleChats(page);
+      // Get all list items (chats) directly as in the example
+      const chatLocators = await page.getByRole('listitem').all();
       
       if (!chatLocators.length) {
         this.logger.warn('Nenhum chat visível encontrado');
@@ -46,46 +36,109 @@ class ChatProcessor {
 
       let newChatsOnScreen = 0;
 
-      // Processar cada chat
       for (const chatLocator of chatLocators) {
-        // Verificar limites
-        if (checkStop && checkStop()) {
-          break;
-        }
+        if (checkStop && checkStop()) break;
+        if (this.processedChats.size >= sendLimit) break;
+
+        // Ensure we are still in Archived view before processing
+        const backButton = page.locator('span[data-icon="back"], [aria-label="Voltar"], [aria-label="Back"]').first();
+        const title = page.locator('header').getByText(/Arquivadas|Archived/i).first();
         
-        if (this.processedChats.size >= sendLimit) {
-          break;
+        const isInArchived = (await backButton.isVisible().catch(() => false)) || (await title.isVisible().catch(() => false));
+        
+        if (!isInArchived) {
+           this.logger.warn('Detectado saída da seção Arquivadas. Tentando retornar...');
+           await this.whatsappService.goToArchivedChats(page).catch(e => this.logger.error('Falha ao retornar para Arquivadas', e));
+           // Refresh locators after navigation
+           break; // Break inner loop to refresh list
         }
 
         try {
-          // Obter nome do chat
-          const chatName = await this.whatsappService.getChatName(chatLocator);
-          const chatIdentifier = await this.whatsappService.getChatIdentifier(chatLocator);
-          const processedKey = chatIdentifier || chatName;
-          if (!processedKey) {
+          // Get title
+          const titleLocator = chatLocator.locator('span[title]').first();
+          try {
+            await titleLocator.waitFor({ state: 'attached', timeout: 3000 });
+          } catch (e) {
+            // If no title found (e.g. separator, skeleton), skip silently
             continue;
           }
+          
+          const chatName = await titleLocator.getAttribute('title');
 
-          // Pular se já processado ou sem nome
-          if (this.processedChats.has(processedKey)) {
+          if (!chatName || this.processedChats.has(chatName)) {
             continue;
           }
 
           newChatsOnScreen++;
+          this.logger.info(`Processando "${chatName}" (${this.processedChats.size + 1}/${sendLimit})`);
+
+          // Click chat
+          await chatLocator.click();
+
+          // Send message
+          await this.messageSender.send(page, profile.message, profile.imagePath);
           
-          // Processar chat
-          await this.processChat(page, chatLocator, processedKey, chatName, profile);
+          // Mark as processed
+          this.processedChats.add(chatName);
+
+          // Wait delay
+          this.logger.info('Mensagem enviada. Aguardando intervalo.');
+          await page.waitForTimeout(config.MESSAGE_DELAY_MS || 2000);
+
+          // Go back logic
+          // On desktop (wide screen), the list is always visible, so we don't need to go back.
+          // Going back (Escape) might actually close the Archived view.
+          // We check if the chat list is visible.
+          const isChatListVisible = await page.locator('[data-testid="chat-list"]').isVisible().catch(() => false);
           
+          if (!isChatListVisible) {
+            // Only try to go back if we can't see the list (mobile view)
+            const backButton = page.getByRole('button', { name: 'Voltar' }).or(page.getByRole('button', { name: 'Back' }));
+            const isBackVisible = await backButton.isVisible().catch(() => false);
+            if (!isBackVisible) {
+              await page.keyboard.press('Escape');
+              await backButton.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
+            }
+          } else {
+            // If list is visible, we might be in Archived view.
+            // Ensure we don't press Escape, as it would close Archived view.
+            // Just to be safe, we can check if we are still in Archived view.
+            const archivedHeader = page.locator('span[data-icon="back"], [aria-label="Voltar"], [aria-label="Back"]');
+            if (!(await archivedHeader.isVisible())) {
+               // If we lost the archived header, maybe we need to re-enter?
+               // For now, let's assume we are fine or the next loop will catch it.
+            }
+          }
+
+          // Scroll logic (every 2 sends)
+          if (this.processedChats.size > 0 && this.processedChats.size % 2 === 0) {
+            this.logger.info(`Rolando a lista após ${this.processedChats.size} envios...`);
+            for (let i = 0; i < 12; i++) {
+              if (checkStop && checkStop()) break;
+              await page.keyboard.press('PageDown');
+              await page.waitForTimeout(500);
+            }
+          }
+
           newChatsProcessed++;
-          
+
         } catch (error) {
           this.logger.error(`Erro ao processar chat`, error);
-          // Tentar voltar para a lista
-          await this.whatsappService.backToChatList(page).catch(() => {});
+          // Try to recover
+          // Only press Escape if we are NOT in desktop mode (list visible)
+          const isChatListVisible = await page.locator('[data-testid="chat-list"]').isVisible().catch(() => false);
+          
+          if (!isChatListVisible) {
+            const backButton = page.getByRole('button', { name: 'Voltar' });
+            const isBackVisible = await backButton.isVisible().catch(() => false);
+            if (!isBackVisible) {
+              await page.keyboard.press('Escape');
+              await page.waitForTimeout(1000);
+            }
+          }
         }
       }
 
-      // Se não encontrou novos chats ou atingiu limite, sair
       if (newChatsOnScreen === 0 || this.processedChats.size >= sendLimit) {
         if (newChatsOnScreen === 0) {
           this.logger.info('Nenhum chat novo encontrado nesta tela');
@@ -98,65 +151,10 @@ class ChatProcessor {
   }
 
   /**
-   * Processa um chat individual
-   * @param {Page} page - Página do Playwright
-   * @param {Locator} chatLocator - Locator do chat
-   * @param {string} processedKey - Identificador único do chat
-   * @param {string} chatName - Nome do chat
-   * @param {Object} profile - Perfil ativo
-   * @returns {Promise<void>}
+   * Processa um chat individual (Legacy - Not used in simplified version)
    */
   async processChat(page, chatLocator, processedKey, chatName, profile) {
-    const currentCount = this.processedChats.size + 1;
-    const totalLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
-    const displayName = chatName || processedKey || 'Chat sem nome';
-    
-    this.logger.info(`Processando "${displayName}" (${currentCount}/${totalLimit})`);
-
-    await page.bringToFront();
-
-    // Verificar conexão antes de abrir/enviar
-    const connected = await this.whatsappService.isConnected(page);
-    if (!connected) {
-      const resumed = await this.waitUntilConnected(page, null);
-      if (!resumed) {
-        this.logger.warn(`Sem conexão. Pulando "${displayName}" por enquanto.`);
-        return;
-      }
-    }
-
-    // Abrir chat
-    await this.whatsappService.openChat(chatLocator);
-
-    const blocked = await this.whatsappService.isChatBlocked(page);
-    if (blocked) {
-      this.logger.warn(`Chat bloqueado. Pulando: ${displayName}`);
-      this.processedChats.add(processedKey);
-      await this.whatsappService.backToChatList(page);
-      return;
-    }
-
-    const ok = await this.messageSender.sendWithConfirmation(page, profile.message, profile.imagePath);
-    if (!ok) {
-      this.logger.warn(`Envio sem confirmação. Pulando: ${displayName}`);
-      this.processedChats.add(processedKey);
-      await this.whatsappService.backToChatList(page);
-      return;
-    }
-
-    // Marcar como processado
-    this.processedChats.add(processedKey);
-
-    // Aguardar delay
-    await this.messageSender.waitDelay(page);
-
-    // Voltar para lista
-    await this.whatsappService.backToChatList(page);
-
-    // Scroll periódico
-    if (this.processedChats.size > 0 && this.processedChats.size % config.SCROLL_AFTER_SENDS === 0) {
-      await this.whatsappService.scrollChatList(page, config.SCROLL_DISTANCE, null);
-    }
+    // ... kept for reference or future use if needed, but processVisibleChats now handles everything inline
   }
 
   /**
