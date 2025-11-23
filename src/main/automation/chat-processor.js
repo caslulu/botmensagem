@@ -85,38 +85,20 @@ class ChatProcessor {
           this.logger.info('Mensagem enviada. Aguardando intervalo.');
           await page.waitForTimeout(config.MESSAGE_DELAY_MS || 2000);
 
-          // Go back logic
-          // On desktop (wide screen), the list is always visible, so we don't need to go back.
-          // Going back (Escape) might actually close the Archived view.
-          // We check if the chat list is visible.
-          const isChatListVisible = await page.locator('[data-testid="chat-list"]').isVisible().catch(() => false);
-          
-          if (!isChatListVisible) {
-            // Only try to go back if we can't see the list (mobile view)
-            const backButton = page.getByRole('button', { name: 'Voltar' }).or(page.getByRole('button', { name: 'Back' }));
-            const isBackVisible = await backButton.isVisible().catch(() => false);
-            if (!isBackVisible) {
-              await page.keyboard.press('Escape');
-              await backButton.waitFor({ state: 'visible', timeout: 5000 }).catch(() => undefined);
-            }
-          } else {
-            // If list is visible, we might be in Archived view.
-            // Ensure we don't press Escape, as it would close Archived view.
-            // Just to be safe, we can check if we are still in Archived view.
-            const archivedHeader = page.locator('span[data-icon="back"], [aria-label="Voltar"], [aria-label="Back"]');
-            if (!(await archivedHeader.isVisible())) {
-               // If we lost the archived header, maybe we need to re-enter?
-               // For now, let's assume we are fine or the next loop will catch it.
-            }
-          }
+          // Go back logic removida conforme solicitação.
+          // Assumindo modo Desktop onde a lista lateral permanece visível.
+          // Não pressionamos Escape para evitar sair da tela de Arquivadas.
 
-          // Scroll logic (every 2 sends)
-          if (this.processedChats.size > 0 && this.processedChats.size % 2 === 0) {
+          // Scroll logic (every 5 sends)
+          if (this.processedChats.size > 0 && this.processedChats.size % 5 === 0) {
             this.logger.info(`Rolando a lista após ${this.processedChats.size} envios...`);
-            for (let i = 0; i < 12; i++) {
+            // Tenta focar na lista antes de rolar
+            await page.locator('div[aria-label="Lista de conversas"], div[role="grid"]').first().focus().catch(() => {});
+            
+            for (let i = 0; i < 3; i++) {
               if (checkStop && checkStop()) break;
               await page.keyboard.press('PageDown');
-              await page.waitForTimeout(500);
+              await page.waitForTimeout(200);
             }
           }
 

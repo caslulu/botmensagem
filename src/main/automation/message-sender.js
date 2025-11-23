@@ -57,7 +57,7 @@ class MessageSender {
     await fileChooser.setFiles(imagePath);
 
     // Pequena pausa para garantir que a interface reaja ao arquivo e abra o modal
-    await page.waitForTimeout(2000);
+    await page.waitForTimeout(500);
 
     // 3. Preencher a legenda (o campo já vem focado, segundo observação)
     if (message) {
