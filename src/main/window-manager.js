@@ -9,7 +9,7 @@ class WindowManager {
     this.mainWindow = null;
   }
 
-    getMainWindow() {
+  getMainWindow() {
     if (!this.mainWindow || this.mainWindow.isDestroyed()) {
       return null;
     }
@@ -29,11 +29,18 @@ class WindowManager {
       minWidth: 960,
       minHeight: 640,
       webPreferences: {
-        preload: path.join(__dirname, '../preload/preload.js')
+        preload: path.join(__dirname, '../preload/preload.js'),
+        sandbox: false
       }
     });
 
-    this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'));
+    // HMR for renderer base on electron-vite CLI.
+    // Load the remote URL for development or the local html file for production.
+    if (isDev && process.env['ELECTRON_RENDERER_URL']) {
+      this.mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    } else {
+      this.mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
+    }
 
     if (isDev) {
       this.mainWindow.webContents.openDevTools({ mode: 'detach' });

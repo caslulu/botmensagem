@@ -21,7 +21,6 @@ async function initializeApp() {
     imagePath: profile.image_path,
     message: profile.default_message
   }));
-
   seedInitialMessages(seedPayload);
 }
 

@@ -56,12 +56,20 @@ class MessageSender {
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(imagePath);
 
-    // Pequena pausa para garantir que a interface reaja ao arquivo e abra o modal
-    await page.waitForTimeout(500);
+    // Aguarda o carregamento da interface de preview de imagem
+    // 1. Aguarda o botão de enviar (aviãozinho) estar visível
+    const sendButton = page.locator('span[data-icon="send"]');
+    await sendButton.waitFor({ state: 'visible', timeout: 30000 });
 
-    // 3. Preencher a legenda (o campo já vem focado, segundo observação)
+    // 2. Aguarda a imagem ser renderizada (blob) para garantir que não estamos no chat principal
+    // Isso evita que o texto seja digitado antes da modal abrir completamente
+    await page.locator('img[src^="blob:"]').first().waitFor({ state: 'visible', timeout: 30000 });
+
+    // 3. Preencher a legenda
     if (message) {
-      // Cola o texto de uma vez para evitar quebras de linha acionando o envio
+      // O foco já deve estar no campo de legenda automaticamente
+      // Mas por segurança, damos um pequeno delay para o foco se estabelecer
+      await page.waitForTimeout(500);
       await page.keyboard.insertText(message);
     }
     

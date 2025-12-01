@@ -1,10 +1,16 @@
-const { app } = require('electron');
+import { app } from 'electron';
+import automation from './automation';
+import * as bootstrap from './bootstrap';
+import * as ipc from './ipc';
+import * as automationEvents from './automation/events';
+import { createRequire } from 'module';
 
-const automation = require('./automation');
-const { initializeApp } = require('./bootstrap');
-const { registerIpcHandlers } = require('./ipc');
-const { forwardAutomationEvents } = require('./automation/events');
+const require = createRequire(import.meta.url);
 const windowManager = require('./window-manager');
+
+const { initializeApp } = bootstrap;
+const { registerIpcHandlers } = ipc;
+const { forwardAutomationEvents } = automationEvents;
 
 const isDev = process.env.NODE_ENV === 'development';
 

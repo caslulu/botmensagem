@@ -91,3 +91,5 @@ function setupAutoUpdater(mainWindow) {
 }
 
 module.exports = { setupAutoUpdater };
+
+

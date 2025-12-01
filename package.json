@@ -2,28 +2,28 @@
   "name": "botmensagem",
   "version": "1.5.1",
   "description": "Insurance Helper",
-  "main": "src/main/main.js",
+  "main": "out/main/main.js",
   "scripts": {
-    "start": "electron .",
-    "dev": "NODE_ENV=development electron .",
-    "build:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --minify",
-    "dev:css": "tailwindcss -i ./src/renderer/styles/tailwind.css -o ./src/renderer/styles.css --watch",
-    "playwright:install": "playwright install chromium",
-    "build": "npm run build:css && electron-builder --win --x64",
-    "build:linux": "npm run build:css && electron-builder --linux",
-    "build:dir": "npm run build:css && electron-builder --win --x64 --dir",
-    "publish": "npm run build:css && electron-builder --win --x64 --publish always",
+    "start": "electron-vite preview",
+    "dev": "electron-vite dev",
+    "build": "electron-vite build && electron-builder --win --x64",
+    "postinstall": "electron-builder install-app-deps",
+    "build:linux": "electron-vite build && electron-builder --linux",
+    "build:dir": "electron-vite build && electron-builder --win --x64 --dir",
+    "publish": "electron-vite build && electron-builder --win --x64 --publish always",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
-  "appId": "com.caslulu.insurancehelper",
-  "productName": "Insurance Helper",
+    "appId": "com.caslulu.insurancehelper",
+    "productName": "Insurance Helper",
     "directories": {
       "output": "dist",
       "buildResources": "build"
     },
     "files": [
-      "src/**/*",
+      "out/**/*",
+      "src/main/price/assets/**/*",
+      "src/main/rta/assets/**/*",
       "node_modules/**/*",
       "package.json",
       ".env",
@@ -76,11 +76,20 @@
   },
   "homepage": "https://github.com/caslulu/botmensagem#readme",
   "devDependencies": {
+    "@electron-toolkit/preload": "^3.0.2",
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
     "autoprefixer": "^10.4.19",
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
+    "electron-vite": "^4.0.1",
     "postcss": "^8.4.41",
-    "tailwindcss": "^3.4.14"
+    "tailwindcss": "^3.4.14",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.4",
+    "vite-plugin-static-copy": "^3.1.4"
   },
   "dependencies": {
     "@napi-rs/canvas": "^0.1.51",
@@ -88,6 +97,8 @@
     "electron-updater": "^6.6.2",
     "pdf-lib": "^1.17.1",
     "playwright": "^1.56.1",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
     "sql.js": "^1.13.0"
   }
 }

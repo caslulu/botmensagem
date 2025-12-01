@@ -144,11 +144,26 @@ class PriceService {
         size = 48,
         color = '#ffffff',
         weight = 500,
-        align = 'left'
+        align = 'left',
+        maxWidth // Limite de largura para redimensionamento automático
       } = entry;
 
+      let currentSize = size;
       const fontWeight = Number.isFinite(weight) ? String(weight) : weight || 'normal';
-      ctx.font = `${fontWeight} ${size}px "${this.fontFamily}", "Segoe UI", sans-serif`;
+      
+      // Define a fonte inicial
+      ctx.font = `${fontWeight} ${currentSize}px "${this.fontFamily}", "Segoe UI", sans-serif`;
+
+      // Se houver maxWidth, reduz a fonte até caber
+      if (maxWidth && maxWidth > 0) {
+        let textWidth = ctx.measureText(String(text)).width;
+        while (textWidth > maxWidth && currentSize > 10) {
+          currentSize -= 2;
+          ctx.font = `${fontWeight} ${currentSize}px "${this.fontFamily}", "Segoe UI", sans-serif`;
+          textWidth = ctx.measureText(String(text)).width;
+        }
+      }
+
       ctx.fillStyle = color;
       ctx.textAlign = align;
       ctx.fillText(String(text), x, y);
@@ -281,18 +296,18 @@ class PriceService {
       const X_OFFSET_RIGHT = 80; // Deslocamento para coluna direita
 
       overlayEntries = [
-        { text: seguradora, x: 510, y: 543 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
+        { text: seguradora, x: 500, y: 543 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
         { text: seguradora, x: 1150, y: 543 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
         
         // Coluna Esquerda (Básico)
-        { text: processed.entrada_basico, x: 510 + X_OFFSET_LEFT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
-        { text: processed.mensal_basico, x: 510 + X_OFFSET_LEFT, y: 1525 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
-        { text: processed.valor_total_basico, x: 510 + X_OFFSET_LEFT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.entrada_basico, x: 490 + X_OFFSET_LEFT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.mensal_basico, x: 500 + X_OFFSET_LEFT, y: 1525 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
+        { text: processed.valor_total_basico, x: 470 + X_OFFSET_LEFT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
         
         // Coluna Direita (Completo)
-        { text: processed.entrada_completo, x: 1150 + X_OFFSET_RIGHT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
-        { text: processed.mensal_completo, x: 1150 + X_OFFSET_RIGHT, y: 1525 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
-        { text: processed.valor_total_completo, x: 1150 + X_OFFSET_RIGHT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.entrada_completo, x: 1120 + X_OFFSET_RIGHT, y: 1375 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.mensal_completo, x: 1120 + X_OFFSET_RIGHT, y: 1520 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
+        { text: processed.valor_total_completo, x: 1100 + X_OFFSET_RIGHT, y: 1655 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
         
         { text: processed.nome, x: 490, y: 1890 + Y_OFFSET, size: 45, color: '#ffffff', align: 'left' }
       ];
@@ -301,13 +316,13 @@ class PriceService {
       const X_OFFSET_CENTER = 160; // Deslocamento para coluna central
 
       overlayEntries = [
-        { text: seguradora, x: 800 + X_OFFSET_CENTER, y: 562 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center' },
+        { text: seguradora, x: 800 + 100, y: 552 + Y_OFFSET, size: 40, color: '#ffffff', align: 'center', maxWidth: 400 },
         
-        { text: processed.entrada_completo, x: 800 + X_OFFSET_CENTER, y: 1400 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
-        { text: processed.mensal_completo, x: 800 + X_OFFSET_CENTER, y: 1545 + Y_OFFSET, size: 45, color: '#000000', align: 'center' },
-        { text: processed.valor_total_completo, x: 800 + X_OFFSET_CENTER, y: 1695 + Y_OFFSET, size: 55, color: '#000000', align: 'center' },
+        { text: processed.entrada_completo, x: 800 + X_OFFSET_CENTER, y: 1400 + Y_OFFSET, size: 55, color: '#000000', align: 'center', maxWidth: 350 },
+        { text: processed.mensal_completo, x: 800 + X_OFFSET_CENTER, y: 1545 + Y_OFFSET, size: 45, color: '#000000', align: 'center', maxWidth: 350 },
+        { text: processed.valor_total_completo, x: 800 + X_OFFSET_CENTER, y: 1695 + Y_OFFSET, size: 55, color: '#000000', align: 'center', maxWidth: 350 },
         
-        { text: processed.nome, x: 490, y: 1908 + Y_OFFSET, size: 45, color: '#ffffff', align: 'left' }
+        { text: processed.nome, x: 490, y: 1908 + Y_OFFSET, size: 45, color: '#ffffff', align: 'left', maxWidth: 800 }
       ];
     }
 
