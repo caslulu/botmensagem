@@ -47,6 +47,15 @@ function App() {
   const pendingProfileId = useRef<string | null>(null);
   const [tempAdminAccess, setTempAdminAccess] = useState<string | null>(null);
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
+  const [isDarkMode, setIsDarkMode] = useState(true);
+
+  React.useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [isDarkMode]);
 
   // Load profiles from Electron preload API
   React.useEffect(() => {
@@ -203,55 +212,100 @@ function App() {
       onSelectModule={handleSelectModule}
       selectedProfileIsAdmin={!!selectedProfile?.isAdmin || (tempAdminAccess !== null && tempAdminAccess === activeModuleId)}
     >
-      <div className="container mx-auto py-8">
-        <div className="flex items-center justify-between mb-4">
-          <h1 className="text-3xl font-semibold text-white">Insurance Helper</h1>
-          <div className="flex gap-2">
-            <button className="btn-secondary" onClick={handleResetProfile}>
-              ↶ Trocar perfil
+      <div className="container mx-auto py-8 px-6">
+        <header className="flex items-center justify-between mb-8 bg-white/50 dark:bg-slate-800/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20 shadow-sm">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
+              Insurance Helper
+            </h1>
+            <p className="text-slate-500 dark:text-slate-400 mt-1">
+              Bem-vindo, <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedProfile?.name}</span>
+            </p>
+          </div>
+          
+          <div className="flex gap-3">
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-600 transition-all shadow-sm border border-slate-200 dark:border-slate-600"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+              title={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
+            
+            <div className="h-10 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
+
+            <button 
+              className="btn-secondary flex items-center gap-2" 
+              onClick={handleResetProfile}
+            >
+              <span>↶</span> Trocar perfil
             </button>
             <button
-              className="btn-secondary"
+              className="btn-primary flex items-center gap-2"
               onClick={handleEditProfile}
               disabled={!selectedProfile}
             >
-              ✎ Editar perfil
+              <span>✎</span> Editar perfil
             </button>
           </div>
-        </div>
-        {activeModuleId === 'mensagens' && (
-          <WhatsAppAutomationView
-            profileId={selectedProfile?.id || null}
-            profileName={selectedProfile?.name || null}
-            isAdmin={!!selectedProfile?.isAdmin || (tempAdminAccess !== null && tempAdminAccess === activeModuleId)}
-          />
-        )}
-        {activeModuleId === 'rta' && <RtaView />}
-        {activeModuleId === 'trello' && <TrelloView />}
-        {activeModuleId === 'cotacoes' && <QuotesView />}
-        {activeModuleId === 'price' && <PriceView />}
-        {activeModuleId === 'howto' && <HowToView />}
+        </header>
+
+        <main className="animate-fade-in">
+          {activeModuleId === 'mensagens' && (
+            <WhatsAppAutomationView
+              profileId={selectedProfile?.id || null}
+              profileName={selectedProfile?.name || null}
+              isAdmin={!!selectedProfile?.isAdmin || (tempAdminAccess !== null && tempAdminAccess === activeModuleId)}
+            />
+          )}
+          {activeModuleId === 'rta' && <RtaView />}
+          {activeModuleId === 'trello' && <TrelloView />}
+          {activeModuleId === 'cotacoes' && <QuotesView />}
+          {activeModuleId === 'price' && <PriceView />}
+          {activeModuleId === 'howto' && <HowToView />}
+        </main>
       </div>
     </AppShell>
   ) : (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 py-12">
-      <div className="w-full max-w-4xl px-4">
-        <div className="flex items-center justify-between mb-6">
+    <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950 py-12 transition-colors duration-300 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none">
+        <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-brand-500/5 blur-[120px]"></div>
+        <div className="absolute top-[40%] -right-[10%] w-[40%] h-[40%] rounded-full bg-blue-500/5 blur-[100px]"></div>
+      </div>
+
+      <div className="w-full max-w-5xl px-6 relative z-10">
+        <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-3xl font-semibold text-white">Insurance Helper</h1>
-            <p className="text-slate-400">Selecione um perfil para continuar.</p>
+            <h1 className="text-4xl font-bold text-slate-800 dark:text-white tracking-tight">
+              Insurance Helper
+            </h1>
+            <p className="text-lg text-slate-500 dark:text-slate-400 mt-2">
+              Selecione seu perfil para acessar o sistema.
+            </p>
           </div>
-          <button className="btn-secondary" onClick={handleAddProfile}>
-            ✚ Novo perfil
-          </button>
+          <div className="flex gap-3">
+            <button 
+              className="w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
+              onClick={() => setIsDarkMode(!isDarkMode)}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
+            </button>
+            <button className="btn-primary flex items-center gap-2 shadow-lg shadow-brand-500/20" onClick={handleAddProfile}>
+              <span className="text-lg">✚</span> Novo perfil
+            </button>
+          </div>
         </div>
-        <ProfileSelection
-          profiles={profiles}
-          selectedProfileId={selectedProfileId}
-          onSelect={handleSelectProfile}
-          onAddProfile={handleAddProfile}
-          selectionEnabled={true}
-        />
+        
+        <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl rounded-3xl p-8 border border-white/20 shadow-xl">
+          <ProfileSelection
+            profiles={profiles}
+            selectedProfileId={selectedProfileId}
+            onSelect={handleSelectProfile}
+            onAddProfile={handleAddProfile}
+            selectionEnabled={true}
+          />
+        </div>
       </div>
     </div>
   );

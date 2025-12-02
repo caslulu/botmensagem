@@ -34,28 +34,28 @@ export const AdminPasswordModal: React.FC<AdminPasswordModalProps> = ({ open, on
   };
 
   return (
-    <div className={`modal-overlay fixed inset-0 bg-black/60 flex items-center justify-center z-50 ${open ? '' : 'hidden'}`}>
-      <div className="modal-content bg-slate-900 p-6 rounded-xl max-w-md w-full">
-        <div className="modal-header flex items-center justify-between mb-4">
-          <h3 className="text-xl font-semibold text-white">Acesso de Administrador</h3>
-          <button onClick={handleClose} className="text-slate-400 hover:text-white text-2xl leading-none">×</button>
+    <div className={`modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`modal-content bg-white dark:bg-slate-900 p-8 rounded-2xl max-w-md w-full shadow-2xl transform transition-all duration-300 border border-slate-200 dark:border-slate-800 ${open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+        <div className="modal-header flex items-center justify-between mb-6">
+          <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Acesso de Administrador</h3>
+          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-3xl leading-none transition-colors">&times;</button>
         </div>
-        <form className="modal-body space-y-4" onSubmit={handleSubmit}>
+        <form className="modal-body space-y-6" onSubmit={handleSubmit}>
           <div>
-            <label className="block text-sm font-medium text-slate-300 mb-1">Senha de administrador</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Senha de administrador</label>
             <input
               type="password"
-              className="w-full rounded-lg bg-slate-800 border border-slate-700 text-white px-4 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all"
               value={password}
               onChange={e => setPassword(e.target.value)}
               autoFocus
               disabled={loading}
             />
           </div>
-          {(localError || error) && <div className="text-rose-400 font-semibold">{localError || error}</div>}
-          <div className="flex gap-3 mt-6">
-            <button type="button" className="btn-secondary" onClick={handleClose} disabled={loading}>Cancelar</button>
-            <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Validando…' : 'Entrar'}</button>
+          {(localError || error) && <div className="text-rose-500 dark:text-rose-400 font-semibold bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg border border-rose-200 dark:border-rose-800">{localError || error}</div>}
+          <div className="flex gap-3 mt-8">
+            <button type="button" className="btn-secondary flex-1" onClick={handleClose} disabled={loading}>Cancelar</button>
+            <button type="submit" className="btn-primary flex-1 shadow-lg shadow-brand-500/20" disabled={loading}>{loading ? 'Validando…' : 'Entrar'}</button>
           </div>
         </form>
       </div>

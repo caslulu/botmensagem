@@ -247,7 +247,8 @@ class ProgressiveQuoteAutomation {
     let context = null;
     let page = null;
     const keepBrowserOnError = options.keepBrowserOnError ?? true;
-    let shouldCleanup = true;
+    // Alterado para false para manter o navegador aberto ao final (sucesso ou erro)
+    let shouldCleanup = false;
 
     try {
       await this.ensureFreshRun();

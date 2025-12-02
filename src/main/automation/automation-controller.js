@@ -97,10 +97,10 @@ class AutomationController extends EventEmitter {
     this.emitStatus({ status: 'Encerrando automação…' });
     this.logger.warn('Parando automação...');
 
-    // Fechar navegador
-    if (this.browserManager) {
-      await this.browserManager.close();
-    }
+    // Não fechar navegador mesmo ao parar, conforme solicitado
+    // if (this.browserManager) {
+    //   await this.browserManager.close();
+    // }
 
     // Aguardar conclusão
     if (this.runPromise) {
@@ -168,10 +168,9 @@ class AutomationController extends EventEmitter {
         throw error;
       }
     } finally {
-      // Fechar navegador
-      if (this.browserManager) {
-        await this.browserManager.close();
-      }
+      // Não fechar o navegador automaticamente ao final
+      // O usuário deve fechar manualmente ou clicar em Parar
+      this.logger.info('Automação finalizada. O navegador permanecerá aberto.');
     }
   }
 

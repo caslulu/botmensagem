@@ -112,8 +112,8 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
     <section className="card p-6 mb-6">
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
         <div>
-          <p className="text-sm uppercase tracking-wide text-slate-400">Operador selecionado</p>
-          <h2 className="text-2xl font-semibold text-white">{profileName || '—'}</h2>
+          <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Operador selecionado</p>
+          <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">{profileName || '—'}</h2>
         </div>
         <div className="flex items-center gap-4">
           <button
@@ -135,13 +135,13 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
       <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_1fr]">
         <article className="card space-y-4">
           <header className="space-y-1">
-            <p className="text-sm uppercase tracking-wide text-slate-400">Status</p>
-            <h3 className="text-lg font-semibold text-white">{status}</h3>
+            <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</p>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{status}</h3>
           </header>
           
           {/* Send Limit Configuration */}
-          <div className="p-4 bg-slate-800/50 rounded-lg border border-slate-700">
-              <label className="block text-xs font-semibold text-slate-400 mb-2">Limite de Envios (Grupos)</label>
+          <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Limite de Envios (Grupos)</label>
               <div className="flex gap-2">
                   <input 
                     type="number" 
@@ -162,11 +162,11 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-200">Logs recentes</h4>
-            <div ref={logRef} className="max-h-72 overflow-y-auto rounded-xl bg-slate-950/60 p-4 text-xs text-slate-300">
-              {logs.length === 0 && <div className="text-slate-500">Nenhum log ainda.</div>}
+            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Logs recentes</h4>
+            <div ref={logRef} className="max-h-72 overflow-y-auto rounded-xl bg-slate-50 dark:bg-slate-950/60 p-4 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
+              {logs.length === 0 && <div className="text-slate-400 dark:text-slate-500">Nenhum log ainda.</div>}
               {logs.map((log, idx) => (
-                <div key={idx} className="border-b border-white/5 pb-2 last:border-none last:pb-0">
+                <div key={idx} className="border-b border-slate-200 dark:border-white/5 pb-2 last:border-none last:pb-0">
                   [{log.timestamp}] {log.message}
                 </div>
               ))}
@@ -175,8 +175,8 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
         </article>
         <section className="card space-y-4">
           <header>
-            <p className="text-sm uppercase tracking-wide text-slate-400">Mensagens salvas</p>
-            <h3 className="text-lg font-semibold text-white">Gerenciar mensagens</h3>
+            <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Mensagens salvas</p>
+            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Gerenciar mensagens</h3>
           </header>
           <MessageManager profileId={profileId} />
         </section>

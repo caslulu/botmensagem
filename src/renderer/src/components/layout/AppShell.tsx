@@ -26,8 +26,8 @@ const AppShell: React.FC<AppShellProps> = ({ children, modules, activeModuleId, 
       </Sidebar>
       <div
         id="appShell"
-        className={`flex-1 min-h-screen transition-all duration-200 ${
-          sidebar.state === 'expanded' ? 'pl-64' : sidebar.state === 'collapsed' ? 'pl-16' : 'pl-0'
+        className={`flex-1 min-h-screen transition-all duration-300 ${
+          sidebar.state === 'expanded' ? 'pl-72' : sidebar.state === 'collapsed' ? 'pl-20' : 'pl-0'
         }`}
       >
         {children}
