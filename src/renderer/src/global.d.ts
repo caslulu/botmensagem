@@ -12,6 +12,15 @@ declare global {
       get: (profileId: string) => Promise<Message[]>;
       select: (id: string) => Promise<void>;
     };
+    trello?: {
+      authCheck?: () => Promise<any>;
+      createCard?: (payload: any) => Promise<any>;
+      decodeVin?: (vin: string) => Promise<{
+        success: boolean;
+        data?: { year?: string; make?: string; model?: string } | null;
+        error?: string;
+      }>;
+    };
   }
 }
 

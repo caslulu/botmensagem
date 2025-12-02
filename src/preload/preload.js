@@ -40,7 +40,8 @@ contextBridge.exposeInMainWorld('rta', {
 
 contextBridge.exposeInMainWorld('trello', {
   authCheck: () => ipcRenderer.invoke('trello:auth-check'),
-  createCard: (data) => ipcRenderer.invoke('trello:create-card', data)
+  createCard: (data) => ipcRenderer.invoke('trello:create-card', data),
+  decodeVin: (vin) => ipcRenderer.invoke('trello:decode-vin', vin)
 });
 
 contextBridge.exposeInMainWorld('price', {
@@ -59,5 +60,6 @@ contextBridge.exposeInMainWorld('quotes', {
 contextBridge.exposeInMainWorld('files', {
   saveToDownloads: (srcPath, suggestedName) => ipcRenderer.invoke('file:save-to-downloads', srcPath, suggestedName),
   showInFolder: (targetPath) => ipcRenderer.invoke('file:show-in-folder', targetPath),
-  openPath: (targetPath) => ipcRenderer.invoke('file:open-path', targetPath)
+  openPath: (targetPath) => ipcRenderer.invoke('file:open-path', targetPath),
+  selectImage: () => ipcRenderer.invoke('file:select-image')
 });

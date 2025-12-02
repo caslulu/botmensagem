@@ -57,20 +57,25 @@ class MessageSender {
     await fileChooser.setFiles(imagePath);
 
     // Aguarda o carregamento da interface de preview de imagem
-    // 1. Aguarda o botão de enviar (aviãozinho) estar visível
-    const sendButton = page.locator('span[data-icon="send"]');
-    await sendButton.waitFor({ state: 'visible', timeout: 30000 });
+    // Alterado: Não esperamos mais pelo ícone 'send' pois estava causando timeout.
+    // Confiamos que a imagem carregou (blob) e damos um delay.
+    
+    try {
+      // Tenta esperar pela imagem carregada na modal
+      await page.locator('img[src^="blob:"]').first().waitFor({ state: 'visible', timeout: 10000 });
+    } catch (e) {
+      // Se não detectar o blob (ex: vídeo ou estrutura diferente), segue apenas com o delay
+    }
 
-    // 2. Aguarda a imagem ser renderizada (blob) para garantir que não estamos no chat principal
-    // Isso evita que o texto seja digitado antes da modal abrir completamente
-    await page.locator('img[src^="blob:"]').first().waitFor({ state: 'visible', timeout: 30000 });
+    // Delay solicitado para garantir que a interface esteja estável e o foco no input correto
+    await page.waitForTimeout(2000);
 
     // 3. Preencher a legenda
     if (message) {
       // O foco já deve estar no campo de legenda automaticamente
-      // Mas por segurança, damos um pequeno delay para o foco se estabelecer
-      await page.waitForTimeout(500);
       await page.keyboard.insertText(message);
+      // Pequeno delay para garantir que o texto foi processado antes do Enter
+      await page.waitForTimeout(500);
     }
     
     // 4. Enviar (Enter)

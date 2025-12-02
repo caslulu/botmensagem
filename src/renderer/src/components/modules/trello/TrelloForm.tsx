@@ -87,8 +87,56 @@ const US_STATES = [
   { code: 'SC', name: 'South Carolina' }, { code: 'SD', name: 'South Dakota' }, { code: 'TN', name: 'Tennessee' },
   { code: 'TX', name: 'Texas' }, { code: 'UT', name: 'Utah' }, { code: 'VT', name: 'Vermont' },
   { code: 'VA', name: 'Virginia' }, { code: 'WA', name: 'Washington' }, { code: 'WV', name: 'West Virginia' },
-  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }
+  { code: 'WI', name: 'Wisconsin' }, { code: 'WY', name: 'Wyoming' }, { code: 'IT', name: 'International' }
 ];
+
+const VIN_DECODE_URL = 'https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValues/';
+
+function formatToMmDdYyyy(value: string) {
+  if (!value) return '';
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return value;
+  const [, year, month, day] = match;
+  return `${month}/${day}/${year}`;
+}
+
+async function decodeVin(vin: string) {
+  const normalizedVin = (vin || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+  if (!normalizedVin || normalizedVin.length < 11) {
+    return null;
+  }
+
+  if (window?.trello?.decodeVin) {
+    try {
+      const response = await window.trello.decodeVin(normalizedVin);
+      if (response?.success && response.data) {
+        return {
+          year: response.data.year || '',
+          make: response.data.make || '',
+          model: response.data.model || ''
+        };
+      }
+    } catch (error) {
+      console.warn('Falha ao decodificar VIN via IPC', error);
+    }
+  }
+  try {
+    const resp = await fetch(`${VIN_DECODE_URL}${encodeURIComponent(normalizedVin)}?format=json`, {
+      headers: { Accept: 'application/json' }
+    });
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const row = data?.Results?.[0] || {};
+    return {
+      year: row?.ModelYear || row?.Model_Year || '',
+      make: row?.Make || '',
+      model: row?.Model || ''
+    };
+  } catch (error) {
+    console.warn('Falha ao decodificar VIN', error);
+    return null;
+  }
+}
 
 export const TrelloForm: React.FC = () => {
   const [form, setForm] = useState<TrelloFormData>(initialForm);
@@ -101,10 +149,32 @@ export const TrelloForm: React.FC = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleVehicleChange = (index: number, field: keyof Vehicle, value: string) => {
-    const newVehicles = [...form.veiculos];
-    newVehicles[index] = { ...newVehicles[index], [field]: value };
-    setForm((prev) => ({ ...prev, veiculos: newVehicles }));
+  const handleVehicleChange = async (index: number, field: keyof Vehicle, value: string) => {
+    const normalizedValue =
+      field === 'vin' ? value.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : value;
+    setForm((prev) => {
+      const vehicles = [...prev.veiculos];
+      vehicles[index] = { ...vehicles[index], [field]: normalizedValue };
+      return { ...prev, veiculos: vehicles };
+    });
+
+    if (field === 'vin' && normalizedValue.length === 17) {
+      const info = await decodeVin(normalizedValue);
+      if (info) {
+        setForm((prev) => {
+          const vehicles = [...prev.veiculos];
+          const target = vehicles[index];
+          if (!target) return prev;
+          vehicles[index] = {
+            ...target,
+            ano: info.year || target.ano,
+            marca: info.make || target.marca,
+            modelo: info.model || target.modelo
+          };
+          return { ...prev, veiculos: vehicles };
+        });
+      }
+    }
   };
 
   const addVehicle = () => {
@@ -139,6 +209,20 @@ export const TrelloForm: React.FC = () => {
     }
   };
 
+  const buildPayload = () => {
+    const drivers = form.pessoas.map((driver) => ({
+      ...driver,
+      data_nascimento: formatToMmDdYyyy(driver.data_nascimento)
+    }));
+
+    return {
+      ...form,
+      data_nascimento: formatToMmDdYyyy(form.data_nascimento),
+      data_nascimento_conjuge: formatToMmDdYyyy(form.data_nascimento_conjuge),
+      pessoas: drivers
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -165,7 +249,7 @@ export const TrelloForm: React.FC = () => {
       );
 
       const payload = {
-        ...form,
+        ...buildPayload(),
         attachments
       };
 
@@ -328,10 +412,17 @@ export const TrelloForm: React.FC = () => {
                         )}
                     </div>
                     <div className="rta-grid rta-grid-auto gap-4">
-                        <div className="input-group">
-                            <label>VIN</label>
-                            <input value={vehicle.vin} onChange={(e) => handleVehicleChange(index, 'vin', e.target.value)} className="input-control" maxLength={17} placeholder="VIN" />
-                        </div>
+                      <div className="input-group">
+                        <label>VIN</label>
+                        <input value={vehicle.vin} onChange={(e) => handleVehicleChange(index, 'vin', e.target.value)} className="input-control" maxLength={17} placeholder="VIN" />
+                        {(vehicle.marca || vehicle.modelo || vehicle.ano) && (
+                          <div className="mt-2 text-xs text-slate-400 space-y-1">
+                            <div><span className="text-slate-200">Marca:</span> {vehicle.marca}</div>
+                            <div><span className="text-slate-200">Modelo:</span> {vehicle.modelo}</div>
+                            <div><span className="text-slate-200">Ano:</span> {vehicle.ano}</div>
+                          </div>
+                        )}
+                      </div>
                         <div className="input-group">
                             <label>Placa</label>
                             <input value={vehicle.placa} onChange={(e) => handleVehicleChange(index, 'placa', e.target.value)} className="input-control" placeholder="Placa" />
