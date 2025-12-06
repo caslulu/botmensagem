@@ -11,11 +11,26 @@ function safeLower(value) {
 
 function mapVehicleOwnership(value) {
   const normalized = safeLower(value);
-  if (!normalized) return 'C';
-  if (normalized.includes('menos')) return 'A';
-  if (normalized.includes('1-3')) return 'B';
-  if (normalized.includes('3-5')) return 'C';
-  return 'D';
+  if (!normalized) return 'E';
+  if (normalized.includes('less') || normalized.includes('menos') || normalized.includes('less than 1') || normalized.includes('1 month')) {
+    return 'E';
+  }
+  if (normalized.includes('1 month - 1 year') || normalized.includes('1 ano') || normalized.includes('1 - 3') || normalized.includes('1-3')) {
+    return 'A';
+  }
+  if (normalized.includes('1 year - 3 years') || normalized.includes('1-3 years') || normalized.includes('1-3')) {
+    return 'B';
+  }
+  if (normalized.includes('3 years - 5 years') || normalized.includes('3-5 years') || normalized.includes('3-5')) {
+    return 'C';
+  }
+  if (normalized.includes('5 years') || normalized.includes('5 ou mais') || normalized.includes('5 years or more') || normalized.includes('mais de 5')) {
+    return 'D';
+  }
+  if (normalized.includes('>=5') || normalized.includes('5+')) {
+    return 'D';
+  }
+  return 'E';
 }
 
 function mapInsuranceDuration(value) {
@@ -85,6 +100,23 @@ class ProgressiveQuoteAutomation {
     if (pauseMs > 0 && this.page?.waitForTimeout) {
       await this.page.waitForTimeout(pauseMs);
     }
+  }
+
+  async ensureValidLicenseYes() {
+    if (!this.page) {
+      return false;
+    }
+    try {
+      const validLicenseGroup = this.page.getByRole('group', { name: 'Has your license been valid' });
+      if (await validLicenseGroup.isVisible()) {
+        await validLicenseGroup.getByLabel('Yes').check();
+        return true;
+      }
+    } catch (_) {
+      // ignore
+    }
+    return false;
+        await this.ensureValidLicenseYes();
   }
 
   async ensureFreshRun() {
@@ -424,6 +456,7 @@ class ProgressiveQuoteAutomation {
       }
 
       if (index > 0) {
+        await this.page.waitForTimeout(2000);
         await this.clickButton(
           this.page.getByRole('button', { name: '+Add another vehicle' }),
           { timeout: 15000 }
@@ -513,7 +546,9 @@ class ProgressiveQuoteAutomation {
 
         try {
           const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
-          await this.selectWithPause(this.page.getByLabel('How long have you had this'), ownership);
+          const ownershipField = this.page.getByLabel(/How long have you had this vehicle/i);
+          await this.page.pause();
+          await this.selectWithPause(ownershipField, ownership);
         } catch (_) {}
 
         try {
@@ -781,7 +816,7 @@ class ProgressiveQuoteAutomation {
         // 3. Verifica Fluxo Antigo (Valid License Checkbox)
         else if (await validLicense.isVisible()) {
           console.log('Campo "Has your license been valid" detectado.');
-          await validLicense.getByLabel('Yes').check();
+          await this.ensureValidLicenseYes();
           await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
         } 
         // 4. Fallback: Espera explícita se nada apareceu ainda

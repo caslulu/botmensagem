@@ -15,7 +15,7 @@ interface Driver {
   data_nascimento: string;
   genero: string;
   estado_civil: string;
-  relacao: string;
+  parentesco: string;
   documento: string;
 }
 
@@ -44,7 +44,7 @@ interface TrelloFormData {
 }
 
 const initialVehicle: Vehicle = { ano: '', marca: '', modelo: '', vin: '', placa: '', financiado: '', tempo_com_veiculo: '' };
-const initialDriver: Driver = { nome: '', data_nascimento: '', genero: '', estado_civil: '', relacao: '', documento: '' };
+const initialDriver: Driver = { nome: '', data_nascimento: '', genero: '', estado_civil: '', parentesco: '', documento: '' };
 
 const initialForm: TrelloFormData = {
   nome: '',
@@ -437,15 +437,15 @@ export const TrelloForm: React.FC = () => {
                             </select>
                         </div>
                         <div className="input-group md:col-span-3">
-                            <label>Tempo com o veículo</label>
-                            <select value={vehicle.tempo_com_veiculo} onChange={(e) => handleVehicleChange(index, 'tempo_com_veiculo', e.target.value)} className="input-control">
-                                <option value="">Selecione</option>
-                                <option value="Menos de 6 meses">Menos de 6 meses</option>
-                                <option value="6 meses/1 ano">6 meses/1 ano</option>
-                                <option value="1-3 anos">1-3 anos</option>
-                                <option value="3-5 anos">3-5 anos</option>
-                                <option value="5+ anos">5+ anos</option>
-                            </select>
+                          <label>Tempo com o veículo</label>
+                          <select value={vehicle.tempo_com_veiculo} onChange={(e) => handleVehicleChange(index, 'tempo_com_veiculo', e.target.value)} className="input-control">
+                            <option value="">Selecione</option>
+                            <option value="Less than 1 month">Less than 1 month</option>
+                            <option value="1 month - 1 year">1 month - 1 year</option>
+                            <option value="1 year - 3 years">1 year - 3 years</option>
+                            <option value="3 years - 5 years">3 years - 5 years</option>
+                            <option value="5 years or more">5 years or more</option>
+                          </select>
                         </div>
                         {/* Hidden fields for compatibility if needed, but user can fill them if we expose them. Old HTML hid them. */}
                         <input type="hidden" value={vehicle.ano} />
@@ -507,8 +507,8 @@ export const TrelloForm: React.FC = () => {
                             <input type="date" value={driver.data_nascimento} onChange={(e) => handleDriverChange(index, 'data_nascimento', e.target.value)} className="input-control" />
                         </div>
                         <div className="input-group">
-                            <label>Parentesco</label>
-                            <select value={driver.relacao} onChange={(e) => handleDriverChange(index, 'relacao', e.target.value)} className="input-control">
+                          <label>Parentesco</label>
+                          <select value={driver.parentesco} onChange={(e) => handleDriverChange(index, 'parentesco', e.target.value)} className="input-control">
                                 <option value="">Selecione</option>
                                 <option value="Cônjuge">Cônjuge</option>
                                 <option value="Filho(a)">Filho(a)</option>

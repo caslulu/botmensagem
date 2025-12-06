@@ -83,7 +83,7 @@ class ChatProcessor {
 
           // Wait delay
           this.logger.info('Mensagem enviada. Aguardando intervalo.');
-          await page.waitForTimeout(config.MESSAGE_DELAY_MS || 2000);
+          await page.waitForTimeout(config.MESSAGE_DELAY_MS || 1500);
 
           // Go back logic removida conforme solicitação.
           // Assumindo modo Desktop onde a lista lateral permanece visível.
@@ -176,34 +176,37 @@ class ChatProcessor {
    */
   async processMultipleIterations(page, profile, checkStop) {
     const sendLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
+    let iteration = 0;
+    let consecutiveEmptyIterations = 0;
 
-    for (let iteration = 1; iteration <= config.LOOP_QUANTITY; iteration++) {
-      // Verificar se deve parar
+    while (this.processedChats.size < sendLimit) {
+      iteration += 1;
+
       if (checkStop && checkStop()) {
         break;
       }
 
-      // Verificar se atingiu limite
+      this.logger.info(`Iteração ${iteration} - Chats enviados: ${this.processedChats.size}/${sendLimit}`);
+
+      const processedThisIteration = await this.processVisibleChats(page, profile, checkStop);
+
+      if (processedThisIteration === 0) {
+        consecutiveEmptyIterations += 1;
+        this.logger.info('Nenhum chat novo encontrado nesta passada.');
+        if (consecutiveEmptyIterations >= 3) {
+          this.logger.info('Sem novos chats após várias tentativas. Encerrando.');
+          break;
+        }
+      } else {
+        consecutiveEmptyIterations = 0;
+      }
+
       if (this.processedChats.size >= sendLimit) {
         this.logger.success(`Limite de ${sendLimit} envios atingido`);
         break;
       }
 
-      this.logger.info(
-        `Iteração ${iteration}/${config.LOOP_QUANTITY} - ` +
-        `Chats enviados: ${this.processedChats.size}/${sendLimit}`
-      );
-
-      // Processar chats visíveis
-      await this.processVisibleChats(page, profile, checkStop);
-
-      // Verificar novamente após processar
-      if (this.processedChats.size >= sendLimit) {
-        break;
-      }
-
-      // Aguardar antes da próxima iteração
-      await page.waitForTimeout(5000);
+      await page.waitForTimeout(3000);
     }
 
     return this.processedChats.size;

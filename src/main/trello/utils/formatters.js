@@ -26,13 +26,51 @@ function parseJsonList(input) {
   return [];
 }
 
+function padTwoDigits(value) {
+  return String(value).padStart(2, '0');
+}
+
+function formatDateToMmDdYyyy(value) {
+  if (value === undefined || value === null) {
+    return '';
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return '';
+  }
+
+  const isoMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (isoMatch) {
+    return `${isoMatch[2]}/${isoMatch[3]}/${isoMatch[1]}`;
+  }
+
+  if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+    return raw;
+  }
+
+  if (/^\d+$/.test(raw)) {
+    const parsedDate = new Date(Number(raw));
+    if (!Number.isNaN(parsedDate.getTime())) {
+      return `${padTwoDigits(parsedDate.getMonth() + 1)}/${padTwoDigits(parsedDate.getDate())}/${parsedDate.getFullYear()}`;
+    }
+  }
+
+  const parsedDate = new Date(raw);
+  if (!Number.isNaN(parsedDate.getTime())) {
+    return `${padTwoDigits(parsedDate.getMonth() + 1)}/${padTwoDigits(parsedDate.getDate())}/${parsedDate.getFullYear()}`;
+  }
+
+  return raw;
+}
+
 function formatVehicles(vehicles) {
   const list = parseJsonList(vehicles);
   if (!list.length) {
     return '';
   }
 
-  let description = `\n${'='.repeat(50)}\nVEÍCULOS:\n${'='.repeat(50)}\n`;
+  let description = `\nVEÍCULOS:\n`;
 
   list.forEach((vehicle, index) => {
     const vin = vehicle?.vin || '-';
@@ -61,12 +99,12 @@ function formatPeople(people) {
     return '';
   }
 
-  let description = `\n${'='.repeat(50)}\nDRIVERS ADICIONAIS:\n${'='.repeat(50)}\n`;
+  let description = `\nDRIVERS ADICIONAIS:\n`;
 
   list.forEach((person, index) => {
     const name = person?.nome || '-';
     const document = person?.documento || '-';
-    const birth = person?.data_nascimento || '-';
+    const birth = formatDateToMmDdYyyy(person?.data_nascimento) || '-';
     const relation = person?.parentesco || '-';
     const gender = person?.genero || '-';
 
@@ -116,6 +154,7 @@ function formatPhone(phone) {
 module.exports = {
   formatVehicles,
   formatPeople,
+  formatDateToMmDdYyyy,
   formatAddress,
   formatPhone,
   parseJsonList

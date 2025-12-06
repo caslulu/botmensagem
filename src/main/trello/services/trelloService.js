@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { app } = require('electron');
-const { formatVehicles, formatPeople } = require('../utils/formatters');
+const { formatVehicles, formatPeople, formatDateToMmDdYyyy } = require('../utils/formatters');
 const trelloConfig = require('../../config/trello-config');
 
 const DEFAULT_API_URL = 'https://api.trello.com/1/cards';
@@ -244,6 +244,8 @@ function buildDescription(data, email) {
 
   const address = composeAddress(data) || '-';
   const documentoEstado = sanitizeString(data?.documento_estado) || '-';
+  const clienteBirth = formatDateToMmDdYyyy(data?.data_nascimento);
+  const conjBirth = formatDateToMmDdYyyy(data?.data_nascimento_conjuge);
 
   let description = '';
   description += `Documento: ${sanitizeString(data?.documento) || '-'}\n`;
@@ -251,7 +253,7 @@ function buildDescription(data, email) {
   description += `Estado Civil: ${sanitizeString(data?.estado_civil) || '-'}\n`;
   description += `Gênero: ${sanitizeString(data?.genero) || '-'}\n`;
   description += `Endereço: ${address}\n`;
-  description += `Data de Nascimento: ${sanitizeString(data?.data_nascimento) || '-'}\n`;
+  description += `Data de Nascimento: ${clienteBirth || '-'}\n`;
   description += `Tempo de Seguro: ${sanitizeString(data?.tempo_de_seguro) || '-'}\n`;
   description += `Tempo no Endereço: ${sanitizeString(data?.tempo_no_endereco) || '-'}\n`;
   description += `Email: ${email || '-'}\n`;
@@ -259,14 +261,14 @@ function buildDescription(data, email) {
   description += peopleInfo;
 
   if (data?.nome_conjuge) {
-    description += `\n${'='.repeat(50)}\nINFORMAÇÕES DO CÔNJUGE:\n`;
+    description += `\nINFORMAÇÕES DO CÔNJUGE:\n`;
     description += `Nome: ${sanitizeString(data.nome_conjuge) || '-'}\n`;
-    description += `Data de Nascimento: ${sanitizeString(data?.data_nascimento_conjuge) || '-'}\n`;
+    description += `Data de Nascimento: ${conjBirth || '-'}\n`;
     description += `Documento: ${sanitizeString(data?.documento_conjuge) || '-'}\n`;
   }
 
   if (data?.observacoes) {
-    description += `\n${'='.repeat(50)}\nOBSERVAÇÕES:\n${sanitizeString(data.observacoes)}\n`;
+    description += `\nOBSERVAÇÕES:\n${sanitizeString(data.observacoes)}\n`;
   }
 
   return description;
