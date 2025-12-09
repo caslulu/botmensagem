@@ -89,15 +89,14 @@ class ChatProcessor {
           // Assumindo modo Desktop onde a lista lateral permanece visível.
           // Não pressionamos Escape para evitar sair da tela de Arquivadas.
 
-          // Scroll logic (every 5 sends)
+          // Alterna scroll para baixo e para cima a cada múltiplo de 5 envios
           if (this.processedChats.size > 0 && this.processedChats.size % 5 === 0) {
-            this.logger.info(`Rolando a lista após ${this.processedChats.size} envios...`);
-            // Tenta focar na lista antes de rolar
+            const scrollDown = Math.floor(this.processedChats.size / 5) % 2 === 1;
+            this.logger.info(`Rolando a lista (${scrollDown ? 'baixo' : 'cima'}) após ${this.processedChats.size} envios...`);
             await page.locator('div[aria-label="Lista de conversas"], div[role="grid"]').first().focus().catch(() => {});
-            
             for (let i = 0; i < 3; i++) {
               if (checkStop && checkStop()) break;
-              await page.keyboard.press('PageDown');
+              await page.keyboard.press(scrollDown ? 'PageDown' : 'PageUp');
               await page.waitForTimeout(200);
             }
           }

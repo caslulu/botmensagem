@@ -547,7 +547,7 @@ class ProgressiveQuoteAutomation {
         try {
           const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
           const ownershipField = this.page.getByLabel(/How long have you had this vehicle/i);
-          await this.page.pause();
+          await ownershipField.waitFor({ state: 'visible', timeout: 8000 });
           await this.selectWithPause(ownershipField, ownership);
         } catch (_) {}
 
@@ -882,20 +882,73 @@ class ProgressiveQuoteAutomation {
         await this.page.getByLabel('Last Name').fill(lastName || '');
         await this.page.getByLabel('Date of birth').fill(dataNascimentoConjuge || '01/01/1990');
 
-        if (safeLower(genero) === 'masculino') {
-          await this.page.getByLabel('Female').check();
-        } else {
-          await this.page.getByLabel('Male', { exact: true }).check();
+        const titularGenero = safeLower(genero || '');
+        let spouseGenderOption = 'Female';
+        if (titularGenero.includes('fem')) {
+          spouseGenderOption = 'Male';
+        } else if (titularGenero.includes('non') || titularGenero.includes('nb') || titularGenero.includes('n e3o bin')) {
+          spouseGenderOption = 'Nonbinary';
+        }
+
+        try {
+          const genderGroup = this.page.getByRole('group', { name: /Gender/i });
+          if (await genderGroup.isVisible()) {
+            await genderGroup.getByRole('radio', { name: spouseGenderOption }).check();
+          } else {
+            await this.page.getByRole('radio', { name: spouseGenderOption }).check();
+          }
+        } catch (_) {
+          // Fallback para seletores antigos baseados em label
+          if (spouseGenderOption === 'Female') {
+            await this.page.getByLabel('Female').check();
+          } else if (spouseGenderOption === 'Male') {
+            await this.page.getByLabel('Male', { exact: true }).check();
+          }
         }
 
         if (safeLower(estadoDocumento) !== 'it') {
-          await this.page.getByRole('group', { name: 'Has your license been valid' }).getByLabel('Yes').check();
-          await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
+          try {
+            const validSpouse = this.page.getByRole('group', { name: /Has your license been valid/i });
+            if (await validSpouse.isVisible()) {
+              await validSpouse.getByLabel('Yes').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar validade de licença do cônjuge:', e.message);
+          }
+
+          try {
+            const suspSpouse = this.page.getByRole('group', { name: /Any license suspensions/i });
+            if (await suspSpouse.isVisible()) {
+              await suspSpouse.getByLabel('No').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar suspensões do cônjuge:', e.message);
+          }
         } else {
           await this.page.getByLabel('U.S. License type').selectOption('F');
         }
-        await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
-        await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
+
+        try {
+          const accidentsSpouse = this.page.getByRole('group', { name: /Accidents, claims, or other/i });
+          if (await accidentsSpouse.isVisible()) {
+            await accidentsSpouse.getByLabel('No').check();
+          }
+        } catch (e) {
+          console.warn('Erro ao marcar acidentes do cônjuge:', e.message);
+        }
+
+        try {
+          const ticketsSpouse = this.page.getByRole('group', { name: /Tickets or violations/i });
+          if (await ticketsSpouse.isVisible()) {
+            await ticketsSpouse.getByLabel('No').check();
+          }
+        } catch (e) {
+          console.warn('Erro ao marcar tickets do cônjuge:', e.message);
+        }
+
+        // Garante que todos os campos importantes do cônjuge foram exibidos pelo menos uma vez
+        await this.page.waitForTimeout(1500);
+
         await this.clickButton(
           this.page.getByRole('button', { name: 'Continue' }),
           { timeout: 20000 }
@@ -927,10 +980,43 @@ class ProgressiveQuoteAutomation {
           await this.page.getByRole('textbox', { name: 'Date of birth' }).fill(nascimento);
           await this.page.getByLabel('Marital status*').selectOption('S');
           await this.page.getByLabel('Relationship to', { exact: false }).selectOption('O');
-          await this.page.getByRole('group', { name: "Has this driver's license" }).getByLabel('Yes').check();
-          await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
-          await this.page.getByRole('group', { name: 'Accidents, claims, or other' }).getByLabel('No').check();
-          await this.page.getByRole('group', { name: 'Tickets or violations?' }).getByLabel('No').check();
+
+          // Histórico de licença do driver extra
+          try {
+            const validExtra = this.page.getByRole('group', { name: /Has .*license been valid/i });
+            if (await validExtra.isVisible()) {
+              await validExtra.getByLabel('Yes').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar validade de licença do driver extra:', e.message);
+          }
+
+          try {
+            const suspExtra = this.page.getByRole('group', { name: /Any license suspensions/i });
+            if (await suspExtra.isVisible()) {
+              await suspExtra.getByLabel('No').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar suspensões do driver extra:', e.message);
+          }
+
+          try {
+            const accidentsExtra = this.page.getByRole('group', { name: /Accidents, claims, or other/i });
+            if (await accidentsExtra.isVisible()) {
+              await accidentsExtra.getByLabel('No').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar acidentes do driver extra:', e.message);
+          }
+
+          try {
+            const ticketsExtra = this.page.getByRole('group', { name: /Tickets or violations/i });
+            if (await ticketsExtra.isVisible()) {
+              await ticketsExtra.getByLabel('No').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar tickets do driver extra:', e.message);
+          }
           await this.clickButton(
             this.page.getByRole('button', { name: 'Continue' }),
             { timeout: 20000 }
