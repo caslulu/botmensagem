@@ -16,6 +16,7 @@ export const QuotesList: React.FC = () => {
   const [runLoading, setRunLoading] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [stopLoading, setStopLoading] = useState(false);
+  const [selectedInsurer, setSelectedInsurer] = useState<string>('progressive');
 
   const fetchQuotes = async () => {
     setLoading(true);
@@ -77,7 +78,8 @@ export const QuotesList: React.FC = () => {
       // @ts-ignore
       if (!window.quotes?.runAutomation) throw new Error('API de automação não disponível');
       // @ts-ignore
-      const res = await window.quotes.runAutomation({ quoteId: id, insurer: 'progressive', headless: false });
+      const insurer = String(selectedInsurer || 'progressive').toLowerCase();
+      const res = await window.quotes.runAutomation({ quoteId: id, insurer, headless: false });
       // Log the result for debugging and surface any errors via the common `error` banner
       console.log('runAutomation result:', res);
     } catch (e: any) {
@@ -137,6 +139,11 @@ export const QuotesList: React.FC = () => {
           <div className="flex items-center justify-between mb-2">
             <div className="font-bold text-lg text-white">{selected.nome}</div>
             <div className="flex items-center gap-2">
+              <div className="hidden sm:block text-slate-300 text-xs pr-2">{selectedInsurer ? (selectedInsurer.charAt(0).toUpperCase() + selectedInsurer.slice(1)) : ''}</div>
+              <select className="input-control text-xs" value={selectedInsurer} onChange={(e) => setSelectedInsurer(e.target.value)} style={{height: '28px', minWidth: '120px'}}>
+                <option value="progressive">Progressive</option>
+                <option value="liberty">Liberty</option>
+              </select>
               <button className="btn-primary text-xs" onClick={() => handleRunAutomation(selected.id)} disabled={loading || runLoading || stopLoading}>{runLoading ? 'Abrindo…' : 'Iniciar cotação'}</button>
               <button className="btn-warning text-xs" onClick={handleStopAutomation} disabled={!runLoading || stopLoading}>{stopLoading ? 'Parando…' : 'Parar cotação'}</button>
               <button className="btn-danger text-xs" onClick={() => handleDelete(selected.id)} disabled={loading || runLoading || stopLoading}>Excluir</button>

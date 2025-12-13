@@ -40,7 +40,8 @@ class RtaService {
             geico: path.join(this.assetsDir, 'rta_template_geico.pdf'),
             liberty: path.join(this.assetsDir, 'rta_template_liberty.pdf')
         };
-        this.outputDir = path.resolve(process.cwd(), 'data', 'rta', 'output');
+        // Usar a pasta de Downloads do sistema
+        this.outputDir = app.getPath('downloads');
         if (!fs.existsSync(this.outputDir)) {
             fs.mkdirSync(this.outputDir, { recursive: true });
         }

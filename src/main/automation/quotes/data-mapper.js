@@ -211,8 +211,14 @@ function mapQuoteToProgressive(quote) {
   return data;
 }
 
+function mapQuoteToLiberty(quote) {
+  // For now reuse Progressive mapping. Adjust fields as Liberty provider needs.
+  return mapQuoteToProgressive(quote);
+}
+
 module.exports = {
   mapQuoteToProgressive,
+  mapQuoteToLiberty,
   splitName,
   generateEmail,
   normalizeVehicles,

@@ -1,11 +1,13 @@
 const quotesRepository = require('../../price/repositories/quotesRepository');
 const ProgressiveQuoteAutomation = require('./providers/progressive');
-const { mapQuoteToProgressive } = require('./data-mapper');
+const LibertyQuoteAutomation = require('./providers/liberty');
+const { mapQuoteToProgressive, mapQuoteToLiberty } = require('./data-mapper');
 
 class QuoteAutomationService {
   constructor() {
     this.providers = {
-      progressive: new ProgressiveQuoteAutomation()
+      progressive: new ProgressiveQuoteAutomation(),
+      liberty: new LibertyQuoteAutomation()
     };
   }
 
@@ -19,6 +21,10 @@ class QuoteAutomationService {
       return this.providers.progressive;
     }
 
+    if (['liberty', 'liberty mutual', 'liberty mutual insurance'].includes(key)) {
+      return this.providers.liberty;
+    }
+
     throw new Error(`Seguradora não suportada: ${insurer}`);
   }
 
@@ -28,11 +34,20 @@ class QuoteAutomationService {
       throw new Error('Cotação não encontrada.');
     }
 
-    const provider = this.getProvider(insurer);
-    const data = mapQuoteToProgressive(quote);
+    const key = String(insurer || '').toLowerCase();
+    const provider = this.getProvider(key);
+
+    // Map quote to provider-specific payload
+    let data = null;
+    if (['liberty', 'liberty mutual', 'liberty mutual insurance'].includes(key)) {
+      data = mapQuoteToLiberty(quote);
+    } else {
+      data = mapQuoteToProgressive(quote);
+    }
+
     const result = await provider.run(data, { headless, keepBrowserOnError: true });
     return {
-      provider: 'progressive',
+      provider: key || 'unknown',
       result
     };
   }
