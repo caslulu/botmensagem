@@ -212,8 +212,31 @@ function mapQuoteToProgressive(quote) {
 }
 
 function mapQuoteToLiberty(quote) {
-  // For now reuse Progressive mapping. Adjust fields as Liberty provider needs.
-  return mapQuoteToProgressive(quote);
+  try {
+    return mapQuoteToProgressive(quote);
+  } catch (err) {
+    // If progressive mapping failed due to missing ZIP, try common alternate keys
+    const payload = (quote && quote.payload) || {};
+    const candidates = [
+      payload.endereco_zipcode,
+      payload.zipcode,
+      payload.zip,
+      payload.endereco_cep,
+      payload.cep,
+      payload.address_zipcode,
+      payload.endereco?.zipcode
+    ].filter(Boolean);
+
+    if (candidates.length === 0) {
+      throw err;
+    }
+
+    const chosen = String(candidates[0] || '').trim();
+    const cloned = JSON.parse(JSON.stringify(quote || {}));
+    cloned.payload = cloned.payload || {};
+    cloned.payload.endereco_zipcode = chosen;
+    return mapQuoteToProgressive(cloned);
+  }
 }
 
 module.exports = {

@@ -28,7 +28,7 @@ class QuoteAutomationService {
     throw new Error(`Seguradora não suportada: ${insurer}`);
   }
 
-  async runAutomation({ quoteId, insurer, headless }) {
+  async runAutomation({ quoteId, insurer, headless, pause, keepBrowserOnError }) {
     const quote = quotesRepository.get(String(quoteId || '').trim());
     if (!quote) {
       throw new Error('Cotação não encontrada.');
@@ -45,7 +45,8 @@ class QuoteAutomationService {
       data = mapQuoteToProgressive(quote);
     }
 
-    const result = await provider.run(data, { headless, keepBrowserOnError: true });
+    const keep = typeof keepBrowserOnError === 'boolean' ? keepBrowserOnError : (pause ? true : true);
+    const result = await provider.run(data, { headless, keepBrowserOnError: keep, pause });
     return {
       provider: key || 'unknown',
       result
