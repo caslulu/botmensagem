@@ -104,13 +104,14 @@ function formatPeople(people) {
   list.forEach((person, index) => {
     const name = person?.nome || '-';
     const document = person?.documento || '-';
+    const documentState = person?.documento_estado || '-';
     const birth = formatDateToMmDdYyyy(person?.data_nascimento) || '-';
     const relation = person?.parentesco || '-';
     const gender = person?.genero || '-';
 
     description += `\n👤 Driver ${index + 1}:\n`;
     description += `   Nome: ${name}\n`;
-    description += `   Documento: ${document}\n`;
+    description += `   Documento: ${document} (${documentState})\n`;
     description += `   Data de Nascimento: ${birth}\n`;
     description += `   Parentesco: ${relation}\n`;
     description += `   Gênero: ${gender}\n`;

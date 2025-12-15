@@ -246,6 +246,7 @@ function buildDescription(data, email) {
   const documentoEstado = sanitizeString(data?.documento_estado) || '-';
   const clienteBirth = formatDateToMmDdYyyy(data?.data_nascimento);
   const conjBirth = formatDateToMmDdYyyy(data?.data_nascimento_conjuge);
+  const conjDocState = sanitizeString(data?.documento_estado_conjuge) || '-';
 
   let description = '';
   description += `Documento: ${sanitizeString(data?.documento) || '-'}\n`;
@@ -265,6 +266,7 @@ function buildDescription(data, email) {
     description += `Nome: ${sanitizeString(data.nome_conjuge) || '-'}\n`;
     description += `Data de Nascimento: ${conjBirth || '-'}\n`;
     description += `Documento: ${sanitizeString(data?.documento_conjuge) || '-'}\n`;
+    description += `Estado do Documento: ${conjDocState}\n`;
   }
 
   if (data?.observacoes) {

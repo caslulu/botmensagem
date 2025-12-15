@@ -17,6 +17,7 @@ interface Driver {
   estado_civil: string;
   parentesco: string;
   documento: string;
+  documento_estado: string;
 }
 
 interface TrelloFormData {
@@ -35,6 +36,7 @@ interface TrelloFormData {
   genero: string;
   nome_conjuge: string;
   documento_conjuge: string;
+  documento_estado_conjuge: string;
   data_nascimento_conjuge: string;
   email: string;
   observacoes: string;
@@ -44,7 +46,15 @@ interface TrelloFormData {
 }
 
 const initialVehicle: Vehicle = { ano: '', marca: '', modelo: '', vin: '', placa: '', financiado: '', tempo_com_veiculo: '' };
-const initialDriver: Driver = { nome: '', data_nascimento: '', genero: '', estado_civil: '', parentesco: '', documento: '' };
+const initialDriver: Driver = {
+  nome: '',
+  data_nascimento: '',
+  genero: '',
+  estado_civil: '',
+  parentesco: '',
+  documento: '',
+  documento_estado: ''
+};
 
 const initialForm: TrelloFormData = {
   nome: '',
@@ -62,6 +72,7 @@ const initialForm: TrelloFormData = {
   genero: '',
   nome_conjuge: '',
   documento_conjuge: '',
+  documento_estado_conjuge: '',
   data_nascimento_conjuge: '',
   email: '',
   observacoes: '',
@@ -210,10 +221,12 @@ export const TrelloForm: React.FC = () => {
   };
 
   const buildPayload = () => {
-    const drivers = form.pessoas.map((driver) => ({
-      ...driver,
-      data_nascimento: formatToMmDdYyyy(driver.data_nascimento)
-    }));
+    const drivers = form.pessoas
+      .filter((driver) => !(form.estado_civil === 'Casado(a)' && driver.parentesco === 'Cônjuge'))
+      .map((driver) => ({
+        ...driver,
+        data_nascimento: formatToMmDdYyyy(driver.data_nascimento)
+      }));
 
     return {
       ...form,
@@ -234,6 +247,20 @@ export const TrelloForm: React.FC = () => {
         setError('Nome é obrigatório.');
         setLoading(false);
         return;
+    }
+
+    if (form.estado_civil === 'Casado(a)' && !form.documento_estado_conjuge) {
+        setError('Informe o estado do documento do cônjuge.');
+        setLoading(false);
+        return;
+    }
+
+    const driverMissingState = form.pessoas.some((driver) => !driver.documento_estado);
+
+    if (driverMissingState) {
+      setError('Informe o estado do documento para cada driver adicional.');
+      setLoading(false);
+      return;
     }
 
     try {
@@ -380,6 +407,21 @@ export const TrelloForm: React.FC = () => {
                 <input name="documento_conjuge" value={form.documento_conjuge} onChange={handleChange} className="input-control" />
               </div>
               <div className="input-group">
+                <label>Estado do Documento</label>
+                <select
+                  name="documento_estado_conjuge"
+                  value={form.documento_estado_conjuge}
+                  onChange={handleChange}
+                  className="input-control"
+                  required={form.estado_civil === 'Casado(a)'}
+                >
+                  <option value="">Selecione...</option>
+                  {US_STATES.map((s) => (
+                    <option key={s.code} value={s.code}>{`${s.code} - ${s.name}`}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="input-group">
                 <label>Data de Nascimento</label>
                 <input name="data_nascimento_conjuge" type="date" value={form.data_nascimento_conjuge} onChange={handleChange} className="input-control" />
               </div>
@@ -500,6 +542,20 @@ export const TrelloForm: React.FC = () => {
                         <div className="input-group">
                             <label>Documento</label>
                             <input value={driver.documento} onChange={(e) => handleDriverChange(index, 'documento', e.target.value)} className="input-control" placeholder="Documento" />
+                        </div>
+                        <div className="input-group">
+                            <label>Estado do documento</label>
+                            <select
+                              value={driver.documento_estado}
+                              onChange={(e) => handleDriverChange(index, 'documento_estado', e.target.value)}
+                              className="input-control"
+                              required
+                            >
+                                <option value="">Selecione...</option>
+                                {US_STATES.map((s) => (
+                                  <option key={s.code} value={s.code}>{`${s.code} - ${s.name}`}</option>
+                                ))}
+                            </select>
                         </div>
                         <div className="input-group">
                             <label>Data de nascimento</label>
