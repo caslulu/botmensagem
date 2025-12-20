@@ -46,39 +46,25 @@ class MessageSender {
   }
 
   async _sendInternal(page, message, imagePath) {
-    // 1. Clicar no botão de anexo (Clip/Mais) usando o seletor fornecido
     await page.getByRole('button').filter({ hasText: 'plus-rounded' }).click();
 
-    // 2. Clicar em "Fotos e vídeos" e tratar o upload via FileChooser
-    // Como clicar no botão abre a janela do sistema, precisamos esperar o evento de filechooser
     const fileChooserPromise = page.waitForEvent('filechooser');
     await page.getByRole('button', { name: 'Fotos e vídeos' }).click();
     const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(imagePath);
 
-    // Aguarda o carregamento da interface de preview de imagem
-    // Alterado: Não esperamos mais pelo ícone 'send' pois estava causando timeout.
-    // Confiamos que a imagem carregou (blob) e damos um delay.
-    
     try {
-      // Tenta esperar pela imagem carregada na modal
       await page.locator('img[src^="blob:"]').first().waitFor({ state: 'visible', timeout: 10000 });
     } catch (e) {
-      // Se não detectar o blob (ex: vídeo ou estrutura diferente), segue apenas com o delay
     }
 
-    // Delay solicitado para garantir que a interface esteja estável e o foco no input correto
     await page.waitForTimeout(2000);
 
-    // 3. Preencher a legenda
     if (message) {
-      // O foco já deve estar no campo de legenda automaticamente
       await page.keyboard.insertText(message);
-      // Pequeno delay para garantir que o texto foi processado antes do Enter
       await page.waitForTimeout(500);
     }
     
-    // 4. Enviar (Enter)
     await page.keyboard.press('Enter');
   }
 

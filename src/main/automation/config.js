@@ -3,7 +3,6 @@
  */
 
 module.exports = {
-  // Delays e timeouts
   MESSAGE_DELAY_MS: 500,
   INITIAL_WAIT_MS: 30000,
   SCROLL_DELAY_MS: 200,
@@ -17,17 +16,14 @@ module.exports = {
   SEND_RETRY_MAX: 2,
   SEND_RETRY_DELAY_MS: 2000,
 
-  // Limites
   DEFAULT_SEND_LIMIT: 200,
   LOOP_QUANTITY: 10,
   SCROLL_ITERATIONS: 30,
   SCROLL_AFTER_SENDS: 2,
   SCROLL_DISTANCE: 12,
 
-  // Browser
   BROWSER_VIEWPORT: { width: 1280, height: 800 },
   BROWSER_SLOW_MO: 50,
 
-  // WhatsApp
   WHATSAPP_URL: 'https://web.whatsapp.com',
 };

@@ -1,11 +1,38 @@
+# OS/macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Node/Electron
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
 dist/
 out/
-.npmrc
-playwright-report/
-whatsapp_session*/
-data/
+dist-electron/
+release/
+build/*
+!build/README.txt
+
+# Editor/Tooling
+.vscode/
+.idea/
 *.log
-.DS_Store
+coverage/
+playwright-report/
+test-results/
+blob-report/
+
+# Env & secrets
 .env
+.env.*
+.npmrc
 src/main/config/trello-config.js
+
+# Runtime data
+data/
+whatsapp_session*/

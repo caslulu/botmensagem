@@ -26,7 +26,6 @@ class ChatProcessor {
     while (this.processedChats.size < sendLimit) {
       if (checkStop && checkStop()) break;
 
-      // Get all list items (chats) directly as in the example
       const chatLocators = await page.getByRole('listitem').all();
       
       if (!chatLocators.length) {
@@ -40,7 +39,6 @@ class ChatProcessor {
         if (checkStop && checkStop()) break;
         if (this.processedChats.size >= sendLimit) break;
 
-        // Ensure we are still in Archived view before processing
         const backButton = page.locator('span[data-icon="back"], [aria-label="Voltar"], [aria-label="Back"]').first();
         const title = page.locator('header').getByText(/Arquivadas|Archived/i).first();
         
@@ -49,17 +47,14 @@ class ChatProcessor {
         if (!isInArchived) {
            this.logger.warn('Detectado saída da seção Arquivadas. Tentando retornar...');
            await this.whatsappService.goToArchivedChats(page).catch(e => this.logger.error('Falha ao retornar para Arquivadas', e));
-           // Refresh locators after navigation
-           break; // Break inner loop to refresh list
+           break;
         }
 
         try {
-          // Get title
           const titleLocator = chatLocator.locator('span[title]').first();
           try {
             await titleLocator.waitFor({ state: 'attached', timeout: 3000 });
           } catch (e) {
-            // If no title found (e.g. separator, skeleton), skip silently
             continue;
           }
           
@@ -72,24 +67,13 @@ class ChatProcessor {
           newChatsOnScreen++;
           this.logger.info(`Processando "${chatName}" (${this.processedChats.size + 1}/${sendLimit})`);
 
-          // Click chat
           await chatLocator.click();
-
-          // Send message
           await this.messageSender.send(page, profile.message, profile.imagePath);
-          
-          // Mark as processed
           this.processedChats.add(chatName);
 
-          // Wait delay
           this.logger.info('Mensagem enviada. Aguardando intervalo.');
           await page.waitForTimeout(config.MESSAGE_DELAY_MS || 1500);
 
-          // Go back logic removida conforme solicitação.
-          // Assumindo modo Desktop onde a lista lateral permanece visível.
-          // Não pressionamos Escape para evitar sair da tela de Arquivadas.
-
-          // Alterna scroll para baixo e para cima a cada múltiplo de 5 envios
           if (this.processedChats.size > 0 && this.processedChats.size % 5 === 0) {
             const scrollDown = Math.floor(this.processedChats.size / 5) % 2 === 1;
             this.logger.info(`Rolando a lista (${scrollDown ? 'baixo' : 'cima'}) após ${this.processedChats.size} envios...`);
@@ -105,8 +89,6 @@ class ChatProcessor {
 
         } catch (error) {
           this.logger.error(`Erro ao processar chat`, error);
-          // Try to recover
-          // Only press Escape if we are NOT in desktop mode (list visible)
           const isChatListVisible = await page.locator('[data-testid="chat-list"]').isVisible().catch(() => false);
           
           if (!isChatListVisible) {

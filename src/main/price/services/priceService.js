@@ -16,13 +16,6 @@ const { parseCurrency, formatWithComma } = require('../utils/number');
 const quotesRepository = require('../repositories/quotesRepository');
 const trelloService = require('../../trello/services/trelloService');
 
-const DEFAULT_OUTPUT_DIR = path.join(PathResolver.getUserDataDir(), 'price', 'output');
-
-function resolveDownloadPath(fileName) {
-  const downloadDir = PathResolver.getDownloadsDir ? PathResolver.getDownloadsDir() : path.join(os.homedir(), 'Downloads');
-  return path.resolve(downloadDir, fileName);
-}
-
 function ensureFolder(dirPath) {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -77,7 +70,10 @@ class PriceService {
     this.defaultTax = 320;
     this._fontRegistered = false;
     this._ensureFontRegistered();
-    ensureFolder(DEFAULT_OUTPUT_DIR);
+    
+    // Usar a pasta de Downloads do sistema
+    this.outputDir = app.getPath('downloads');
+    ensureFolder(this.outputDir);
   }
 
   _ensureFontRegistered() {
@@ -243,9 +239,9 @@ class PriceService {
       ctx.drawImage(baseImage, 0, 0, width, height);
       this._drawOverlay(ctx, overlayEntries);
 
-      ensureFolder(DEFAULT_OUTPUT_DIR);
+      ensureFolder(this.outputDir);
       const fileName = this._formatOutputName(formType, language);
-      const outputPath = path.join(DEFAULT_OUTPUT_DIR, fileName);
+      const outputPath = path.join(this.outputDir, fileName);
 
       buffer = canvas.toBuffer('image/png');
       await fs.promises.writeFile(outputPath, buffer);
@@ -328,14 +324,6 @@ class PriceService {
 
     const { outputPath, fileName } = await this._renderImage(templatePath, overlayEntries, formType, language);
 
-    const downloadPath = resolveDownloadPath(fileName);
-    try {
-      ensureFolder(path.dirname(downloadPath));
-      await fs.promises.copyFile(outputPath, downloadPath);
-    } catch (error) {
-      console.warn('[PriceService] Falha ao copiar para Downloads:', error.message);
-    }
-
     const quotes = this.getQuotes();
     const matchedQuote = cotacaoId ? quotes.find((item) => item.id === cotacaoId) : null;
 
@@ -354,7 +342,6 @@ class PriceService {
     return {
       success: true,
       outputPath,
-      downloadPath,
       fileName,
       formType,
       language,

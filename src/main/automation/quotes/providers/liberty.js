@@ -10,7 +10,6 @@ class LibertyQuoteAutomation {
   }
 
   generateUsPhone() {
-    // Simple US-like phone number: (AAA) BBB-CCCC with non-zero area code
     const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
     const area = rand(200, 989); // avoid 0xx/1xx
     const mid = rand(200, 999);
@@ -51,7 +50,6 @@ class LibertyQuoteAutomation {
 
     // If pause requested, force headed mode and open devtools/inspector
     if (options.pause) {
-      // Ensure headed and devtools are enabled for inspection
       launchOptions.headless = false;
       launchOptions.devtools = true;
       try {
@@ -73,13 +71,11 @@ class LibertyQuoteAutomation {
 
       await page.goto('https://www.libertymutual.com/', { waitUntil: 'load', timeout: 30000 });
 
-      // Try the zip/quote flow (user provided selectors)
       const zipcode = String(data.zipcode || '').trim();
       if (!zipcode) {
         throw new Error('ZIP code not provided for Liberty automation');
       }
 
-      // Click label if present then fill textbox by role
       try {
         const lbl = page.locator('#tb-quote-zipCode-label');
         if (await lbl.count() > 0) await lbl.first().click().catch(() => {});
@@ -92,24 +88,19 @@ class LibertyQuoteAutomation {
         await page.fill('input[name="zipcode"], input[id*="zip"], input[placeholder*="ZIP"], input[type="text"]', zipcode).catch(() => {});
       }
 
-      // Click the primary button (user indicated 'Get my price')
       try {
         const btn = page.getByRole('button', { name: 'Get my price' });
         if (await btn.count() > 0) {
           await btn.first().click({ timeout: 10000 });
         } else {
-          // try alternative button text
           await page.getByRole('button', { name: 'Get a quote' }).click({ timeout: 10000 }).catch(() => {});
         }
       } catch (_) {}
 
       console.log('Liberty automation completed initial steps.');
-        // Wait a bit for navigation or results
         await page.waitForTimeout(3500);
 
-        // Try to continue the flow by filling the common personal/address pages
         try {
-          // Click any initial consent/ok button if present (retry a few times to allow render/animation)
           try {
             const okBtn = page.getByRole('button', { name: 'OK, thanks!' });
             for (let i = 0; i < 3; i++) {
@@ -129,7 +120,6 @@ class LibertyQuoteAutomation {
             }
           } catch (_) {}
 
-          // Pause at the start of the name screen if requested, so user can inspect elements
           if (options.pause) {
             try { await page.pause(); } catch (e) { console.warn('[Liberty] page.pause() failed (name screen):', e?.message || e); }
           }
@@ -144,18 +134,15 @@ class LibertyQuoteAutomation {
             try {
               const dobField = page.getByRole('textbox', { name: 'Birthday (MM/DD/YYYY)' });
               await dobField.click();
-              // Use type instead of fill to work better with input masks
               await dobField.type(birthday, { delay: 100 });
             } catch (_) {}
           }
 
-          // Click Next if available
           try {
             const nextBtn = page.getByRole('button', { name: 'Next' });
             if (await nextBtn.count() > 0) await nextBtn.first().click().catch(() => {});
           } catch (_) {}
 
-          // Address fields
           const address1 = String(data.rua || data.address1 || data.address || '').trim();
           const address2 = String(data.apt || data.address2 || data.address_2 || '').trim();
           const zip = String(data.zipcode || data.zip || '').trim();
@@ -172,7 +159,6 @@ class LibertyQuoteAutomation {
             if (await nextBtn2.count() > 0) await nextBtn2.first().click().catch(() => {});
           } catch (_) {}
 
-          // Select some radio options by visible text
           try { await page.locator('label').filter({ hasText: 'Yes' }).first().click().catch(() => {}); } catch (_) {}
           try { await page.locator('label').filter({ hasText: 'I currently rent' }).first().click().catch(() => {}); } catch (_) {}
           try { await page.locator('#visualRadioGroupV2-3 label').filter({ hasText: 'No' }).first().click().catch(() => {}); } catch (_) {}
@@ -209,27 +195,22 @@ class LibertyQuoteAutomation {
             }
           } catch (_) {}
 
-          // Email
           const email = String(data.email || data.mail || '').trim() || `cliente@outlook.com`;
           try { await page.getByRole('textbox', { name: 'Email address' }).fill(email).catch(() => {}); } catch (_) {}
           try { const nextBtn3 = page.getByRole('button', { name: 'Next' }); if (await nextBtn3.count() > 0) await nextBtn3.first().click().catch(() => {}); } catch (_) {}
 
-          // Phone
           const phone = String(data.phone || data.telefone || data.phoneNumber || data.phone_number || '').trim() || this.generateUsPhone();
           try { await page.getByRole('textbox', { name: 'Phone number' }).click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
           try { await page.getByRole('textbox', { name: 'Phone number' }).fill(phone).catch(() => {}); } catch (_) {}
           try { const nextBtn4 = page.getByRole('button', { name: 'Next' }); if (await nextBtn4.count() > 0) await nextBtn4.first().click().catch(() => {}); } catch (_) {}
 
-          // Additional radio and final save
           try { await page.locator('#visualRadioGroupV2-5 label').filter({ hasText: 'No' }).first().click().catch(() => {}); } catch (_) {}
           try { const saveBtn = page.getByRole('button', { name: 'Save and continue' }); if (await saveBtn.count() > 0) await saveBtn.first().click().catch(() => {}); } catch (_) {}
 
-          // Vehicle step: VIN, ownership type, purchase year, mileage, rideshare
           try {
             const vehicles = Array.isArray(data.veiculos) ? data.veiculos : [];
             const vehicle = vehicles[0] || data.veiculo || data.vehicle || {};
             const vin = String(vehicle.vin || vehicle.VIN || vehicle.numero_chassi || data.vin || '').trim();
-
             const financeRaw = String(vehicle.financiado || data.financiado || vehicle.estado || vehicle.payment_status || '').toLowerCase();
             const isFinanced = /financi|finance|payments|paying/.test(financeRaw) && !/quitad|paid|own/.test(financeRaw);
 
@@ -251,13 +232,10 @@ class LibertyQuoteAutomation {
               try { await page.getByTestId('Vin Input').fill(vin, { timeout: 8000 }).catch(() => {}); } catch (_) {}
               await page.waitForTimeout(5000);
             }
-
-            // Some flows ask: "Have you had this vehicle for more than 30 days?" -> click Yes if present.
             try {
               const tenureQuestion = page.getByText('Have you had this vehicle for more than 30 days?', { exact: false });
               if ((await tenureQuestion.count()) > 0) {
                 const q = tenureQuestion.first();
-                // Prefer clicking Yes scoped near the question to avoid earlier "Yes" buttons.
                 const fieldset = q.locator('xpath=ancestor::fieldset[1]');
                 const section = q.locator('xpath=ancestor::section[1]');
                 const containerCandidates = [fieldset, section];
@@ -269,7 +247,6 @@ class LibertyQuoteAutomation {
                   }
                 }
                 if (!clicked) {
-                  // Fallback: best-effort click, only if a Yes button is visible.
                   const yesBtn = page.getByRole('button', { name: 'Yes' });
                   if ((await yesBtn.count()) > 0) await yesBtn.first().click({ timeout: 2000 }).catch(() => {});
                 }
