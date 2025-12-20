@@ -1,16 +1,6 @@
-/**
- * Validador de perfil
- */
-
 const PathResolver = require('./utils/path-resolver');
 
 class ProfileValidator {
-  /**
-   * Valida e prepara um perfil para automação
-   * @param {Object} profile - Perfil a ser validado
-   * @returns {Object} Perfil validado e preparado
-   * @throws {Error} Se o perfil for inválido
-   */
   static validate(profile) {
     if (!profile || !profile.id) {
       throw new Error('Perfil inválido informado para automação.');

@@ -1,6 +1,8 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import commonjs from '@rollup/plugin-commonjs'
+import { nodeResolve } from '@rollup/plugin-node-resolve'
 import { readdirSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 
@@ -73,10 +75,14 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), nodeResolve({ preferBuiltins: true }), commonjs()],
     build: {
-      lib: {
-        entry: 'src/preload/preload.js'
+      rollupOptions: {
+        input: 'src/preload/preload.js',
+        output: {
+          format: 'cjs',
+          entryFileNames: 'preload.js'
+        }
       }
     }
   },

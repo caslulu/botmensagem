@@ -1,7 +1,3 @@
-/**
- * Módulo de Automação - Ponto de entrada
- */
-
 const automationController = require('./automation-controller');
 
 module.exports = automationController;

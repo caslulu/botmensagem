@@ -1,23 +1,18 @@
 const { ipcMain } = require('electron');
-const { createProfile, updateProfile } = require('../profiles');
-const { getProfileSettings, updateProfileSettings } = require('../database');
-const { formatProfileForRenderer } = require('../utils/profile-formatter');
-const { createSuccess, createError } = require('../utils/result');
+const profilesService = require('../domains/profiles/profiles-service');
 
 function registerProfileHandlers() {
   ipcMain.handle('profile:create', async (_event, profileData) => {
-    try {
-      const createdProfile = createProfile(profileData);
-      return createSuccess({ profile: formatProfileForRenderer(createdProfile) });
-    } catch (error) {
-      console.error('Erro ao criar perfil:', error);
-      return createError(error);
+    const result = profilesService.create(profileData);
+    if (!result?.success) {
+      console.error('Erro ao criar perfil:', result?.error);
     }
+    return result;
   });
 
   ipcMain.handle('profile:get-settings', async (_event, profileId) => {
     try {
-      return getProfileSettings(profileId);
+      return profilesService.getSettings(profileId);
     } catch (error) {
       console.error('Erro ao buscar configurações do perfil:', error);
       throw error;
@@ -26,8 +21,7 @@ function registerProfileHandlers() {
 
   ipcMain.handle('profile:update-send-limit', async (_event, profileId, sendLimit) => {
     try {
-      const success = updateProfileSettings(profileId, sendLimit);
-      return { success };
+      return profilesService.updateSendLimit(profileId, sendLimit);
     } catch (error) {
       console.error('Erro ao atualizar limite de envios:', error);
       throw error;
@@ -35,13 +29,11 @@ function registerProfileHandlers() {
   });
 
   ipcMain.handle('profile:update', async (_event, profileId, updates) => {
-    try {
-      const profile = updateProfile(profileId, updates);
-      return createSuccess({ profile: formatProfileForRenderer(profile) });
-    } catch (error) {
-      console.error('Erro ao atualizar perfil:', error);
-      return createError(error);
+    const result = profilesService.update(profileId, updates);
+    if (!result?.success) {
+      console.error('Erro ao atualizar perfil:', result?.error);
     }
+    return result;
   });
 }
 

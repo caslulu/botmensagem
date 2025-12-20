@@ -1,7 +1,3 @@
-/**
- * Processador de chats - gerencia o envio para múltiplos chats
- */
-
 const config = require('./config');
 
 class ChatProcessor {
@@ -12,13 +8,6 @@ class ChatProcessor {
     this.processedChats = new Set();
   }
 
-  /**
-   * Processa chats visíveis na tela
-   * @param {Page} page - Página do Playwright
-   * @param {Object} profile - Perfil ativo
-   * @param {Function} checkStop - Função para verificar se deve parar
-   * @returns {Promise<number>} Número de novos chats processados
-   */
   async processVisibleChats(page, profile, checkStop) {
     const sendLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
     let newChatsProcessed = 0;
@@ -113,19 +102,6 @@ class ChatProcessor {
     return newChatsProcessed;
   }
 
-  /**
-   * Processa um chat individual (Legacy - Not used in simplified version)
-   */
-  async processChat(page, chatLocator, processedKey, chatName, profile) {
-    // ... kept for reference or future use if needed, but processVisibleChats now handles everything inline
-  }
-
-  /**
-   * Aguarda até reconectar (com backoff), ou interrompe se solicitado
-   * @param {Page} page
-   * @param {Function|null} checkStop
-   * @returns {Promise<boolean>} true se reconectou, false se interrompeu
-   */
   async waitUntilConnected(page, checkStop) {
     this.logger.warn('Conexão com WhatsApp perdida. Aguardando reconexão...');
     let delay = 1000;
@@ -148,13 +124,6 @@ class ChatProcessor {
     }
   }
 
-  /**
-   * Executa múltiplas iterações de processamento
-   * @param {Page} page - Página do Playwright
-   * @param {Object} profile - Perfil ativo
-   * @param {Function} checkStop - Função para verificar se deve parar
-   * @returns {Promise<number>} Total de chats processados
-   */
   async processMultipleIterations(page, profile, checkStop) {
     const sendLimit = profile.sendLimit || config.DEFAULT_SEND_LIMIT;
     let iteration = 0;
@@ -193,17 +162,10 @@ class ChatProcessor {
     return this.processedChats.size;
   }
 
-  /**
-   * Obtém o total de chats processados
-   * @returns {number}
-   */
   getTotalProcessed() {
     return this.processedChats.size;
   }
 
-  /**
-   * Reseta o contador de chats processados
-   */
   reset() {
     this.processedChats.clear();
   }

@@ -1,7 +1,9 @@
 // Profile access layer backed by database tables
+const { getSelectedMessage } = require('./infra/db/messages-repository');
 const {
-  getSelectedMessage,
-  getProfileSettings,
+  getProfileSettings
+} = require('./infra/db/profile-settings-repository');
+const {
   getAllProfiles,
   getProfileById,
   getProfileSession,
@@ -9,7 +11,7 @@ const {
   createProfile: createProfileRecord,
   updateProfile: updateProfileRecord,
   MAX_PROFILES
-} = require('./database');
+} = require('./infra/db/profiles-repository');
 const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
 
 function mapDbProfile(rawProfile) {

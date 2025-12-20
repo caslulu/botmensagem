@@ -5,13 +5,8 @@ const {
   getAllProfiles
 } = require('./database');
 
-/**
- * Inicializa os serviços essenciais do app Electron.
- */
 async function initializeApp() {
   await initDatabase();
-
-  // Garante perfis base e respectivas mensagens padrão.
   seedInitialProfiles();
 
   const rawProfiles = getAllProfiles();

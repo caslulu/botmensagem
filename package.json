@@ -24,12 +24,11 @@
       "out/**/*",
       "src/main/price/assets/**/*",
       "src/main/rta/assets/**/*",
+      "assets/**/*",
       "node_modules/**/*",
       "package.json",
       ".env",
-      "trello.env",
-      "imagem_thiago.jpg",
-      "imagem_debora.jpg"
+      "trello.env"
     ],
     "asarUnpack": [
       "node_modules/@napi-rs/canvas/**",
@@ -37,7 +36,8 @@
       "node_modules/pdf-lib/**",
       "node_modules/playwright/**",
       "src/main/price/assets/**",
-      "src/main/rta/assets/**"
+      "src/main/rta/assets/**",
+      "assets/**"
     ],
     "win": {
       "target": [
@@ -78,6 +78,8 @@
   "devDependencies": {
     "@electron-toolkit/preload": "^3.0.2",
     "@electron-toolkit/utils": "^4.0.0",
+    "@rollup/plugin-commonjs": "^28.0.1",
+    "@rollup/plugin-node-resolve": "^16.0.0",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^5.1.1",

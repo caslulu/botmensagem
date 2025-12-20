@@ -7,7 +7,7 @@ const {
   getQuoteById,
   upsertQuoteRecord,
   deleteQuoteById
-} = require('../../database');
+} = require('../../infra/db/quotes-repository');
 
 const LEGACY_QUOTES_FILE = path.join(PathResolver.getUserDataDir(), 'price', 'quotes.json');
 

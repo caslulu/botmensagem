@@ -27,17 +27,25 @@ export const ProfileSelection: React.FC<{
         ))}
         <button
           type="button"
-          className="profile-card add-profile-card border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white/50 dark:bg-slate-900/50 flex flex-col items-center justify-center gap-2 p-4 rounded-xl text-slate-500 dark:text-slate-400 hover:text-brand-600 dark:hover:text-brand-500 hover:border-brand-500 dark:hover:border-brand-500 transition group"
+          className="group flex items-center gap-4 p-4 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-brand-400 dark:hover:border-brand-600 bg-slate-50/50 dark:bg-slate-900/30 hover:bg-brand-50/50 dark:hover:bg-brand-900/10 transition-all duration-200 text-left"
           onClick={onAddProfile}
           disabled={profiles.length >= MAX_PROFILES || !selectionEnabled}
         >
-          <span className="add-profile-icon text-3xl group-hover:scale-110 transition-transform">+</span>
-          <span className="profile-name text-slate-600 dark:text-slate-300 group-hover:text-brand-600 dark:group-hover:text-brand-400">Adicionar operador</span>
-          <span className="text-xs text-slate-400 dark:text-slate-500 mt-1">
-            {profiles.length >= MAX_PROFILES
-              ? `Limite de ${MAX_PROFILES} perfis atingido`
-              : `Cadastre até ${MAX_PROFILES} perfis diferentes.`}
-          </span>
+          <div className="w-12 h-12 rounded-full bg-slate-200 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:text-brand-500 group-hover:bg-brand-100 dark:group-hover:bg-brand-900/30 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </div>
+          <div className="flex-1">
+            <span className="block font-medium text-slate-600 dark:text-slate-300 group-hover:text-brand-600 dark:group-hover:text-brand-400 transition-colors">
+              Adicionar operador
+            </span>
+            <span className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 block">
+              {profiles.length >= MAX_PROFILES
+                ? 'Limite atingido'
+                : 'Novo perfil'}
+            </span>
+          </div>
         </button>
       </div>
     </section>

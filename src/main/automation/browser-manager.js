@@ -1,7 +1,3 @@
-/**
- * Gerenciador de navegador (Chrome/Chromium)
- */
-
 const { chromium } = require('playwright');
 const ChromeDetector = require('./utils/chrome-detector');
 const PathResolver = require('./utils/path-resolver');
@@ -16,11 +12,6 @@ class BrowserManager extends EventEmitter {
     this.page = null;
   }
 
-  /**
-   * Inicia o navegador com sessão persistente
-   * @param {string} sessionDir - Diretório da sessão
-   * @returns {Promise<{context: BrowserContext, page: Page}>}
-   */
   async launch(sessionDir) {
     await PathResolver.ensureDir(sessionDir);
 
@@ -69,10 +60,6 @@ class BrowserManager extends EventEmitter {
     return { context: this.context, page: this.page };
   }
 
-  /**
-   * Fecha o navegador
-   * @returns {Promise<void>}
-   */
   async close() {
     if (this.context) {
       try {
@@ -88,29 +75,6 @@ class BrowserManager extends EventEmitter {
     }
   }
 
-  /**
-   * Verifica se o navegador está aberto
-   * @returns {boolean}
-   */
-  isOpen() {
-    return this.context !== null && this.page !== null;
-  }
-
-  /**
-   * Obtém a página atual
-   * @returns {Page|null}
-   */
-  getPage() {
-    return this.page;
-  }
-
-  /**
-   * Obtém o contexto atual
-   * @returns {BrowserContext|null}
-   */
-  getContext() {
-    return this.context;
-  }
 }
 
 module.exports = BrowserManager;

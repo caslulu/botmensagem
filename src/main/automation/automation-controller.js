@@ -1,8 +1,3 @@
-/**
- * Controlador principal da automação
- * Orquestra todos os módulos de automação
- */
-
 const EventEmitter = require('events');
 const BrowserManager = require('./browser-manager');
 const WhatsAppService = require('./whatsapp-service');
@@ -95,40 +90,29 @@ class AutomationController extends EventEmitter {
     };
   }
 
-  /**
-   * Executa o fluxo completo da automação
-   * @private
-   * @returns {Promise<void>}
-   */
   async run() {
     try {
       this.logger.info('Iniciando processo de automação...');
 
-      // 1. Abrir navegador
       this.logger.info(`Abrindo navegador com sessão: ${this.activeProfile.sessionDir}`);
       const { page } = await this.browserManager.launch(this.activeProfile.sessionDir);
 
-      // 2. Abrir WhatsApp Web
       await this.whatsappService.open(page);
       await this.whatsappService.waitUntilReady(page, () => this.stopRequested);
       this.checkStopRequested();
 
-      // 3. Navegar para arquivados
       await this.whatsappService.goToArchivedChats(page);
       this.checkStopRequested();
 
-      // 4. Scroll inicial
       await this.whatsappService.initialScroll(page, () => this.stopRequested);
       this.checkStopRequested();
 
-      // 5. Processar chats em múltiplas iterações
       const totalProcessed = await this.chatProcessor.processMultipleIterations(
         page,
         this.activeProfile,
         () => this.stopRequested
       );
 
-      // 6. Finalizar
       this.logger.success(`Processo concluído! Total de envios: ${totalProcessed}`);
       this.emitStatus({
         status: `Envios finalizados para ${this.activeProfile.name}. Total: ${totalProcessed}.`,
@@ -144,8 +128,6 @@ class AutomationController extends EventEmitter {
         throw error;
       }
     } finally {
-      // Não fechar o navegador automaticamente ao final
-      // O usuário deve fechar manualmente ou clicar em Parar
       this.logger.info('Automação finalizada. O navegador permanecerá aberto.');
     }
   }
@@ -175,10 +157,6 @@ class AutomationController extends EventEmitter {
     }
   }
 
-  /**
-   * Limpa recursos após execução
-   * @private
-   */
   cleanup() {
     this.isRunning = false;
     this.stopRequested = false;
@@ -201,10 +179,6 @@ class AutomationController extends EventEmitter {
     this.emit('log', `${prefix}${message}`);
   }
 
-  /**
-   * @private
-   * @param {Object} payload - Dados do status
-   */
   emitStatus(payload) {
     if (this.activeProfile) {
       payload.profileId = this.activeProfile.id;

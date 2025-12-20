@@ -1,7 +1,3 @@
-/**
- * Configurações da automação
- */
-
 module.exports = {
   MESSAGE_DELAY_MS: 500,
   INITIAL_WAIT_MS: 30000,

@@ -1,15 +1,17 @@
 const { ipcMain } = require('electron');
 const automation = require('../automation');
-const { getProfiles, findProfileById } = require('../profiles');
-const { formatProfileForRenderer } = require('../utils/profile-formatter');
+const profilesService = require('../domains/profiles/profiles-service');
 
 function registerAutomationHandlers() {
   ipcMain.handle('automation:profiles', async () => {
-    return getProfiles().map(formatProfileForRenderer);
+    const profiles = profilesService.list();
+    console.log('[IPC] automation:profiles returning:', profiles.length, 'profiles');
+    profiles.forEach(p => console.log(`  - ${p.name} (${p.id}) admin=${p.isAdmin} thumb=${!!p.thumbnail}`));
+    return profiles;
   });
 
   ipcMain.handle('automation:start', async (_event, profileId) => {
-    const profile = findProfileById(profileId);
+    const profile = profilesService.get(profileId);
     if (!profile) {
       throw new Error(`Perfil desconhecido: ${profileId}`);
     }

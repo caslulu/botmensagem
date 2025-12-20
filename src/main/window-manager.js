@@ -1,5 +1,6 @@
 const { BrowserWindow } = require('electron');
 const path = require('path');
+const fs = require('fs');
 
 const { setupAutoUpdater } = require('./updater');
 
@@ -23,7 +24,18 @@ class WindowManager {
       return this.mainWindow;
     }
 
-    this.mainWindow = new BrowserWindow({
+    const logoCandidates = [
+      path.join(__dirname, 'assets', 'logo-rounded.png'),
+      path.join(__dirname, 'assets', 'logo.png'),
+      path.join(__dirname, '..', '..', 'assets', 'images', 'logo.png'),
+      path.join(__dirname, '..', '..', 'assets', 'images', 'profiles', 'logo.png'),
+      path.join(process.cwd(), 'assets', 'images', 'logo.png'),
+      path.join(process.cwd(), 'assets', 'images', 'profiles', 'logo.png')
+    ];
+
+    const logoPath = logoCandidates.find(p => fs.existsSync(p));
+
+    const bwOptions = {
       width: 1200,
       height: 800,
       minWidth: 960,
@@ -34,7 +46,13 @@ class WindowManager {
         nodeIntegration: false,
         sandbox: true
       }
-    });
+    };
+
+    if (logoPath) {
+      bwOptions.icon = logoPath;
+    }
+
+    this.mainWindow = new BrowserWindow(bwOptions);
 
     // HMR for renderer base on electron-vite CLI.
     // Load the remote URL for development or the local html file for production.

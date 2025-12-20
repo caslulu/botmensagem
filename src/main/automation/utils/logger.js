@@ -1,7 +1,3 @@
-/**
- * Logger utilitário
- */
-
 class Logger {
   constructor(emitter, profile = null) {
     this.emitter = emitter;
