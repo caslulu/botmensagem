@@ -1,4 +1,4 @@
-// New profile access layer backed by database tables
+// Profile access layer backed by database tables
 const {
   getSelectedMessage,
   getProfileSettings,
@@ -12,16 +12,9 @@ const {
 } = require('./database');
 const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
 
-/**
- * Shape returned:
- * {
- *   id, name, imagePath, sessionDir, message, sendLimit
- * }
- */
 function mapDbProfile(rawProfile) {
   if (!rawProfile) return null;
 
-  // Base properties from profiles table
   const storedImagePath = rawProfile.image_path;
   const profile = {
     id: rawProfile.id,
@@ -33,7 +26,6 @@ function mapDbProfile(rawProfile) {
     isAdmin: rawProfile.is_admin === 1
   };
 
-  // Override message & image from selected message (messages table)
   const selectedMessage = getSelectedMessage(rawProfile.id);
   if (selectedMessage) {
     profile.message = selectedMessage.text;
@@ -42,17 +34,14 @@ function mapDbProfile(rawProfile) {
     }
   }
 
-  // Load profile settings (send limit)
   const settings = getProfileSettings(rawProfile.id);
   if (settings && settings.send_limit) {
     profile.sendLimit = settings.send_limit;
   }
 
-  // Session info
   const sessionInfo = getProfileSession(rawProfile.id);
   if (sessionInfo) {
     profile.sessionDir = sessionInfo.session_dir;
-    // Update last used timestamp opportunistically
     updateProfileSessionUsage(rawProfile.id);
   }
 

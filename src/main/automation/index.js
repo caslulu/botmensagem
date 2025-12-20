@@ -1,26 +1,11 @@
 /**
  * Módulo de Automação - Ponto de entrada
- * 
- * Estrutura modular para facilitar manutenção e expansão:
- * 
- * - AutomationController: Orquestração principal
- * - BrowserManager: Gerenciamento do navegador
- * - WhatsAppService: Interação com WhatsApp Web
- * - MessageSender: Envio de mensagens
- * - ChatProcessor: Processamento de múltiplos chats
- * - ProfileValidator: Validação de perfis
- * - Utils: Utilitários (Logger, PathResolver, ChromeDetector)
- * - Config: Configurações centralizadas
  */
 
-// Importar e exportar a instância do controller
 const automationController = require('./automation-controller');
 
-// Exportar a instância como padrão
 module.exports = automationController;
 
-// Adicionar módulos individuais como propriedades (para uso avançado)
-// Usando Object.defineProperty para não sobrescrever métodos da instância
 Object.defineProperty(module.exports, 'BrowserManager', {
   value: require('./browser-manager'),
   enumerable: true,

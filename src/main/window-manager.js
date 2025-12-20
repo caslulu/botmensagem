@@ -30,7 +30,9 @@ class WindowManager {
       minHeight: 640,
       webPreferences: {
         preload: path.join(__dirname, '../preload/preload.js'),
-        sandbox: false
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true
       }
     });
 

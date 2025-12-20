@@ -7,22 +7,18 @@ const { DEFAULT_AVATAR_TOKEN } = require('./constants/profile');
 
 const MAX_PROFILES = 5;
 
-// Usar diretório de dados consistente (Electron userData ou ./data)
 const DB_DIR = PathResolver.getUserDataDir();
 const DB_PATH = path.join(DB_DIR, 'messages.db');
 
 let db = null;
 
-// Ensure data directory exists
 if (!fs.existsSync(DB_DIR)) {
   fs.mkdirSync(DB_DIR, { recursive: true });
 }
 
-// Initialize database
 async function initDatabase() {
   const SQL = await initSqlJs();
   
-  // Load existing database or create new one
   if (fs.existsSync(DB_PATH)) {
     const buffer = fs.readFileSync(DB_PATH);
     db = new SQL.Database(buffer);
@@ -30,7 +26,6 @@ async function initDatabase() {
     db = new SQL.Database();
   }
   
-  // Create tables
   db.run(`
     CREATE TABLE IF NOT EXISTS messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -52,7 +47,6 @@ async function initDatabase() {
     )
   `);
 
-  // Profiles table (stores core profile data)
   db.run(`
     CREATE TABLE IF NOT EXISTS profiles (
       id TEXT PRIMARY KEY,
@@ -65,7 +59,6 @@ async function initDatabase() {
     )
   `);
 
-  // Profile sessions table (stores session directory info)
   db.run(`
     CREATE TABLE IF NOT EXISTS profile_sessions (
       profile_id TEXT PRIMARY KEY,
@@ -89,7 +82,6 @@ async function initDatabase() {
     )
   `);
 
-  // Create index for faster queries
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_profile_id ON messages(profile_id)
   `);
@@ -98,19 +90,13 @@ async function initDatabase() {
     CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at)
   `);
   
-  // Garantir colunas opcionais mais recentes
   ensureProfilesAdminColumn();
-
-  // Migrar diretórios de sessão antigos antes de qualquer seed
   migrateSessionDirs();
-
-  // Save database to disk
   saveDatabase();
   
   console.log('✓ Banco de dados inicializado');
 }
 
-// Save database to disk
 function saveDatabase() {
   if (db) {
     const data = db.export();
@@ -191,8 +177,6 @@ function createProfile(profile) {
   if (imagePath !== DEFAULT_AVATAR_TOKEN && !fs.existsSync(imagePath)) {
     throw new Error('Perfil inválido: caminho da imagem não encontrado');
   }
-
-  // Mensagem padrão não é obrigatória; perfis podem ser criados sem mensagem
 
   if (getProfileCount() >= MAX_PROFILES) {
     throw new Error(`Limite máximo de ${MAX_PROFILES} perfis atingido`);
@@ -343,7 +327,6 @@ function deleteMessage(messageId) {
   deleteStmt.step();
   deleteStmt.free();
   
-  // If the deleted message was selected, select the first available message
   if (message.is_selected === 1) {
     const firstStmt = db.prepare(`
       SELECT id FROM messages 
@@ -382,13 +365,11 @@ function selectMessage(messageId) {
     return false;
   }
   
-  // Unselect all messages for this profile
   const unselectStmt = db.prepare('UPDATE messages SET is_selected = 0 WHERE profile_id = ?');
   unselectStmt.bind([message.profile_id]);
   unselectStmt.step();
   unselectStmt.free();
   
-  // Select the specified message
   const selectStmt = db.prepare('UPDATE messages SET is_selected = 1 WHERE id = ?');
   selectStmt.bind([messageId]);
   selectStmt.step();

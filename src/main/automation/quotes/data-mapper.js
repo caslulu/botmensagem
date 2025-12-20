@@ -59,15 +59,12 @@ function formatDateForUs(value) {
         day = part1;
         month = part2;
       } else if (Number(part2) > 12 && Number(part1) <= 12) {
-        // Covers cases like MM/DD/YYYY where day > 12 (invalid) and DD/MM/YYYY where month <= 12
         day = part2;
         month = part1;
       } else if (Number(part1) <= 12 && Number(part2) <= 12 && Number(part1) !== Number(part2)) {
-        // Both month/day could be valid. Prefer treating first part as month.
         month = part1;
         day = part2;
       } else {
-        // Ambiguous values (e.g. 01-01). Default to first as month.
         month = part1;
         day = part2;
       }
@@ -218,7 +215,6 @@ function mapQuoteToLiberty(quote) {
     // If progressive mapping failed due to missing ZIP, try common alternate keys
     const payload = (quote && quote.payload) || {};
     const candidates = [
-      payload.endereco_zipcode,
       payload.zipcode,
       payload.zip,
       payload.endereco_cep,

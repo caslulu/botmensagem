@@ -789,6 +789,16 @@ class ProgressiveQuoteAutomation {
             await suspensions.getByLabel('No').check();
           }
 
+          // Has your license been valid continuously for the last 12 months?
+          try {
+            const validContinuously = this.page.getByRole('group', { name: /Has your license been valid continuously/i });
+            if (await validContinuously.isVisible()) {
+              await validContinuously.getByLabel('Yes').check();
+            }
+          } catch (e) {
+            console.warn('Erro ao marcar valid license continuously:', e.message);
+          }
+
         }
         // 1.5 Verifica Fluxo California (Status + Age First Licensed)
         else if (await ageFirstLicensed.isVisible()) {
@@ -816,7 +826,7 @@ class ProgressiveQuoteAutomation {
         // 3. Verifica Fluxo Antigo (Valid License Checkbox)
         else if (await validLicense.isVisible()) {
           console.log('Campo "Has your license been valid" detectado.');
-          await this.ensureValidLicenseYes();
+          await validLicense.getByLabel('Yes').check();
           await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
         } 
         // 4. Fallback: Espera explícita se nada apareceu ainda

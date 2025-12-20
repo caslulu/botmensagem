@@ -22,10 +22,8 @@ class BrowserManager extends EventEmitter {
    * @returns {Promise<{context: BrowserContext, page: Page}>}
    */
   async launch(sessionDir) {
-    // Garantir que o diretório de sessão existe
     await PathResolver.ensureDir(sessionDir);
 
-    // Detectar Chrome instalado
     const chromePath = ChromeDetector.detect();
     
     const launchOptions = {
@@ -51,12 +49,10 @@ class BrowserManager extends EventEmitter {
     
     await this.page.bringToFront();
 
-    // Listeners para detectar fechamento externo
     if (this.page) {
       this.page.on('close', () => {
         this.logger.warn('Página fechada externamente - limpando referências...');
         this.page = null;
-        // Notificar controlador/UI
         this.emit('closed', { source: 'page' });
       });
     }
@@ -66,7 +62,6 @@ class BrowserManager extends EventEmitter {
         this.logger.warn('Contexto fechado externamente - limpando referências...');
         this.context = null;
         this.page = null;
-        // Notificar controlador/UI
         this.emit('closed', { source: 'context' });
       });
     }

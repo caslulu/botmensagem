@@ -12,12 +12,10 @@ class ProfileValidator {
    * @throws {Error} Se o perfil for inválido
    */
   static validate(profile) {
-    // Validar estrutura básica
     if (!profile || !profile.id) {
       throw new Error('Perfil inválido informado para automação.');
     }
 
-    // Resolver e validar caminho da imagem (opcional)
     let preparedImagePath = null;
     const resolvedImagePath = PathResolver.resolve(profile.imagePath);
     if (resolvedImagePath) {
@@ -34,18 +32,15 @@ class ProfileValidator {
       console.warn(`[Automation][ProfileValidator] Caminho da imagem inválido para ${profile.name}. Mensagem será enviada sem imagem.`);
     }
 
-    // Validar mensagem
     const trimmedMessage = (profile.message ?? '').toString().trim();
     if (!trimmedMessage) {
       throw new Error(`Mensagem do perfil ${profile.name} não pode ser vazia.`);
     }
 
-    // Resolver caminho da sessão
     const resolvedSessionDir =
       PathResolver.resolve(profile.sessionDir) ||
       PathResolver.getProfileSessionDir(profile.id);
 
-    // Retornar perfil preparado
     return {
       ...profile,
       imagePath: preparedImagePath,

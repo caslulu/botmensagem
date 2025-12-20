@@ -15,13 +15,11 @@ class AutomationController extends EventEmitter {
   constructor() {
     super();
     
-    // Estado
     this.isRunning = false;
     this.stopRequested = false;
     this.activeProfile = null;
     this.runPromise = null;
 
-    // Módulos (serão inicializados quando necessário)
     this.logger = new Logger(this);
     this.browserManager = null;
     this.whatsappService = null;
@@ -29,38 +27,26 @@ class AutomationController extends EventEmitter {
     this.chatProcessor = null;
   }
 
-  /**
-   * Inicia a automação para um perfil
-   * @param {Object} profile - Perfil a ser processado
-   * @returns {Promise<Object>} Resultado da inicialização
-   */
   async start(profile) {
-    // Validar estado
     if (this.isRunning) {
       throw new Error('Automação já está em execução.');
     }
 
     try {
-      // Quando perfil vem do banco já possui sessionDir e imagePath resolvidos.
-      // Ainda assim aplicamos validação (garante mensagem e imagem).
       this.activeProfile = ProfileValidator.validate(profile);
       this.logger.setProfile(this.activeProfile);
 
-      // Inicializar módulos
       this.initializeModules();
 
-      // Atualizar estado
       this.isRunning = true;
       this.stopRequested = false;
 
-      // Emitir status inicial
       this.emitStatus({
         status: `Automação de ${this.activeProfile.name} iniciada. Preparando ambiente…`,
         startDisabled: true,
         stopDisabled: false
       });
 
-      // Executar automação em background
       this.runPromise = this.run()
         .catch((error) => {
           this.logger.error('Erro crítico na automação', error);
@@ -82,10 +68,6 @@ class AutomationController extends EventEmitter {
     }
   }
 
-  /**
-   * Para a automação em execução
-   * @returns {Promise<Object>} Resultado da parada
-   */
   async stop() {
     if (!this.isRunning) {
       return { message: 'Automação já está parada.', status: 'idle' };
@@ -97,12 +79,6 @@ class AutomationController extends EventEmitter {
     this.emitStatus({ status: 'Encerrando automação…' });
     this.logger.warn('Parando automação...');
 
-    // Não fechar navegador mesmo ao parar, conforme solicitado
-    // if (this.browserManager) {
-    //   await this.browserManager.close();
-    // }
-
-    // Aguardar conclusão
     if (this.runPromise) {
       await this.runPromise;
     }
@@ -174,10 +150,6 @@ class AutomationController extends EventEmitter {
     }
   }
 
-  /**
-   * Inicializa os módulos de automação
-   * @private
-   */
   initializeModules() {
     this.browserManager = new BrowserManager(this.logger);
     this.whatsappService = new WhatsAppService(this.logger);
@@ -213,35 +185,23 @@ class AutomationController extends EventEmitter {
     this.activeProfile = null;
     this.runPromise = null;
     
-    // Resetar módulos
     if (this.chatProcessor) {
       this.chatProcessor.reset();
     }
   }
 
-  /**
-   * Verifica se foi solicitada a parada
-   * @private
-   * @throws {Error} Se parada foi solicitada
-   */
   checkStopRequested() {
     if (this.stopRequested) {
       throw new Error('Execução interrompida pelo usuário.');
     }
   }
 
-  /**
-   * Emite um evento de log
-   * @private
-   * @param {string} message - Mensagem de log
-   */
   log(message) {
     const prefix = this.activeProfile ? `[${this.activeProfile.name}] ` : '';
     this.emit('log', `${prefix}${message}`);
   }
 
   /**
-   * Emite um evento de status
    * @private
    * @param {Object} payload - Dados do status
    */
