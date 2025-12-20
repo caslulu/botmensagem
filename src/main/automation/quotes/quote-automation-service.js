@@ -1,4 +1,5 @@
-const quotesRepository = require('../../price/repositories/quotesRepository');
+const quotesRepositoryModule = require('../../price/repositories/quotesRepository');
+const quotesRepository = quotesRepositoryModule.default || quotesRepositoryModule;
 const ProgressiveQuoteAutomation = require('./providers/progressive');
 const LibertyQuoteAutomation = require('./providers/liberty');
 const { mapQuoteToProgressive, mapQuoteToLiberty } = require('./data-mapper');

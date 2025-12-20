@@ -83,6 +83,7 @@ declare global {
     quotes?: QuotesAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
+    lastGeneratedPricePath?: string;
   }
 }
 

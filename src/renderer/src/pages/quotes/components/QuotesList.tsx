@@ -15,7 +15,6 @@ export const QuotesList: React.FC = () => {
   const [selected, setSelected] = useState<Quote | null>(null);
   const [runLoading, setRunLoading] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
-  const [stopLoading, setStopLoading] = useState(false);
   const [selectedInsurer, setSelectedInsurer] = useState<string>('progressive');
 
   const fetchQuotes = async () => {
@@ -96,25 +95,6 @@ export const QuotesList: React.FC = () => {
     }
   };
 
-  const handleStopAutomation = async () => {
-    setStopLoading(true);
-    setRunError(null);
-    try {
-      if (!window.automation?.stop) throw new Error('API de automação não disponível');
-      const res = await window.automation.stop();
-      if (res && typeof res === 'object' && 'success' in res && !res.success) {
-        throw new Error((res as any).error || 'Erro ao parar automação.');
-      }
-      console.log('stopAutomation result:', res);
-    } catch (e: any) {
-      const msg = e?.message || 'Erro ao parar automação.';
-      setRunError(msg);
-      setError(msg);
-    } finally {
-      setStopLoading(false);
-    }
-  };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -141,18 +121,25 @@ export const QuotesList: React.FC = () => {
         ))}
       </div>
       {selected && (
-        <div className="card p-4 mt-4">
-          <div className="flex items-center justify-between mb-2">
+        <div className="card p-5 mt-4 space-y-4">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
             <div className="font-bold text-lg text-slate-800 dark:text-white">{selected.nome}</div>
-            <div className="flex items-center gap-2">
-              <div className="hidden sm:block text-slate-500 dark:text-slate-300 text-xs pr-2">{selectedInsurer ? (selectedInsurer.charAt(0).toUpperCase() + selectedInsurer.slice(1)) : ''}</div>
-              <select className="input-control text-xs" value={selectedInsurer} onChange={(e) => setSelectedInsurer(e.target.value)} style={{height: '28px', minWidth: '120px'}}>
-                <option value="progressive">Progressive</option>
-                <option value="liberty">Liberty</option>
-              </select>
-              <button className="btn-primary text-xs" onClick={() => handleRunAutomation(selected.id)} disabled={loading || runLoading || stopLoading}>{runLoading ? 'Abrindo…' : 'Iniciar cotação'}</button>
-              <button className="btn-warning text-xs" onClick={handleStopAutomation} disabled={!runLoading || stopLoading}>{stopLoading ? 'Parando…' : 'Parar cotação'}</button>
-              <button className="btn-danger text-xs" onClick={() => handleDelete(selected.id)} disabled={loading || runLoading || stopLoading}>Excluir</button>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Seguradora</span>
+                <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 shadow-sm">
+                  <select
+                    className="bg-transparent w-full outline-none text-sm text-slate-800 dark:text-slate-100"
+                    value={selectedInsurer}
+                    onChange={(e) => setSelectedInsurer(e.target.value)}
+                  >
+                    <option value="progressive">Progressive</option>
+                    <option value="liberty">Liberty</option>
+                  </select>
+                </div>
+              </div>
+              <button className="btn-primary text-sm px-4 py-2" onClick={() => handleRunAutomation(selected.id)} disabled={loading || runLoading}>{runLoading ? 'Abrindo…' : 'Iniciar cotação'}</button>
+              <button className="btn-danger text-sm px-4 py-2" onClick={() => handleDelete(selected.id)} disabled={loading || runLoading}>Excluir</button>
             </div>
           </div>
           {selected.seguradora ? <div className="text-slate-400 text-sm mb-1">Seguradora: {selected.seguradora}</div> : null}

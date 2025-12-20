@@ -1,7 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 const { DEFAULT_AVATAR_TOKEN } = require('../constants/profile');
-const PathResolver = require('../automation/utils/path-resolver');
+const PathResolverModule = require('../automation/utils/path-resolver');
+const PathResolver = PathResolverModule.default || PathResolverModule;
 
 function formatProfileForRenderer(profile) {
   if (!profile) {
