@@ -1,8 +1,5 @@
 const fs = require('fs');
 
-/**
- * Normaliza uma mensagem lida do banco para o renderer.
- */
 function formatMessageForRenderer(message) {
   if (!message) {
     return null;

@@ -1,13 +1,14 @@
 const fs = require('fs');
 const path = require('path');
-const PathResolver = require('../../automation/utils/path-resolver');
+const PathResolverModule = require('../../automation/utils/path-resolver');
+const PathResolver = PathResolverModule.default || PathResolverModule;
 
 const {
   listQuotes,
   getQuoteById,
   upsertQuoteRecord,
   deleteQuoteById
-} = require('../../database');
+} = require('../../infra/db/quotes-repository');
 
 const LEGACY_QUOTES_FILE = path.join(PathResolver.getUserDataDir(), 'price', 'quotes.json');
 

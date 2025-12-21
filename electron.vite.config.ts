@@ -1,10 +1,12 @@
 import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
 import react from '@vitejs/plugin-react'
 import { viteStaticCopy } from 'vite-plugin-static-copy'
+import commonjs from '@rollup/plugin-commonjs'
+import { nodeResolve } from '@rollup/plugin-node-resolve'
 import { readdirSync, statSync } from 'fs'
 import { join, resolve } from 'path'
 
-function collectMainEntries(baseDir: string, ignoredDirs: Set<string> = new Set(['automation'])): string[] {
+function collectMainEntries(baseDir: string, ignoredDirs: Set<string> = new Set()): string[] {
   const entries: string[] = []
 
   const walk = (dir: string) => {
@@ -17,7 +19,7 @@ function collectMainEntries(baseDir: string, ignoredDirs: Set<string> = new Set(
           continue
         }
         walk(fullPath)
-      } else if (fullPath.endsWith('.js')) {
+      } else if ((fullPath.endsWith('.js') || fullPath.endsWith('.ts')) && !fullPath.endsWith('.d.ts')) {
         entries.push(fullPath)
       }
     }
@@ -33,16 +35,10 @@ export default defineConfig({
   main: {
     plugins: [
       externalizeDepsPlugin(),
+      nodeResolve({ preferBuiltins: true }),
+      commonjs(),
       viteStaticCopy({
         targets: [
-          {
-            src: 'src/main/automation',
-            dest: '.'
-          },
-          {
-            src: 'src/main/automation',
-            dest: '..'
-          },
           {
             src: 'src/main/price/assets',
             dest: 'price'
@@ -56,13 +52,13 @@ export default defineConfig({
     ],
     build: {
       lib: {
-        entry: 'src/main/main.js',
+        entry: 'src/main/main.ts',
         formats: ['cjs'],
         fileName: () => 'main.js'
       },
       rollupOptions: {
         input: mainEntries,
-        external: ['./automation', '../automation'],
+        external: [],
         output: {
           preserveModules: true,
           preserveModulesRoot: 'src/main',
@@ -73,10 +69,14 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin()],
+    plugins: [externalizeDepsPlugin(), nodeResolve({ preferBuiltins: true }), commonjs()],
     build: {
-      lib: {
-        entry: 'src/preload/preload.js'
+      rollupOptions: {
+        input: 'src/preload/preload.ts',
+        output: {
+          format: 'cjs',
+          entryFileNames: 'preload.js'
+        }
       }
     }
   },

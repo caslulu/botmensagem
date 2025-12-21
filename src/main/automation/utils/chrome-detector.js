@@ -1,15 +1,7 @@
-/**
- * Detector de instalação do Google Chrome
- */
-
 const fs = require('fs');
 const { execSync } = require('child_process');
 
 class ChromeDetector {
-  /**
-   * Detecta o caminho do Google Chrome instalado no sistema
-   * @returns {string|null} Caminho do Chrome ou null se não encontrado
-   */
   static detect() {
     try {
       if (process.platform === 'win32') {
@@ -25,10 +17,6 @@ class ChromeDetector {
     return null;
   }
 
-  /**
-   * Detecta Chrome no Windows
-   * @returns {string|null}
-   */
   static detectWindows() {
     const possiblePaths = [
       'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
@@ -36,13 +24,11 @@ class ChromeDetector {
       process.env.LOCALAPPDATA + '\\Google\\Chrome\\Application\\chrome.exe'
     ];
 
-    // Tentar caminhos comuns
     const foundPath = possiblePaths.find(p => fs.existsSync(p));
     if (foundPath) {
       return foundPath;
     }
 
-    // Tentar via registro do Windows
     try {
       execSync('reg query "HKEY_CURRENT_USER\\Software\\Google\\Chrome\\BLBeacon" /v version', { 
         encoding: 'utf8' 
@@ -52,16 +38,11 @@ class ChromeDetector {
         return chromeDir;
       }
     } catch (e) {
-      // Ignorar erro de registro
     }
 
     return null;
   }
 
-  /**
-   * Detecta Chrome no Linux
-   * @returns {string|null}
-   */
   static detectLinux() {
     try {
       const chromePath = execSync('which google-chrome || which google-chrome-stable', { 
@@ -73,10 +54,6 @@ class ChromeDetector {
     }
   }
 
-  /**
-   * Detecta Chrome no macOS
-   * @returns {string|null}
-   */
   static detectMacOS() {
     const chromePath = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
     return fs.existsSync(chromePath) ? chromePath : null;

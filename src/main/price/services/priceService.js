@@ -11,7 +11,8 @@ try {
 
 const os = require('os');
 const { app } = require('electron');
-const PathResolver = require('../../automation/utils/path-resolver');
+const PathResolverModule = require('../../automation/utils/path-resolver');
+const PathResolver = PathResolverModule.default || PathResolverModule;
 const { parseCurrency, formatWithComma } = require('../utils/number');
 const quotesRepository = require('../repositories/quotesRepository');
 const trelloService = require('../../trello/services/trelloService');

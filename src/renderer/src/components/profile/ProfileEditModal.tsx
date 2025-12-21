@@ -28,19 +28,23 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
   };
 
   return (
-    <div className={`modal-overlay fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className={`modal-content bg-white dark:bg-slate-900 p-8 rounded-2xl max-w-2xl w-full shadow-2xl transform transition-all duration-300 border border-slate-200 dark:border-slate-800 ${open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
-        <div className="modal-header flex items-center justify-between mb-6">
-          <h3 className="text-2xl font-bold text-slate-800 dark:text-white">Editar perfil</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-3xl leading-none transition-colors">&times;</button>
+    <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className={`bg-white dark:bg-slate-900 p-6 rounded-xl max-w-2xl w-full shadow-xl transform transition-all duration-300 border border-slate-200 dark:border-slate-800 ${open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-bold text-slate-800 dark:text-white">Editar perfil</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-        <form className="modal-body space-y-6" onSubmit={handleSubmit}>
+        <form className="space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nome do operador</label>
               <input
                 type="text"
-                className="w-full rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all"
+                className="input-control"
                 placeholder="Ex: Joana"
                 value={name}
                 onChange={e => setName(e.target.value)}
@@ -51,7 +55,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Identificador (fixo)</label>
               <input
                 type="text"
-                className="w-full rounded-xl bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-500 px-4 py-3 cursor-not-allowed"
+                className="input-control bg-slate-100 dark:bg-slate-900 text-slate-500 dark:text-slate-500 cursor-not-allowed"
                 value={profile?.id || ''}
                 disabled
               />
@@ -62,14 +66,14 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
             <div className="flex gap-3">
               <input
                 type="text"
-                className="flex-1 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white px-4 py-3 focus:outline-none focus:ring-2 focus:ring-brand-500 transition-all"
+                className="input-control flex-1"
                 placeholder="Selecione um arquivo de imagem ou deixe vazio para usar o avatar padrão"
                 value={imagePath}
                 onChange={e => setImagePath(e.target.value)}
               />
               <button
                 type="button"
-                className="btn-secondary whitespace-nowrap px-6"
+                className="btn-secondary whitespace-nowrap px-4"
                 onClick={async () => {
                   try {
                     // @ts-ignore
@@ -85,9 +89,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
           </div>
           {error && <p className="text-sm text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg border border-rose-200 dark:border-rose-800">{error}</p>}
         </form>
-        <div className="modal-footer flex justify-end gap-3 mt-8">
+        <div className="flex justify-end gap-3 mt-8">
           <button className="btn-secondary px-6" type="button" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button className="btn-primary px-6 shadow-lg shadow-brand-500/20" type="submit" form="profileEditForm" disabled={loading} onClick={handleSubmit}>
+          <button className="btn-primary px-6" type="submit" disabled={loading} onClick={handleSubmit}>
             {loading ? 'Salvando…' : 'Salvar alterações'}
           </button>
         </div>

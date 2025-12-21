@@ -1,6 +1,6 @@
-import { WhatsAppAutomationView, RtaView, TrelloView, QuotesView, PriceView, HowToView } from './components/views/ModuleViews'
+import { WhatsAppAutomationView, RtaView, TrelloView, QuotesView, PriceView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView } from './pages'
 
-import React, { useState, useRef } from 'react'
+import React, { useState } from 'react'
 import AppShell from './components/layout/AppShell'
 import type { ServiceModule } from './components/layout/ServiceNav'
 import { ProfileSelection } from './components/profile/ProfileSelection'
@@ -8,6 +8,9 @@ import { ProfileModal } from './components/profile/ProfileModal'
 import { ProfileEditModal } from './components/profile/ProfileEditModal'
 import { AdminPasswordModal } from './components/profile/AdminPasswordModal'
 import type { Profile } from './components/profile/ProfileCard'
+import { DEFAULT_MODULES } from './app/modules'
+import { ThemeProvider, ProfileProvider, useTheme, useProfileContext } from './app/providers'
+import { useAdminGate } from './app/hooks/useAdminGate'
 
 
 
@@ -17,60 +20,33 @@ declare global {
   }
 }
 
-function App() {
-  const [profiles, setProfiles] = useState<Profile[]>([]);
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
-  const [modules, setModules] = useState<ServiceModule[]>([{
-    id: 'mensagens', name: 'Enviar mensagem automática', icon: '💬', requiresAdmin: true
-  }, {
-    id: 'rta', name: 'RTA automático', icon: '📄'
-  }, {
-    id: 'trello', name: 'Integração Trello', icon: '📋'
-  }, {
-    id: 'cotacoes', name: 'Cotações', icon: '📑'
-  }, {
-    id: 'price', name: 'Preço automático', icon: '💵'
-  }, {
-    id: 'howto', name: 'Como usar', icon: '❔'
-  }]);
-  const [activeModuleId, setActiveModuleId] = useState<string>('mensagens');
+function AppContent() {
+  const {
+    profiles,
+    selectedProfileId,
+    setSelectedProfileId,
+    reloadProfiles,
+    createProfile,
+    updateProfile
+  } = useProfileContext();
+  const [modules] = useState<ServiceModule[]>(DEFAULT_MODULES);
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileModalError, setProfileModalError] = useState<string | undefined>(undefined);
   const [profileModalLoading, setProfileModalLoading] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editModalError, setEditModalError] = useState<string | undefined>(undefined);
   const [editModalLoading, setEditModalLoading] = useState(false);
-  const [showAdminModal, setShowAdminModal] = useState(false);
-  const [adminModalLoading, setAdminModalLoading] = useState(false);
-  const [adminModalError, setAdminModalError] = useState<string | undefined>(undefined);
-  const pendingModuleId = useRef<string | null>(null);
-  const pendingProfileId = useRef<string | null>(null);
-  const [tempAdminAccess, setTempAdminAccess] = useState<string | null>(null);
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { isDarkMode, toggleTheme } = useTheme();
 
-  React.useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-    }
-  }, [isDarkMode]);
-
-  // Load profiles from Electron preload API
-  React.useEffect(() => {
-    async function fetchProfiles() {
-      if (window.profile?.getProfiles) {
-        try {
-          const result = await window.profile.getProfiles();
-          setProfiles(Array.isArray(result) ? result : []);
-        } catch (e) {
-          setProfiles([]);
-        }
-      }
-    }
-    fetchProfiles();
-  }, []);
+  const {
+    activeModuleId,
+    tempAdminAccess,
+    selectModule,
+    requestProfileSelection,
+    resetAccess,
+    adminModal
+  } = useAdminGate({ modules, selectedProfile, setSelectedProfileId });
 
   const handleEditProfile = () => {
     if (!selectedProfile) return;
@@ -86,8 +62,7 @@ function App() {
     setEditModalError(undefined);
     try {
       if (!selectedProfile) throw new Error('Nenhum perfil selecionado');
-      if (!window.profile?.update) throw new Error('API de perfil não disponível');
-      const result = await window.profile.update(selectedProfile.id, {
+      const result = await updateProfile(selectedProfile.id, {
         name: updates.name,
         imagePath: updates.imagePath || ''
       });
@@ -96,11 +71,7 @@ function App() {
         setEditModalLoading(false);
         return;
       }
-      // Reload profiles
-      if (window.profile?.getProfiles) {
-        const list = await window.profile.getProfiles();
-        setProfiles(Array.isArray(list) ? list : []);
-      }
+      await reloadProfiles();
       setShowEditModal(false);
     } catch (e) {
       const message = (e && typeof e === 'object' && 'message' in e)
@@ -121,24 +92,19 @@ function App() {
     setProfileModalLoading(true);
     setProfileModalError(undefined);
     try {
-      if (!window.profile?.create) throw new Error('API de perfil não disponível');
-      const payload: any = {
+      const payload: { id: string; name: string; isAdmin?: boolean; imagePath?: string } = {
         id: profile.id,
         name: profile.name,
         isAdmin: profile.isAdmin,
         imagePath: profile.imagePath || ''
       };
-      const response = await window.profile.create(payload);
+      const response = await createProfile(payload);
       if (!response?.success) {
         setProfileModalError(response?.error || 'Não foi possível criar o perfil.');
         setProfileModalLoading(false);
         return;
       }
-      // Reload profiles
-      if (window.profile?.getProfiles) {
-        const result = await window.profile.getProfiles();
-        setProfiles(Array.isArray(result) ? result : []);
-      }
+      await reloadProfiles();
       setShowProfileModal(false);
     } catch (e) {
       const message = (e && typeof e === 'object' && 'message' in e)
@@ -152,57 +118,23 @@ function App() {
 
   const handleSelectProfile = (id: string) => {
     const profile = profiles.find(p => p.id === id);
-    if (profile?.isAdmin) {
-        pendingProfileId.current = id;
-        setShowAdminModal(true);
-        setAdminModalError(undefined);
-    } else {
-        setSelectedProfileId(id);
+    if (profile) {
+      requestProfileSelection(profile);
     }
   };
 
   const handleResetProfile = () => {
-    pendingModuleId.current = null;
-    setTempAdminAccess(null);
-    setActiveModuleId('mensagens');
-    setSelectedProfileId(null);
+    resetAccess();
   };
 
   // Handler para navegação de módulo com proteção admin
   const handleSelectModule = (id: string) => {
-    const mod = modules.find((m) => m.id === id);
-    if (mod?.requiresAdmin && !selectedProfile?.isAdmin && tempAdminAccess !== id) {
-      pendingModuleId.current = id;
-      setShowAdminModal(true);
-      setAdminModalError(undefined);
-      return;
-    }
-    setActiveModuleId(id);
+    selectModule(id);
   };
 
   // Handler de validação de senha admin
   const handleAdminPassword = async (password: string) => {
-    setAdminModalLoading(true);
-    setAdminModalError(undefined);
-    try {
-      // Senha hardcoded temporária (ajustar para produção)
-      if (password !== '1029') throw new Error('Senha incorreta.');
-      
-      if (pendingProfileId.current) {
-          setSelectedProfileId(pendingProfileId.current);
-          pendingProfileId.current = null;
-          setShowAdminModal(false);
-      } else if (pendingModuleId.current) {
-        setTempAdminAccess(pendingModuleId.current);
-        setActiveModuleId(pendingModuleId.current);
-        pendingModuleId.current = null;
-        setShowAdminModal(false);
-      }
-    } catch (e: any) {
-      setAdminModalError(e?.message || 'Erro ao validar senha.');
-    } finally {
-      setAdminModalLoading(false);
-    }
+    await adminModal.submit(password);
   };
 
   const mainContent = selectedProfile ? (
@@ -226,7 +158,7 @@ function App() {
           <div className="flex gap-3">
             <button 
               className="w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-600 transition-all shadow-sm border border-slate-200 dark:border-slate-600"
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={toggleTheme}
               title={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
             >
               {isDarkMode ? '☀️' : '🌙'}
@@ -263,6 +195,10 @@ function App() {
           {activeModuleId === 'cotacoes' && <QuotesView />}
           {activeModuleId === 'price' && <PriceView />}
           {activeModuleId === 'howto' && <HowToView />}
+          {activeModuleId === 'novidades' && <NewsView />}
+          {activeModuleId === 'roadmap' && <RoadmapView />}
+          {activeModuleId === 'perfil' && <ProfileSettingsView />}
+          {activeModuleId === 'config' && <ConfigView />}
         </main>
       </div>
     </AppShell>
@@ -287,7 +223,7 @@ function App() {
           <div className="flex gap-3">
             <button 
               className="w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-700 transition-all shadow-sm border border-slate-200 dark:border-slate-700"
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={toggleTheme}
             >
               {isDarkMode ? '☀️' : '🌙'}
             </button>
@@ -329,13 +265,23 @@ function App() {
         error={editModalError}
       />
       <AdminPasswordModal
-        open={showAdminModal}
-        onClose={() => setShowAdminModal(false)}
+        open={adminModal.open}
+        onClose={adminModal.close}
         onSubmit={handleAdminPassword}
-        loading={adminModalLoading}
-        error={adminModalError}
+        loading={adminModal.loading}
+        error={adminModal.error}
       />
     </>
+  );
+}
+
+function App() {
+  return (
+    <ThemeProvider>
+      <ProfileProvider>
+        <AppContent />
+      </ProfileProvider>
+    </ThemeProvider>
   );
 }
 
