@@ -60,6 +60,27 @@ interface QuotesAPI {
   runAutomation: (payload: any) => AsyncResult<IpcResult<{ result?: any }> | any>;
 }
 
+type RoadmapStatus = 'todo' | 'doing' | 'done';
+
+interface RoadmapItem {
+  id: string;
+  title: string;
+  description: string;
+  eta: string;
+  label: string;
+  risk?: string;
+  status: RoadmapStatus;
+  position: number;
+}
+
+interface RoadmapAPI {
+  list: () => AsyncResult<IpcResult<{ items?: RoadmapItem[] }> | any>;
+  create: (payload: Partial<RoadmapItem>) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
+  updateStatus: (payload: { id: string; status: RoadmapStatus }) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
+  update: (payload: Partial<RoadmapItem> & { id: string }) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
+  delete: (payload: { id: string }) => AsyncResult<IpcResult<{ deleted?: boolean }> | any>;
+}
+
 interface FileSystemAPI {
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
 }
@@ -81,6 +102,7 @@ declare global {
     trello?: TrelloAPI;
     price?: PriceAPI;
     quotes?: QuotesAPI;
+    roadmap?: RoadmapAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
     lastGeneratedPricePath?: string;

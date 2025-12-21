@@ -1,90 +1,91 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+
+type RoadmapStatus = 'todo' | 'doing' | 'done';
 
 type RoadmapItem = {
+  id: string;
   title: string;
   description: string;
   eta: string;
   label: string;
   risk?: string;
+  status: RoadmapStatus;
+  position: number;
 };
 
 type Column = {
-  id: 'done' | 'doing' | 'todo';
+  id: RoadmapStatus;
   title: string;
   tone: string;
   accent: string;
   items: RoadmapItem[];
 };
-
-const initialColumns: Column[] = [
+const seedItems: RoadmapItem[] = [
   {
-    id: 'todo',
-    title: 'Planejado',
-    tone: 'from-slate-500/10 via-slate-500/5 to-white',
-    accent: 'text-slate-700 dark:text-slate-200',
-    items: [
-      {
-        title: 'Novos provedores de cotação',
-        description: 'Adicionar Allstate e Geico com login seguro e preenchimento guiado.',
-        eta: 'Fev 2026',
-        label: 'Cotações',
-        risk: 'Dependência de captchas das seguradoras',
-      },
-      {
-        title: 'Alertas proativos',
-        description: 'Avisos de expiração de sessão e lembretes de tarefas em aberto.',
-        eta: 'Fev 2026',
-        label: 'Produtividade',
-      },
-      {
-        title: 'Biblioteca de guias rápidos',
-        description: 'Passos curtos filtrados por módulo, com busca e tags.',
-        eta: 'Mar 2026',
-        label: 'Educação',
-      },
-    ],
+    id: 'seed-todo-1',
+    title: 'Novos provedores de cotação',
+    description: 'Adicionar Allstate e Geico com login seguro e preenchimento guiado.',
+    eta: 'Fev 2026',
+    label: 'Cotações',
+    risk: 'Dependência de captchas das seguradoras',
+    status: 'todo',
+    position: 1
   },
   {
-    id: 'doing',
-    title: 'Em andamento',
-    tone: 'from-amber-500/15 via-orange-500/10 to-white',
-    accent: 'text-amber-700 dark:text-amber-300',
-    items: [
-      {
-        title: 'Templates de preço otimizados',
-        description: 'Ajustes de layout e qualidade de imagem para diferentes seguradoras.',
-        eta: 'Jan 2026',
-        label: 'Preço',
-        risk: 'Depende da validação visual dos clientes',
-      },
-      {
-        title: 'Monitoramento de automações',
-        description: 'Logs amigáveis com avisos e instruções de correção.',
-        eta: 'Jan 2026',
-        label: 'Confiabilidade',
-      },
-    ],
+    id: 'seed-todo-2',
+    title: 'Alertas proativos',
+    description: 'Avisos de expiração de sessão e lembretes de tarefas em aberto.',
+    eta: 'Fev 2026',
+    label: 'Produtividade',
+    status: 'todo',
+    position: 2
   },
   {
-    id: 'done',
-    title: 'Entregue',
-    tone: 'from-emerald-500/15 via-emerald-500/10 to-white',
-    accent: 'text-emerald-700 dark:text-emerald-300',
-    items: [
-      {
-        title: 'Painel de novidades',
-        description: 'Tela dedicada para comunicar releases com imagens e passos rápidos.',
-        eta: 'Dez 2025',
-        label: 'UX',
-      },
-      {
-        title: 'Roadmap em kanban',
-        description: 'Quadro visível para clientes com status e estimativas.',
-        eta: 'Dez 2025',
-        label: 'Transparência',
-      },
-    ],
+    id: 'seed-todo-3',
+    title: 'Biblioteca de guias rápidos',
+    description: 'Passos curtos filtrados por módulo, com busca e tags.',
+    eta: 'Mar 2026',
+    label: 'Educação',
+    status: 'todo',
+    position: 3
   },
+  {
+    id: 'seed-doing-1',
+    title: 'Templates de preço otimizados',
+    description: 'Ajustes de layout e qualidade de imagem para diferentes seguradoras.',
+    eta: 'Jan 2026',
+    label: 'Preço',
+    risk: 'Depende da validação visual dos clientes',
+    status: 'doing',
+    position: 1
+  },
+  {
+    id: 'seed-doing-2',
+    title: 'Monitoramento de automações',
+    description: 'Logs amigáveis com avisos e instruções de correção.',
+    eta: 'Jan 2026',
+    label: 'Confiabilidade',
+    status: 'doing',
+    position: 2
+  },
+  {
+    id: 'seed-done-1',
+    title: 'Painel de novidades',
+    description: 'Tela dedicada para comunicar releases com imagens e passos rápidos.',
+    eta: 'Dez 2025',
+    label: 'UX',
+    status: 'done',
+    position: 1
+  },
+  {
+    id: 'seed-done-2',
+    title: 'Roadmap em kanban',
+    description: 'Quadro visível para clientes com status e estimativas.',
+    eta: 'Dez 2025',
+    label: 'Transparência',
+    status: 'done',
+    position: 2
+  }
 ];
 
 const SummaryBadge: React.FC<{ label: string; value: string }> = ({ label, value }) => (
@@ -119,19 +120,62 @@ const RoadmapCard: React.FC<DraggableCardProps> = ({ title, description, eta, la
 );
 
 export const RoadmapView: React.FC = () => {
-  const [columns, setColumns] = useState<Column[]>(initialColumns);
-  const [newItem, setNewItem] = useState<{ title: string; description: string; eta: string; label: string; risk: string; column: Column['id'] }>(
-    {
-      title: '',
-      description: '',
-      eta: 'Data pendente',
-      label: 'Feature',
-      risk: '',
-      column: 'todo',
-    }
-  );
+  const buildColumns = (items: RoadmapItem[]): Column[] => {
+    const groups: Record<RoadmapStatus, RoadmapItem[]> = { todo: [], doing: [], done: [] };
+    items.forEach((item) => {
+      const status = (item.status as RoadmapStatus) || 'todo';
+      groups[status] = groups[status] || [];
+      groups[status].push(item);
+    });
+
+    return [
+      { id: 'todo', title: 'Planejado', tone: 'from-slate-500/10 via-slate-500/5 to-white', accent: 'text-slate-700 dark:text-slate-200', items: groups.todo.sort((a, b) => (a.position || 0) - (b.position || 0)) },
+      { id: 'doing', title: 'Em andamento', tone: 'from-amber-500/15 via-orange-500/10 to-white', accent: 'text-amber-700 dark:text-amber-300', items: groups.doing.sort((a, b) => (a.position || 0) - (b.position || 0)) },
+      { id: 'done', title: 'Entregue', tone: 'from-emerald-500/15 via-emerald-500/10 to-white', accent: 'text-emerald-700 dark:text-emerald-300', items: groups.done.sort((a, b) => (a.position || 0) - (b.position || 0)) }
+    ];
+  };
+
+  const getInitialNewItem = () => ({
+    title: '',
+    description: '',
+    eta: 'Data pendente',
+    label: 'Feature',
+    risk: '',
+    column: 'todo' as Column['id'],
+  });
+
+  const [columns, setColumns] = useState<Column[]>(buildColumns(seedItems));
+  const [newItem, setNewItem] = useState<{ title: string; description: string; eta: string; label: string; risk: string; column: Column['id'] }>(getInitialNewItem);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [editingItem, setEditingItem] = useState<RoadmapItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const resetForm = () => {
+    setNewItem(getInitialNewItem());
+    setEditingItem(null);
+    setShowCreateModal(false);
+  };
   const dragRef = useRef<{ fromId: Column['id']; index: number } | null>(null);
+  const dragItemIdRef = useRef<string | null>(null);
+
+  const loadItems = async () => {
+    try {
+      const res = await window.roadmap?.list?.();
+      const items = res && res.success ? (res.items || []) : [];
+      if (Array.isArray(items) && items.length > 0) {
+        setColumns(buildColumns(items as RoadmapItem[]));
+      } else {
+        setColumns(buildColumns(seedItems));
+      }
+    } catch (error) {
+      setColumns(buildColumns(seedItems));
+      setError('Não foi possível carregar o roadmap.');
+    }
+  };
+
+  useEffect(() => {
+    loadItems();
+  }, []);
 
   const summary = useMemo(() => {
     const delivered = columns.find((col) => col.id === 'done')?.items.length || 0;
@@ -140,66 +184,125 @@ export const RoadmapView: React.FC = () => {
     return { delivered, doing, planned };
   }, [columns]);
 
-  const handleAddItem = (e?: React.FormEvent) => {
+  const handleAddItem = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
+    setError(null);
     const { title, description, eta, label, risk, column } = newItem;
     if (!title.trim()) return;
 
-    setColumns((prev) =>
-      prev.map((col) =>
-        col.id === column
-          ? {
-              ...col,
-              items: [
-                ...col.items,
-                {
-                  title: title.trim(),
-                  description: description.trim() || 'Sem descrição',
-                  eta: eta.trim() || 'Data pendente',
-                  label: label.trim() || 'Feature',
-                  risk: risk.trim() || undefined,
-                },
-              ],
-            }
-          : col
-      )
-    );
+    const payload = {
+      title: title.trim(),
+      description: description.trim(),
+      eta: eta.trim(),
+      label: label.trim(),
+      risk: risk.trim(),
+      status: column
+    };
 
-    setNewItem({ title: '', description: '', eta: 'Data pendente', label: 'Feature', risk: '', column });
-    setShowCreateModal(false);
+    try {
+      if (editingItem) {
+        const res = await window.roadmap?.update?.({ id: editingItem.id, ...payload });
+        const item = res && res.success ? res.item : null;
+        if (item) {
+          setColumns((prev) => buildColumns([...prev.flatMap((c) => c.items).filter((it) => it.id !== item.id), item as RoadmapItem]));
+        }
+      } else {
+        const res = await window.roadmap?.create?.(payload);
+        const item = res && res.success ? res.item : null;
+        if (item) {
+          setColumns((prev) => buildColumns([...prev.flatMap((c) => c.items), item as RoadmapItem]));
+        }
+      }
+    } catch (error) {
+      // fallback no-op; UI remains unchanged on error
+      setError('Não foi possível salvar o card.');
+    }
+
+    resetForm();
   };
 
-  const handleDragStart = (fromId: Column['id'], index: number, event: React.DragEvent) => {
-    dragRef.current = { fromId, index };
+  const handleDragStart = (fromId: Column['id'], itemId: string, event: React.DragEvent) => {
+    dragRef.current = { fromId, index: 0 };
+    dragItemIdRef.current = itemId;
     event.dataTransfer.effectAllowed = 'move';
-    event.dataTransfer.setData('text/plain', `${fromId}-${index}`);
+    event.dataTransfer.setData('text/plain', `${fromId}-${itemId}`);
   };
 
   const handleDragEnd = () => {
     dragRef.current = null;
   };
 
-  const handleDrop = (toId: Column['id']) => {
-    const snapshot = dragRef.current;
-    if (!snapshot) return;
+  const handleDrop = async (toId: Column['id']) => {
+    const itemId = dragItemIdRef.current;
+    if (!dragRef.current || !itemId) return;
 
     setColumns((prev) => {
-      const next = prev.map((col) => ({ ...col, items: [...col.items] }));
-      const fromColumn = next.find((c) => c.id === snapshot.fromId);
-      const toColumn = next.find((c) => c.id === toId);
-      if (!fromColumn || !toColumn) return prev;
-
-      const [moved] = fromColumn.items.splice(snapshot.index, 1);
-      if (!moved) return prev;
-      toColumn.items.push(moved);
-      return next;
+      const flat = prev.flatMap((c) => c.items);
+      const item = flat.find((it) => it.id === itemId);
+      if (!item) return prev;
+      const updated: RoadmapItem = { ...item, status: toId };
+      const others = flat.filter((it) => it.id !== itemId);
+      return buildColumns([...others, updated]);
     });
 
+    try {
+      const res = await window.roadmap?.updateStatus?.({ id: itemId, status: toId });
+      const updatedItem = res && res.success ? res.item : null;
+      if (updatedItem) {
+        setColumns((prev) => {
+          const others = prev.flatMap((c) => c.items).filter((it) => it.id !== itemId);
+          return buildColumns([...others, updatedItem as RoadmapItem]);
+        });
+      }
+    } catch (error) {
+      // If it fails, we won't revert immediately; reload can recover
+      setError('Não foi possível mover o card.');
+    }
+
     dragRef.current = null;
+    dragItemIdRef.current = null;
+  };
+
+  const handleEdit = (item: RoadmapItem) => {
+    setEditingItem(item);
+    setNewItem({
+      title: item.title,
+      description: item.description,
+      eta: item.eta,
+      label: item.label,
+      risk: item.risk || '',
+      column: item.status
+    });
+    setShowCreateModal(true);
+  };
+
+  const handleDelete = async (item: RoadmapItem) => {
+    setError(null);
+    try {
+      const res = await window.roadmap?.delete?.({ id: item.id });
+      const success = res && typeof res === 'object' && 'success' in res ? Boolean((res as any).success) : true;
+      const deleted = res && typeof res === 'object' && 'deleted' in res ? Boolean((res as any).deleted) : success;
+      if (!success || !deleted) {
+        throw new Error((res as any)?.error || 'Erro ao excluir card.');
+      }
+
+      setColumns((prev) => buildColumns(prev.flatMap((c) => c.items).filter((it) => it.id !== item.id)));
+      await loadItems();
+      resetForm();
+      return;
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Não foi possível excluir o card.');
+    }
   };
 
   return (
     <div className="space-y-8">
+      {error && (
+        <div className="rounded-2xl border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/40 dark:text-rose-200 px-4 py-3">
+          {error}
+        </div>
+      )}
+
       <section className="rounded-3xl border border-white/40 dark:border-slate-800 bg-gradient-to-br from-slate-900/80 via-brand-500/10 to-slate-50 dark:from-slate-900 dark:via-brand-500/10 dark:to-slate-950 shadow-xl p-8">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
           <div className="space-y-3">
@@ -223,7 +326,7 @@ export const RoadmapView: React.FC = () => {
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Adicionar item ao kanban</h3>
             <p className="text-xs text-slate-500 dark:text-slate-400">Abrir modal no estilo Trello para criar um card.</p>
           </div>
-          <button className="btn-primary" onClick={() => setShowCreateModal(true)}>Novo card</button>
+          <button className="btn-primary" onClick={() => { setEditingItem(null); setNewItem(getInitialNewItem()); setShowCreateModal(true); }}>Novo card</button>
         </div>
       </section>
 
@@ -245,15 +348,16 @@ export const RoadmapView: React.FC = () => {
               </div>
             </div>
             <div className="space-y-3 min-h-[120px]">
-              {column.items.map((item, idx) => (
-                <RoadmapCard
-                  key={`${column.id}-${item.title}-${idx}`}
-                  {...item}
-                  accent={column.accent}
-                  draggable
-                  onDragStart={(event) => handleDragStart(column.id, idx, event)}
-                  onDragEnd={handleDragEnd}
-                />
+              {column.items.map((item) => (
+                <div key={item.id} onClick={() => handleEdit(item)} role="button" className="group">
+                  <RoadmapCard
+                    {...item}
+                    accent={column.accent}
+                    draggable
+                    onDragStart={(event) => handleDragStart(column.id, item.id, event)}
+                    onDragEnd={handleDragEnd}
+                  />
+                </div>
               ))}
               {column.items.length === 0 && (
                 <div className="rounded-xl border border-dashed border-slate-300/70 dark:border-slate-800/80 p-4 text-sm text-slate-500 dark:text-slate-400 text-center">
@@ -273,10 +377,16 @@ export const RoadmapView: React.FC = () => {
                 <span className="w-10 h-10 rounded-2xl bg-brand-100 text-brand-700 dark:bg-brand-500/20 dark:text-brand-200 flex items-center justify-center text-lg">🗂️</span>
                 <div>
                   <p className="text-xs uppercase tracking-[0.08em] text-slate-500 dark:text-slate-400">Novo card</p>
-                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Adicionar ao roadmap</h3>
+                  <h3 className="text-xl font-semibold text-slate-900 dark:text-white">{editingItem ? 'Editar card' : 'Adicionar ao roadmap'}</h3>
                 </div>
               </div>
-              <button className="p-2 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white" onClick={() => setShowCreateModal(false)} aria-label="Fechar modal">✕</button>
+              <button
+                className="p-2 rounded-full border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white"
+                onClick={resetForm}
+                aria-label="Fechar modal"
+              >
+                ✕
+              </button>
             </div>
 
             <form className="space-y-5" onSubmit={handleAddItem}>
@@ -358,8 +468,11 @@ export const RoadmapView: React.FC = () => {
               </div>
 
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Criar card</button>
+                {editingItem && (
+                  <button type="button" className="btn-danger" onClick={() => handleDelete(editingItem)}>Excluir</button>
+                )}
+                <button type="button" className="btn-secondary" onClick={resetForm}>Cancelar</button>
+                <button type="submit" className="btn-primary">{editingItem ? 'Salvar alterações' : 'Criar card'}</button>
               </div>
             </form>
           </div>

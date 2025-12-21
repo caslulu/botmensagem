@@ -8,6 +8,7 @@ import { registerPriceHandlers } from './price-handlers';
 import { registerRtaHandlers } from './rta-handlers';
 import { registerTrelloHandlers } from './trello-handlers';
 import { registerQuoteHandlers } from './quotes-handlers';
+import { registerRoadmapHandlers } from './roadmap-handlers';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   registerAutomationHandlers();
@@ -18,5 +19,6 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerRtaHandlers();
   registerTrelloHandlers();
   registerQuoteHandlers();
+  registerRoadmapHandlers();
   registerFileHandlers(getMainWindow);
 }

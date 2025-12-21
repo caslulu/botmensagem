@@ -9,6 +9,7 @@ import { registerTrelloBridge } from './bridges/trello';
 import { registerPriceBridge } from './bridges/price';
 import { registerQuotesBridge } from './bridges/quotes';
 import { registerFilesBridge } from './bridges/files';
+import { registerRoadmapBridge } from './bridges/roadmap';
 
 type BridgeRegistrar = (deps: {
   contextBridge: typeof contextBridge;
@@ -25,7 +26,8 @@ const bridges: BridgeRegistrar[] = [
   registerTrelloBridge,
   registerPriceBridge,
   registerQuotesBridge,
-  registerFilesBridge
+  registerFilesBridge,
+  registerRoadmapBridge
 ];
 
 bridges.forEach((registerBridge) => {

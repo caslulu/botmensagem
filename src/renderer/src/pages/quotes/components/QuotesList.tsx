@@ -57,15 +57,24 @@ export const QuotesList: React.FC = () => {
   }, []);
 
   const handleDelete = async (id: string) => {
-    if (!window.price?.deleteQuote) return;
+    if (!window.price?.deleteQuote) {
+      setError('API de exclusão não disponível.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
+
     try {
       const res = await window.price.deleteQuote(id);
-      if (res && typeof res === 'object' && 'success' in res && !res.success) {
-        throw new Error((res as any).error || 'Erro ao excluir cotação.');
+      const success = res && typeof res === 'object' && 'success' in res ? Boolean((res as any).success) : true;
+      const deleted = res && typeof res === 'object' && 'deleted' in res ? Boolean((res as any).deleted) : success;
+
+      if (!success || !deleted) {
+        throw new Error((res as any)?.error || 'Erro ao excluir cotação.');
       }
-      await fetchQuotes();
+
+      setQuotes((prev) => prev.filter((quote) => quote.id !== id));
       setSelected(null);
     } catch (e: any) {
       setError(e?.message || 'Erro ao excluir cotação.');

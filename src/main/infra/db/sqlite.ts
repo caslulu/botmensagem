@@ -89,6 +89,24 @@ function createSchema(): void {
     )
   `);
 
+  db.run(`
+    CREATE TABLE IF NOT EXISTS roadmap_items (
+      id TEXT PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT,
+      eta TEXT,
+      label TEXT,
+      risk TEXT,
+      status TEXT NOT NULL DEFAULT 'todo',
+      position INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  db.run('CREATE INDEX IF NOT EXISTS idx_roadmap_status ON roadmap_items(status)');
+  db.run('CREATE INDEX IF NOT EXISTS idx_roadmap_position ON roadmap_items(status, position)');
+
   db.run('CREATE INDEX IF NOT EXISTS idx_profile_id ON messages(profile_id)');
   db.run('CREATE INDEX IF NOT EXISTS idx_quotes_created_at ON quotes(created_at)');
 }

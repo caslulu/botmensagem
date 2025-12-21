@@ -5,6 +5,7 @@ const messagesRepo = require('./infra/db/messages-repository');
 const profileSettingsRepo = require('./infra/db/profile-settings-repository');
 const profilesRepo = require('./infra/db/profiles-repository');
 const quotesRepo = require('./infra/db/quotes-repository');
+const roadmapRepo = require('./infra/db/roadmap-repository');
 const { resolveAsset } = require('./utils/asset-paths');
 const PathResolverModule = require('./automation/utils/path-resolver');
 const PathResolver = PathResolverModule.default || PathResolverModule;
@@ -86,6 +87,12 @@ const getQuoteById = quotesRepo.getQuoteById;
 const upsertQuoteRecord = quotesRepo.upsertQuoteRecord;
 const deleteQuoteById = quotesRepo.deleteQuoteById;
 
+const listRoadmapItems = roadmapRepo.listRoadmapItems;
+const createRoadmapItem = roadmapRepo.createRoadmapItem;
+const updateRoadmapStatus = roadmapRepo.updateRoadmapStatus;
+const updateRoadmapItem = roadmapRepo.updateRoadmapItem;
+const deleteRoadmapItem = roadmapRepo.deleteRoadmapItem;
+
 function seedInitialProfiles() {
   // mirror original behavior but via repo APIs
   if (profilesRepo.getProfileCount() === 0) {
@@ -150,6 +157,12 @@ module.exports = {
   getQuoteById,
   upsertQuoteRecord,
   deleteQuoteById,
+  // roadmap
+  listRoadmapItems,
+  createRoadmapItem,
+  updateRoadmapStatus,
+  updateRoadmapItem,
+  deleteRoadmapItem,
   // constants
   MAX_PROFILES
 };
