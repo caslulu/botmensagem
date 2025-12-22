@@ -102,27 +102,8 @@ class LibertyQuoteAutomation {
 
         try {
           try {
-            const okBtn = page.getByRole('button', { name: 'OK, thanks!' });
-            for (let i = 0; i < 3; i++) {
-              if ((await okBtn.count()) > 0) {
-                const btn = okBtn.first();
-                try {
-                  await btn.waitFor({ state: 'visible', timeout: 4000 }).catch(() => {});
-                  await btn.click({ timeout: 4000 });
-                  break;
-                } catch (err) {
-                  if (i === 2) throw err;
-                  await page.waitForTimeout(500);
-                }
-              } else {
-                await page.waitForTimeout(500);
-              }
-            }
+            await page.getByRole('button', { name: 'Close' }).click();
           } catch (_) {}
-
-          if (options.pause) {
-            try { await page.pause(); } catch (e) { console.warn('[Liberty] page.pause() failed (name screen):', e?.message || e); }
-          }
 
           const firstName = String(data.firstName || data.first_name || data.first || '').trim();
           const lastName = String(data.lastName || data.last_name || data.last || '').trim();
@@ -208,85 +189,137 @@ class LibertyQuoteAutomation {
           try { const saveBtn = page.getByRole('button', { name: 'Save and continue' }); if (await saveBtn.count() > 0) await saveBtn.first().click().catch(() => {}); } catch (_) {}
 
           try {
-            const vehicles = Array.isArray(data.veiculos) ? data.veiculos : [];
-            const vehicle = vehicles[0] || data.veiculo || data.vehicle || {};
-            const vin = String(vehicle.vin || vehicle.VIN || vehicle.numero_chassi || data.vin || '').trim();
-            const financeRaw = String(vehicle.financiado || data.financiado || vehicle.estado || vehicle.payment_status || '').toLowerCase();
-            const isFinanced = /financi|finance|payments|paying/.test(financeRaw) && !/quitad|paid|own/.test(financeRaw);
+            const vehiclesRaw = Array.isArray(data.veiculos) ? data.veiculos : [];
+            const fallbackVehicle = data.veiculo || data.vehicle || {};
+            const vehicles = vehiclesRaw.length > 0 ? vehiclesRaw : [fallbackVehicle];
 
-            const tenureRaw = String(vehicle.tempo_com_veiculo || data.tempo_com_veiculo || data.tempoComVeiculo || '').toLowerCase();
-            const currentYear = new Date().getFullYear();
-            let purchaseYear = currentYear;
-            if (/menos de 1|less than 1|< ?1/.test(tenureRaw)) {
-              purchaseYear = currentYear;
-            } else if (/1-3|1\/3|1 a 3|1\s*3|1 to 3/.test(tenureRaw)) {
-              purchaseYear = currentYear - 2;
-            } else if (/3-5|3\/5|3 a 5|3\s*5|3 to 5/.test(tenureRaw)) {
-              purchaseYear = currentYear - 4;
-            } else if (/5\+|5 or more|5\s*\+/.test(tenureRaw)) {
-              purchaseYear = currentYear - 5;
-            }
+            for (let idx = 0; idx < vehicles.length; idx++) {
+              const vehicle = vehicles[idx] || {};
+              const vin = String(vehicle.vin || vehicle.VIN || vehicle.numero_chassi || data.vin || '').trim();
+              const financeRaw = String(vehicle.financiado || data.financiado || vehicle.estado || vehicle.payment_status || '').toLowerCase();
+              const isFinanced = /financi|finance|payments|paying/.test(financeRaw) && !/quitad|paid|own/.test(financeRaw);
 
-            try { await page.getByTestId('Vin Input').click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
-            if (vin) {
-              try { await page.getByTestId('Vin Input').fill(vin, { timeout: 8000 }).catch(() => {}); } catch (_) {}
-              await page.waitForTimeout(5000);
-            }
-            try {
-              const tenureQuestion = page.getByText('Have you had this vehicle for more than 30 days?', { exact: false });
-              if ((await tenureQuestion.count()) > 0) {
-                const q = tenureQuestion.first();
-                const fieldset = q.locator('xpath=ancestor::fieldset[1]');
-                const section = q.locator('xpath=ancestor::section[1]');
-                const containerCandidates = [fieldset, section];
-                let clicked = false;
-                for (const container of containerCandidates) {
-                  if ((await container.count()) > 0) {
-                    try { await container.getByText('Yes', { exact: true }).first().click({ timeout: 2000 }); clicked = true; break; } catch (_) {}
-                    try { await container.getByRole('button', { name: 'Yes' }).first().click({ timeout: 2000 }); clicked = true; break; } catch (_) {}
+              const tenureRaw = String(vehicle.tempo_com_veiculo || data.tempo_com_veiculo || data.tempoComVeiculo || '').toLowerCase();
+              const currentYear = new Date().getFullYear();
+              let purchaseYear = currentYear;
+              if (/menos de 1|less than 1|< ?1/.test(tenureRaw)) {
+                purchaseYear = currentYear;
+              } else if (/1-3|1\/3|1 a 3|1\s*3|1 to 3/.test(tenureRaw)) {
+                purchaseYear = currentYear - 2;
+              } else if (/3-5|3\/5|3 a 5|3\s*5|3 to 5/.test(tenureRaw)) {
+                purchaseYear = currentYear - 4;
+              } else if (/5\+|5 or more|5\s*\+/.test(tenureRaw)) {
+                purchaseYear = currentYear - 5;
+              }
+
+              try { await page.getByTestId('Vin Input').click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+              if (vin) {
+                try { await page.getByTestId('Vin Input').fill(vin, { timeout: 8000 }).catch(() => {}); } catch (_) {}
+                await page.waitForTimeout(5000);
+              }
+              try {
+                const tenureQuestion = page.getByText('Have you had this vehicle for more than 30 days?', { exact: false });
+                if ((await tenureQuestion.count()) > 0) {
+                  const q = tenureQuestion.first();
+                  const fieldset = q.locator('xpath=ancestor::fieldset[1]');
+                  const section = q.locator('xpath=ancestor::section[1]');
+                  const containerCandidates = [fieldset, section];
+                  let clicked = false;
+                  for (const container of containerCandidates) {
+                    if ((await container.count()) > 0) {
+                      try { await container.getByText('Yes', { exact: true }).first().click({ timeout: 2000 }); clicked = true; break; } catch (_) {}
+                      try { await container.getByRole('button', { name: 'Yes' }).first().click({ timeout: 2000 }); clicked = true; break; } catch (_) {}
+                    }
+                  }
+                  if (!clicked) {
+                    const yesBtn = page.getByRole('button', { name: 'Yes' });
+                    if ((await yesBtn.count()) > 0) await yesBtn.first().click({ timeout: 2000 }).catch(() => {});
                   }
                 }
-                if (!clicked) {
-                  const yesBtn = page.getByRole('button', { name: 'Yes' });
-                  if ((await yesBtn.count()) > 0) await yesBtn.first().click({ timeout: 2000 }).catch(() => {});
+              } catch (_) {}
+
+              try {
+                if (isFinanced) {
+                  await page.locator('span').filter({ hasText: 'Finance (making payments)' }).first().click().catch(() => {});
+                } else {
+                  await page.locator('span').filter({ hasText: 'Own (fully paid off)' }).first().click().catch(() => {});
                 }
-              }
-            } catch (_) {}
+              } catch (_) {}
 
-            try {
-              if (isFinanced) {
-                await page.locator('span').filter({ hasText: 'Finance (making payments)' }).first().click().catch(() => {});
-              } else {
-                await page.locator('span').filter({ hasText: 'Own (fully paid off)' }).first().click().catch(() => {});
-              }
-            } catch (_) {}
+              try { await page.getByText('Yes').click().catch(() => {}); } catch (_) {}
 
-            try { await page.getByText('Yes').click().catch(() => {}); } catch (_) {}
+              try {
+                const yearField = page.getByRole('textbox', { name: 'Year you bought your vehicle' });
+                await yearField.click({ timeout: 8000 }).catch(() => {});
+                await yearField.fill(String(purchaseYear)).catch(() => {});
+                try { await page.getByRole('button', { name: 'Next' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+                await page.locator('span').filter({ hasText: 'Yes' }).nth(2).click();
+              } catch (_) {}
 
-            try {
-              const yearField = page.getByRole('textbox', { name: 'Year you bought your vehicle' });
-              await yearField.click({ timeout: 8000 }).catch(() => {});
-              await yearField.fill(String(purchaseYear)).catch(() => {});
               try { await page.getByRole('button', { name: 'Next' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
-              await page.locator('span').filter({ hasText: 'Yes' }).nth(2).click();
-            } catch (_) {}
+              try { await page.getByLabel('Time period').selectOption('12').catch(() => {}); } catch (_) {}
+              try {
+                const milesField = page.getByRole('textbox', { name: 'Number of Miles' });
+                await milesField.click({ timeout: 8000 }).catch(() => {});
+                await milesField.fill('250').catch(() => {});
+              } catch (_) {}
 
-            try { await page.getByRole('button', { name: 'Next' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
-            try { await page.getByLabel('Time period').selectOption('12').catch(() => {}); } catch (_) {}
+              try { await page.locator('#optInRideshare-radio').getByText('No').click().catch(() => {}); } catch (_) {}
+              try { await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+
+              try { await page.getByTestId('modalConfirmationButton').click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+
+              if (idx < vehicles.length - 1) {
+                try { await page.getByRole('button', { name: 'Add another vehicle' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+                await page.waitForTimeout(1500);
+              } else {
+                try { await page.getByRole('button', { name: 'By continuing, you confirm' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+              }
+            }
+
+            // Driver info: marital status, gender, age licensed, student status
             try {
-              const milesField = page.getByRole('textbox', { name: 'Number of Miles' });
-              await milesField.click({ timeout: 8000 }).catch(() => {});
-              await milesField.fill('250').catch(() => {});
-            } catch (_) {}
+              const maritalCandidates = [
+                data.maritalStatus,
+                data.marital_status,
+                data.estado_civil,
+                data.estadoCivil,
+                data.married,
+                data.casado,
+                data.isMarried
+              ];
+              const maritalRaw = String((maritalCandidates.find(Boolean) || '')).toLowerCase();
+              const isMarried = /married|casad/.test(maritalRaw) && !/single|solteir/.test(maritalRaw);
 
-            try { await page.locator('#optInRideshare-radio').getByText('No').click().catch(() => {}); } catch (_) {}
-            try { await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+              if (isMarried) {
+                try { await page.getByText('Yes').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+              } else {
+                try { await page.getByText('No').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+              }
 
-            // After the last "Save and continue", some flows require confirming a modal.
-            try { await page.getByTestId('modalConfirmationButton').click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+              const genderCandidates = [data.gender, data.genero, data.sexo];
+              const genderRaw = String((genderCandidates.find(Boolean) || '')).toLowerCase();
+              const isFemale = /fem/i.test(genderRaw) || /woman|mulher/.test(genderRaw);
+              if (isFemale) {
+                try { await page.getByText('Female').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+              } else {
+                try { await page.getByText('Male', { exact: true }).click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+              }
+
+              const ageLicensed = String(data.ageFirstLicensed || data.idadeHabilitado || data.ageLicensed || 18);
+              try { await page.getByRole('textbox', { name: 'Age first licensed' }).click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+              try { await page.getByRole('textbox', { name: 'Age first licensed' }).fill(ageLicensed).catch(() => {}); } catch (_) {}
+
+              try { await page.locator('#goodStudent-radio').getByText('No').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+
+              try { await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+            } catch (driverErr) {
+              console.warn('[Liberty] driver step failed:', driverErr?.message || driverErr);
+            }
           } catch (vehicleErr) {
             console.warn('[Liberty] vehicle step failed:', vehicleErr?.message || vehicleErr);
           }
+          
         } catch (flowErr) {
           console.warn('[Liberty] fluxo adicional falhou:', flowErr?.message || flowErr);
         }
