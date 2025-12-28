@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "1.6.8",
+  "version": "1.6.7",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
@@ -35,6 +35,8 @@
     ],
     "asarUnpack": [
       "node_modules/@napi-rs/canvas/**",
+      "node_modules/@napi-rs/canvas-darwin-x64/**",
+      "node_modules/@napi-rs/canvas-darwin-arm64/**",
       "node_modules/sql.js/**",
       "node_modules/pdf-lib/**",
       "node_modules/playwright/**",
@@ -117,5 +119,9 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "sql.js": "^1.13.0"
+  },
+  "optionalDependencies": {
+    "@napi-rs/canvas-darwin-arm64": "^0.1.51",
+    "@napi-rs/canvas-darwin-x64": "^0.1.51"
   }
 }

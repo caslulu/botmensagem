@@ -3,10 +3,21 @@ const fs = require('fs');
 let createCanvas, loadImage, GlobalFonts;
 let canvasAvailable = true;
 try {
-  ({ createCanvas, loadImage, GlobalFonts } = require('@napi-rs/canvas'));
+  console.log('[PriceService] Tentando carregar @napi-rs/canvas...');
+  const canvas = require('@napi-rs/canvas');
+  createCanvas = canvas.createCanvas;
+  loadImage = canvas.loadImage;
+  GlobalFonts = canvas.GlobalFonts;
+  console.log('[PriceService] @napi-rs/canvas carregado com sucesso.');
 } catch (error) {
   canvasAvailable = false;
   console.error('[PriceService] Falha ao carregar @napi-rs/canvas:', error.message);
+  console.error('[PriceService] Stack:', error.stack);
+  try {
+    console.log('[PriceService] Tentando require.resolve:', require.resolve('@napi-rs/canvas'));
+  } catch (e) {
+    console.error('[PriceService] require.resolve falhou:', e.message);
+  }
 }
 
 const os = require('os');
