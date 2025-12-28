@@ -259,6 +259,7 @@ class ProgressiveQuoteAutomation {
       headless: options.headless ?? this.headless,
       args: [
         '--incognito',
+        '--disable-web-security',
         '--disable-blink-features=AutomationControlled',
         '--disable-dev-shm-usage',
         '--no-sandbox',

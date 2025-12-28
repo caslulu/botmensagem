@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ProfileCard, Profile } from './ProfileCard';
 
-const MAX_PROFILES = 5;
+const MAX_PROFILES = 10;
 
 export const ProfileSelection: React.FC<{
   profiles: Profile[];

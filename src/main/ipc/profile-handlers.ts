@@ -35,4 +35,12 @@ export function registerProfileHandlers(): void {
     }
     return result;
   });
+
+  ipcMain.handle('profile:delete', async (_event, profileId: string) => {
+    const result = profilesService.remove(profileId) as any;
+    if (!result?.success) {
+      console.error('Erro ao deletar perfil:', result?.error);
+    }
+    return result;
+  });
 }

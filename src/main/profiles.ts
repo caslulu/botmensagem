@@ -8,6 +8,7 @@ import {
   updateProfileSessionUsage,
   createProfile as createProfileRecord,
   updateProfile as updateProfileRecord,
+  deleteProfile as deleteProfileRecord,
   MAX_PROFILES,
   type ProfileRecord
 } from './infra/db/profiles-repository';
@@ -77,6 +78,10 @@ export function createProfile(profile: Partial<ProfileRecord>): ProfileView | nu
 export function updateProfile(id: string, updates: Partial<ProfileRecord>): ProfileView | null {
   const updated = updateProfileRecord(id, updates as any);
   return mapDbProfile(updated);
+}
+
+export function deleteProfile(id: string): boolean {
+  return deleteProfileRecord(id);
 }
 
 export { MAX_PROFILES };

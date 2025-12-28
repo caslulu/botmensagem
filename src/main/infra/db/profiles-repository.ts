@@ -22,7 +22,7 @@ type ProfileSession = {
   updated_at?: string;
 };
 
-export const MAX_PROFILES = 5;
+export const MAX_PROFILES = 10;
 
 export function getProfileCount(): number {
   const db = getDb();
@@ -266,4 +266,48 @@ export function migrateSessionDirs(): void {
     saveDatabase();
     console.log(`✓ Migração de sessões concluída (${updated.length})`);
   }
+}
+
+export function deleteProfile(profileId: string): boolean {
+  const db = getDb();
+  const existing = getProfileById(profileId);
+  if (!existing) {
+    throw new Error('Perfil não encontrado');
+  }
+
+  // Delete from related tables
+  const deleteMessagesStmt = db.prepare('DELETE FROM messages WHERE profile_id = ?');
+  deleteMessagesStmt.bind([profileId]);
+  deleteMessagesStmt.step();
+  deleteMessagesStmt.free();
+
+  const deleteSettingsStmt = db.prepare('DELETE FROM profile_settings WHERE profile_id = ?');
+  deleteSettingsStmt.bind([profileId]);
+  deleteSettingsStmt.step();
+  deleteSettingsStmt.free();
+
+  const session = getProfileSession(profileId);
+  if (session && session.session_dir) {
+    try {
+      if (fs.existsSync(session.session_dir)) {
+        fs.rmSync(session.session_dir, { recursive: true, force: true });
+      }
+    } catch (err) {
+      console.error(`Falha ao remover diretório de sessão: ${session.session_dir}`, err);
+    }
+  }
+
+  const deleteSessionStmt = db.prepare('DELETE FROM profile_sessions WHERE profile_id = ?');
+  deleteSessionStmt.bind([profileId]);
+  deleteSessionStmt.step();
+  deleteSessionStmt.free();
+
+  // Delete the profile itself
+  const deleteProfileStmt = db.prepare('DELETE FROM profiles WHERE id = ?');
+  deleteProfileStmt.bind([profileId]);
+  deleteProfileStmt.step();
+  deleteProfileStmt.free();
+
+  saveDatabase();
+  return true;
 }

@@ -1,12 +1,15 @@
 {
   "name": "botmensagem",
-  "version": "1.6.6",
+  "version": "1.6.8",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
-    "build": "electron-vite build && electron-builder --win --x64",
+    "build": "electron-vite build && electron-builder",
+    "build:win": "electron-vite build && electron-builder --win --x64",
+    "build:mac": "electron-vite build && electron-builder --mac --universal",
+    "rebuild": "electron-rebuild",
     "postinstall": "electron-builder install-app-deps",
     "build:linux": "electron-vite build && electron-builder --linux",
     "build:dir": "electron-vite build && electron-builder --win --x64 --dir",
@@ -50,6 +53,17 @@
       ],
       "asar": true
     },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
@@ -86,6 +100,7 @@
     "autoprefixer": "^10.4.19",
     "electron": "^39.1.1",
     "electron-builder": "^26.0.12",
+    "electron-rebuild": "^3.2.9",
     "electron-vite": "^4.0.1",
     "postcss": "^8.4.41",
     "tailwindcss": "^3.4.14",

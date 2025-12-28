@@ -20,6 +20,7 @@ interface ProfileContextValue {
   reloadProfiles: () => Promise<void>;
   createProfile: (input: CreateProfileInput) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (id: string, updates: UpdateProfileInput) => Promise<{ success: boolean; error?: string }>;
+  deleteProfile: (id: string) => Promise<{ success: boolean; error?: string }>;
   loading: boolean;
   error?: string;
 }
@@ -92,6 +93,21 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const deleteProfile = useCallback(async (id: string) => {
+    if (!window.profile?.delete) {
+      return { success: false, error: 'API de perfil não disponível' };
+    }
+    try {
+      const result = await window.profile.delete(id);
+      if (!result?.success) {
+        return { success: false, error: result?.error || 'Falha ao deletar perfil.' };
+      }
+      return { success: true };
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : 'Falha ao deletar perfil.' };
+    }
+  }, []);
+
   useEffect(() => {
     reloadProfiles();
   }, [reloadProfiles]);
@@ -104,10 +120,11 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       reloadProfiles,
       createProfile,
       updateProfile,
+      deleteProfile,
       loading,
       error
     }),
-    [profiles, selectedProfileId, reloadProfiles, createProfile, updateProfile, loading, error]
+    [profiles, selectedProfileId, reloadProfiles, createProfile, updateProfile, deleteProfile, loading, error]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

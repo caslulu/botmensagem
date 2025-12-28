@@ -1,5 +1,5 @@
 import { getProfileSettings, updateProfileSettings } from '../../infra/db/profile-settings-repository';
-import { getProfiles, findProfileById, createProfile, updateProfile } from '../../profiles';
+import { getProfiles, findProfileById, createProfile, updateProfile, deleteProfile } from '../../profiles';
 import { formatProfileForRenderer } from '../../utils/profile-formatter';
 import { createSuccess, createError } from '../../utils/result';
 
@@ -33,6 +33,15 @@ function update(id: string, updates: any) {
   }
 }
 
+function remove(id: string) {
+  try {
+    const success = deleteProfile(id);
+    return createSuccess({ success });
+  } catch (error) {
+    return createError(error);
+  }
+}
+
 function getSettings(profileId: string) {
   return getProfileSettings(profileId);
 }
@@ -47,8 +56,9 @@ export default {
   get,
   create,
   update,
+  remove,
   getSettings,
   updateSendLimit
 };
 
-export { list, get, create, update, getSettings, updateSendLimit };
+export { list, get, create, update, remove, getSettings, updateSendLimit };
