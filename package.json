@@ -37,6 +37,7 @@
       "node_modules/@napi-rs/canvas/**",
       "node_modules/@napi-rs/canvas-darwin-x64/**",
       "node_modules/@napi-rs/canvas-darwin-arm64/**",
+      "node_modules/@napi-rs/canvas-win32-x64-msvc/**",
       "node_modules/sql.js/**",
       "node_modules/pdf-lib/**",
       "node_modules/playwright/**",
@@ -122,6 +123,7 @@
   },
   "optionalDependencies": {
     "@napi-rs/canvas-darwin-arm64": "^0.1.51",
-    "@napi-rs/canvas-darwin-x64": "^0.1.51"
+    "@napi-rs/canvas-darwin-x64": "^0.1.51",
+    "@napi-rs/canvas-win32-x64-msvc": "^0.1.51"
   }
 }
