@@ -313,6 +313,199 @@ class LibertyQuoteAutomation {
               try { await page.locator('#goodStudent-radio').getByText('No').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
 
               try { await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
+
+            // Additional drivers loop
+            try {
+              const driversList = (Array.isArray(data.drivers) ? data.drivers : (Array.isArray(data.motoristas) ? data.motoristas : []));
+              const additionalDrivers = driversList.slice(1); // Skip primary
+
+              for (const driver of additionalDrivers) {
+                const rel = String(driver.relationship || driver.parentesco || '').toLowerCase();
+                const isSpouse = /spouse|wife|esposa|conjuge/.test(rel);
+                if (isSpouse) continue;
+
+                try {
+                  await page.getByRole('button', { name: 'Add another driver' }).click({ timeout: 5000 });
+                } catch (e) {
+                  continue; 
+                }
+
+                await page.waitForTimeout(1000);
+                
+                const dFirst = String(driver.firstName || driver.nome || '').trim();
+                const dLast = String(driver.lastName || driver.sobrenome || '').trim();
+                const dBirthday = String(driver.birthday || driver.dataNascimento || driver.dob || '').trim();
+
+                if (dFirst) {
+                  await page.getByRole('textbox', { name: 'First name' }).click().catch(() => {});
+                  await page.getByRole('textbox', { name: 'First name' }).fill(dFirst).catch(() => {});
+                }
+                if (dLast) {
+                  await page.getByRole('textbox', { name: 'Last name' }).click().catch(() => {});
+                  await page.getByRole('textbox', { name: 'Last name' }).fill(dLast).catch(() => {});
+                }
+                if (dBirthday) {
+                  await page.getByRole('textbox', { name: 'Birthday (MM/DD/YYYY)' }).click().catch(() => {});
+                  await page.getByRole('textbox', { name: 'Birthday (MM/DD/YYYY)' }).fill(dBirthday).catch(() => {});
+                }
+
+                await page.getByRole('button', { name: 'Next' }).click().catch(() => {});
+                await page.waitForTimeout(1000);
+
+                let relText = 'Other';
+                if (/son|filho/i.test(rel)) relText = 'Son';
+                else if (/daughter|filha/i.test(rel)) relText = 'Daughter';
+                else if (/husband|marido/i.test(rel)) relText = 'Husband'; 
+                
+                try {
+                   await page.getByText(relText).first().click({ timeout: 2000 });
+                } catch (_) {
+                   await page.getByText('Other').first().click().catch(() => {});
+                }
+ 
+                try {
+                   await page.getByLabel('License statusLicense status').selectOption('DRIVES_MY_VEHICLES').catch(() => {
+                      return page.locator('select').filter({ hasText: /License/ }).first().selectOption('DRIVES_MY_VEHICLES');
+                   });
+                } catch (_) {}
+
+                await page.getByText('No', { exact: true }).click().catch(() => {});
+                
+                await page.getByRole('textbox', { name: 'Age first licensed' }).click().catch(() => {});
+                await page.getByRole('textbox', { name: 'Age first licensed' }).fill('18').catch(() => {});
+                
+                try { await page.locator('#goodStudent-radio').getByText('No').click().catch(() => {}); } catch (_) {}
+                try { await page.locator('#studentAway-radio').getByText('No').click().catch(() => {}); } catch (_) {}
+
+                await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {});
+                await page.waitForTimeout(1500);
+              }
+            } catch (addDriverErr) {
+              console.warn('[Liberty] Error inside additional driver flow:', addDriverErr);
+            }
+            // Transition from Drivers to History
+            await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {});
+            
+            await page.waitForTimeout(2000);
+            
+            // Post-driver logic (Questions: History, Insurance, Violations)
+            try {
+              // 1. Initial "No" questions (e.g. License suspended, Owe premium)
+              try { 
+                // "Has any driver had license suspended...?" etc.
+                const noBtn = page.getByText('No', { exact: true });
+                if (await noBtn.count() > 0) await noBtn.first().click({ timeout: 2000 }).catch(() => {});
+              } catch (_) {}
+
+              try {
+                await page.locator('#owePremiumPriorCarrierMA-radio').getByText('No').click({ timeout: 2000 }).catch(() => {});
+              } catch (_) {}
+
+              // 2. Current Insurance Logic
+              let hasInsurance = false;
+              try {
+                 const insuranceCandidates = [
+                  data.hasInsurance,
+                  data.has_insurance,
+                  data.tempoDeSeguro,
+                  data.tempo_de_seguro,
+                  data.insurance,
+                  data.current_insurance,
+                  data.tenho_seguro,
+                  data.insured
+                ];
+                const raw = String((insuranceCandidates.find(Boolean) || '')).toLowerCase();
+                hasInsurance = /^(yes|true|sim)$/.test(raw) || /yes|sim|true/.test(raw) || (/\d/.test(raw) && !/0/.test(raw));
+              } catch(_) {}
+
+              if (hasInsurance) {
+                 await page.locator('#autoPolicyIndicator-radio').getByText('Yes').click({ timeout: 5000 }).catch(() => {});
+                 
+                 // Calculate previous insurance date
+                 const tenureRaw = String(data.tempoDeSeguro || data.insurance_tenure || data.time_insured || '1').toLowerCase();
+                 let yearsToSubtract = 1; // Default
+                 
+                 // "1-3 years" -> 3. "3-5" -> 5. "5+" -> 5.
+                 if (/3\s*[-to]\s*5/.test(tenureRaw) || /3\s*a\s*5/.test(tenureRaw)) yearsToSubtract = 5;
+                 else if (/1\s*[-to]\s*3/.test(tenureRaw) || /1\s*a\s*3/.test(tenureRaw)) yearsToSubtract = 3;
+                 else if (/5\s*(\+|plus|more|mais)/.test(tenureRaw)) yearsToSubtract = 5;
+                 else if (/less|menos/.test(tenureRaw)) yearsToSubtract = 0; // Handled as 6mo
+
+                 const d = new Date();
+                 if (yearsToSubtract === 0) {
+                    d.setMonth(d.getMonth() - 6);
+                 } else {
+                    d.setFullYear(d.getFullYear() - yearsToSubtract);
+                 }
+                 
+                 const mm = String(d.getMonth() + 1).padStart(2, '0');
+                 const yyyy = d.getFullYear();
+                 const dateStr = `${mm}/${yyyy}`;
+
+                 try {
+                    await page.getByRole('textbox', { name: 'Date you first got insurance' }).click({ timeout: 5000 }).catch(() => {});
+                    await page.getByRole('textbox', { name: 'Date you first got insurance' }).fill(dateStr).catch(() => {});
+                 } catch (_) {}
+
+                 console.log('[Liberty] Waiting 15s for manual liability fill...');
+                 await page.getByRole('button', { name: 'Next' }).click();
+                 await page.waitForTimeout(15000);
+                  
+
+              } else {
+                 // No insurance flow
+                 try { await page.locator('#autoPolicyIndicator-radio').getByText('No').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+                 try { await page.locator('#priorInsuranceHistory-radio').getByText('No').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
+                 try { 
+                    await page.getByLabel(/You may be required to/i).getByText('No', { exact: true }).click({ timeout: 5000 }).catch(() => {}); 
+                 } catch (_) {}
+              }
+
+              // 3. Violations & Claims
+              try { 
+                await page.locator('#selfDisclosedViolationIndicator-radio').getByText('No', { exact: true }).click({ timeout: 5000 }).catch(() => {}); 
+              } catch (_) {}
+              
+              try {
+                // Try specific ID first, fallback to text
+                const claimsGroup = page.locator('#selfDisclosedClaimIndicator-radio');
+                if (await claimsGroup.count() > 0) {
+                   await claimsGroup.getByText('No').first().click({ timeout: 2000 }).catch(() => {});
+                } else {
+                   // Fallback selector from user or generic
+                   await page.locator('label:has-text("No")').last().click({ timeout: 2000 }).catch(() => {});
+                }
+              } catch (_) {}
+
+              // 4. Save and Continue x2 (End of section)
+              try { await page.getByRole('button', { name: 'Save and continue' }).first().click({ timeout: 10000 }).catch(() => {}); } catch (_) {}
+              await page.waitForTimeout(3000);
+              try { await page.getByRole('button', { name: 'Save and continue' }).first().click({ timeout: 10000 }).catch(() => {}); } catch (_) {}
+              
+              await page.waitForTimeout(2000);
+
+              // Final questions (Education, etc)
+              try {
+                const diplomaText = page.getByText('High school diploma/equivalent');
+                if (await diplomaText.count() > 0) {
+                    await diplomaText.click().catch(() => {});
+                } else {
+                   // Fallback or try clicking a dropdown/combobox for education if needed
+                }
+
+                // Generic "No" for the subsequent question (often about affinity groups or other details)
+                await page.getByText('No', { exact: true }).last().click().catch(() => {});
+                
+                await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 10000 }).catch(() => {});
+              } catch (finalErr) {
+                 console.warn('[Liberty] Error in final education/save step:', finalErr);
+              }
+
+            } catch (postDriverErr) {
+              console.warn('[Liberty] Error in post-driver/history flow:', postDriverErr);
+            }
+
+            await page.pause();
             } catch (driverErr) {
               console.warn('[Liberty] driver step failed:', driverErr?.message || driverErr);
             }
