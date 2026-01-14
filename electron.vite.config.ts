@@ -58,7 +58,7 @@ export default defineConfig({
       },
       rollupOptions: {
         input: mainEntries,
-        external: [],
+        external: ['@napi-rs/canvas'],
         output: {
           preserveModules: true,
           preserveModulesRoot: 'src/main',

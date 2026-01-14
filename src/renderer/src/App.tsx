@@ -5,7 +5,6 @@ import AppShell from './components/layout/AppShell'
 import type { ServiceModule } from './components/layout/ServiceNav'
 import { ProfileSelection } from './components/profile/ProfileSelection'
 import { ProfileModal } from './components/profile/ProfileModal'
-import { ProfileEditModal } from './components/profile/ProfileEditModal'
 import { AdminPasswordModal } from './components/profile/AdminPasswordModal'
 import type { Profile } from './components/profile/ProfileCard'
 import { DEFAULT_MODULES } from './app/modules'
@@ -33,9 +32,6 @@ function AppContent() {
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [profileModalError, setProfileModalError] = useState<string | undefined>(undefined);
   const [profileModalLoading, setProfileModalLoading] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editModalError, setEditModalError] = useState<string | undefined>(undefined);
-  const [editModalLoading, setEditModalLoading] = useState(false);
   const selectedProfile = profiles.find((p) => p.id === selectedProfileId) || null;
   const { isDarkMode, toggleTheme } = useTheme();
 
@@ -47,41 +43,6 @@ function AppContent() {
     resetAccess,
     adminModal
   } = useAdminGate({ modules, selectedProfile, setSelectedProfileId });
-
-  const handleEditProfile = () => {
-    if (!selectedProfile) return;
-    setShowEditModal(true);
-    setEditModalError(undefined);
-  };
-  const handleEditModalClose = () => {
-    setShowEditModal(false);
-    setEditModalError(undefined);
-  };
-  const handleEditModalSave = async (updates: { name: string; imagePath?: string }) => {
-    setEditModalLoading(true);
-    setEditModalError(undefined);
-    try {
-      if (!selectedProfile) throw new Error('Nenhum perfil selecionado');
-      const result = await updateProfile(selectedProfile.id, {
-        name: updates.name,
-        imagePath: updates.imagePath || ''
-      });
-      if (!result?.success) {
-        setEditModalError(result?.error || 'Falha ao atualizar perfil.');
-        setEditModalLoading(false);
-        return;
-      }
-      await reloadProfiles();
-      setShowEditModal(false);
-    } catch (e) {
-      const message = (e && typeof e === 'object' && 'message' in e)
-        ? (e as { message: string }).message
-        : 'Erro ao atualizar perfil.'
-      setEditModalError(message);
-    } finally {
-      setEditModalLoading(false);
-    }
-  };
 
   const handleAddProfile = () => setShowProfileModal(true);
   const handleProfileModalClose = () => {
@@ -172,13 +133,6 @@ function AppContent() {
             >
               <span>↶</span> Trocar perfil
             </button>
-            <button
-              className="btn-primary flex items-center gap-2"
-              onClick={handleEditProfile}
-              disabled={!selectedProfile}
-            >
-              <span>✎</span> Editar perfil
-            </button>
           </div>
         </header>
 
@@ -255,14 +209,6 @@ function AppContent() {
         onSave={handleProfileModalSave}
         loading={profileModalLoading}
         error={profileModalError}
-      />
-      <ProfileEditModal
-        open={showEditModal}
-        profile={selectedProfile}
-        onClose={handleEditModalClose}
-        onSave={handleEditModalSave}
-        loading={editModalLoading}
-        error={editModalError}
       />
       <AdminPasswordModal
         open={adminModal.open}

@@ -110,7 +110,7 @@ function formatDateForUs(value) {
   return `${month.padStart(2, '0')}/${day.padStart(2, '0')}/${year.padStart(4, '0')}`;
 }
 
-function generateEmail(fullName = '') {
+function generateEmail(fullName = '', documentNumber = '') {
   const sanitized = String(fullName)
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -118,13 +118,19 @@ function generateEmail(fullName = '') {
     .trim()
     .toLowerCase();
 
+  const doc = String(documentNumber || '').replace(/[^0-9]/g, '');
+  const last4 = doc.length >= 4 ? doc.slice(-4) : doc;
+
   if (!sanitized) {
-    return `cliente@${DEFAULT_EMAIL_DOMAIN}`;
+    return `cliente${last4}@${DEFAULT_EMAIL_DOMAIN}`;
   }
 
   const tokens = sanitized.split(/\s+/).filter(Boolean);
-  const localPart = tokens.length === 1 ? tokens[0] : `${tokens[0]}.${tokens[tokens.length - 1]}`;
-  return `${localPart}@${DEFAULT_EMAIL_DOMAIN}`;
+  const firstName = tokens[0];
+  const lastName = tokens.length > 1 ? tokens[tokens.length - 1] : '';
+  const localPart = lastName ? `${firstName}${lastName}` : firstName;
+
+  return `${localPart}${last4}@${DEFAULT_EMAIL_DOMAIN}`;
 }
 
 function normalizeVehicles(rawVehicles) {
@@ -166,6 +172,7 @@ function mapQuoteToProgressive(quote) {
 
   const fullName = normalizeString(payload.nome || quote.nome || '');
   const [firstName, lastName] = splitName(fullName);
+  const document = normalizeString(payload.documento || quote.documento);
 
   const zipcode = normalizeZip(payload.endereco_zipcode || '');
   if (!zipcode) {
@@ -182,7 +189,7 @@ function mapQuoteToProgressive(quote) {
   const data = {
     firstName,
     lastName,
-    email: generateEmail(fullName),
+    email: generateEmail(fullName, document),
   dataNascimento: normalizeString(payload.data_nascimento),
   dataNascimentoUs: formatDateForUs(payload.data_nascimento),
     zipcode,
@@ -191,7 +198,7 @@ function mapQuoteToProgressive(quote) {
     cidade: normalizeString(payload.endereco_cidade),
     estadoResidencia: normalizeString(payload.endereco_estado),
     genero: normalizeString(payload.genero, 'Masculino'),
-    documento: normalizeString(payload.documento || quote.documento),
+    documento: document,
     estadoDocumento: normalizeString(payload.documento_estado),
     tempoDeSeguro: normalizeString(payload.tempo_de_seguro),
     tempoNoEndereco: normalizeString(payload.tempo_no_endereco),
