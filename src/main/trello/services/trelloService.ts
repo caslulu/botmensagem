@@ -295,28 +295,26 @@ function buildDescription(data: TrelloCardInput | undefined, email: string): str
   return description;
 }
 
-function generateEmail(fullName: string | undefined): string {
-  if (!fullName) return '';
-
-  const tokens = String(fullName)
+function generateEmail(fullName: string | undefined, documentNumber: string | undefined): string {
+  const sanitized = String(fullName || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-zA-Z0-9\s]/g, '')
     .trim()
-    .split(/\s+/)
-    .filter(Boolean)
-    .map((token) =>
-      token
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .replace(/[^a-z0-9]/gi, '')
-        .toLowerCase()
-    )
-    .filter(Boolean);
+    .toLowerCase();
 
-  if (!tokens.length) return '';
+  const doc = String(documentNumber || '').replace(/[^0-9]/g, '');
 
-  const first = tokens[0];
-  const last = tokens.length > 1 ? tokens[tokens.length - 1] : '';
-  const local = last ? `${first}.${last}` : first;
-  return `${local}@outlook.com`;
+  if (!sanitized) {
+    return `cliente${doc}@outlook.com`;
+  }
+
+  const tokens = sanitized.split(/\s+/).filter(Boolean);
+  const firstName = tokens[0];
+  const lastName = tokens.length > 1 ? tokens[tokens.length - 1] : '';
+  const localPart = lastName ? `${firstName}${lastName}` : firstName;
+
+  return `${localPart}${doc}@outlook.com`;
 }
 
 class TrelloService {
@@ -362,7 +360,7 @@ class TrelloService {
   }> {
     const { apiKey, apiToken, listId, baseUrl } = this.credentials;
 
-    const email = data?.email || generateEmail(data?.nome);
+    const email = data?.email || generateEmail(data?.nome, data?.documento);
     const description = buildDescription(data, email);
 
     const params = new URLSearchParams({

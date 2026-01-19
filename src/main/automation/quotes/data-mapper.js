@@ -119,10 +119,9 @@ function generateEmail(fullName = '', documentNumber = '') {
     .toLowerCase();
 
   const doc = String(documentNumber || '').replace(/[^0-9]/g, '');
-  const last4 = doc.length >= 4 ? doc.slice(-4) : doc;
 
   if (!sanitized) {
-    return `cliente${last4}@${DEFAULT_EMAIL_DOMAIN}`;
+    return `cliente${doc}@${DEFAULT_EMAIL_DOMAIN}`;
   }
 
   const tokens = sanitized.split(/\s+/).filter(Boolean);
@@ -130,7 +129,7 @@ function generateEmail(fullName = '', documentNumber = '') {
   const lastName = tokens.length > 1 ? tokens[tokens.length - 1] : '';
   const localPart = lastName ? `${firstName}${lastName}` : firstName;
 
-  return `${localPart}${last4}@${DEFAULT_EMAIL_DOMAIN}`;
+  return `${localPart}${doc}@${DEFAULT_EMAIL_DOMAIN}`;
 }
 
 function normalizeVehicles(rawVehicles) {
