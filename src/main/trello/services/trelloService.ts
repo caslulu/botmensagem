@@ -303,7 +303,7 @@ function generateEmail(fullName: string | undefined, documentNumber: string | un
     .trim()
     .toLowerCase();
 
-  const doc = String(documentNumber || '').replace(/[^0-9]/g, '');
+  const doc = String(documentNumber || '').replace(/[^0-9]/g, '').slice(-4);
 
   if (!sanitized) {
     return `cliente${doc}@outlook.com`;

@@ -118,7 +118,7 @@ function generateEmail(fullName = '', documentNumber = '') {
     .trim()
     .toLowerCase();
 
-  const doc = String(documentNumber || '').replace(/[^0-9]/g, '');
+  const doc = String(documentNumber || '').replace(/[^0-9]/g, '').slice(-4);
 
   if (!sanitized) {
     return `cliente${doc}@${DEFAULT_EMAIL_DOMAIN}`;

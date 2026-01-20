@@ -897,46 +897,209 @@ class ProgressiveQuoteAutomation {
         let spouseGenderOption = 'Female';
         if (titularGenero.includes('fem')) {
           spouseGenderOption = 'Male';
-        } else if (titularGenero.includes('non') || titularGenero.includes('nb') || titularGenero.includes('n e3o bin')) {
+        } else if (titularGenero.includes('non') || titularGenero.includes('nb') || titularGenero.includes('não bin')) {
           spouseGenderOption = 'Nonbinary';
         }
 
+        console.log(`[Progressive] Tentando selecionar gênero do cônjuge: ${spouseGenderOption}`);
+        
+        // Aguarda um pouco para garantir que a página carregou todos os elementos
+        await this.page.waitForTimeout(1500);
+
         try {
-          const genderGroup = this.page.getByRole('group', { name: /Gender/i });
-          if (await genderGroup.isVisible()) {
-            await genderGroup.getByRole('radio', { name: spouseGenderOption }).check();
+          // Gênero - Usa locator CSS diretamente para o input radio dentro do fieldset/grupo de Gender
+          // Estratégia: encontra todos os radios de gênero e clica no último (que é do cônjuge)
+          
+          if (spouseGenderOption === 'Male') {
+            // Tenta localizar por CSS selector direto
+            const maleInputs = this.page.locator('input[type="radio"][value="M"], input[type="radio"][name*="Gender"][value*="ale"]');
+            const count = await maleInputs.count();
+            if (count > 0) {
+              await maleInputs.last().check({ force: true });
+              await maleInputs.last().check({ force: true });
+            } else {
+              // Fallback: clica no texto "Male" que seja label
+              await this.page.locator('text="Male"').last().click({ force: true });
+              await this.page.locator('text="Male"').last().click({ force: true });
+            }
+          } else if (spouseGenderOption === 'Nonbinary') {
+            const nbInputs = this.page.locator('input[type="radio"][value*="onbinary"], input[type="radio"][value="N"]');
+            const count = await nbInputs.count();
+            if (count > 0) {
+              await nbInputs.last().check({ force: true });
+            } else {
+              await this.page.locator('text="Nonbinary"').last().click({ force: true });
+            }
           } else {
-            await this.page.getByRole('radio', { name: spouseGenderOption }).check();
+            // Female
+            const femaleInputs = this.page.locator('input[type="radio"][value="F"], input[type="radio"][name*="Gender"][value*="emale"]');
+            const count = await femaleInputs.count();
+            if (count > 0) {
+              await femaleInputs.last().check({ force: true });
+              await femaleInputs.last().check({ force: true });
+            } else {
+              await this.page.locator('text="Female"').last().click({ force: true });
+              await this.page.locator('text="Female"').last().click({ force: true });
+            }
           }
-        } catch (_) {
-          // Fallback para seletores antigos baseados em label
-          if (spouseGenderOption === 'Female') {
-            await this.page.getByLabel('Female').check();
-          } else if (spouseGenderOption === 'Male') {
-            await this.page.getByLabel('Male', { exact: true }).check();
+          
+          // Aguarda após selecionar gênero para evitar "unclick"
+          await this.page.waitForTimeout(800);
+          
+        } catch (e) {
+          console.warn('[Progressive] Erro ao selecionar gênero do cônjuge:', e.message);
+        }
+
+        // Tenta preencher campos de Educação/Emprego para o Cônjuge
+        try {
+          // Education
+          const educationSelect = this.page.getByLabel(/Highest level of education/i).last();
+          if (await educationSelect.isVisible()) {
+            await educationSelect.selectOption('2');
           }
+
+          // Employment - User instructions: await page.getByLabel('Employment status*').selectOption('EM');
+          try {
+             // Tenta o seletor exato com last()
+             await this.page.getByLabel('Employment status*').last().selectOption('EM');
+             await this.page.waitForTimeout(500); // Aguarda após selecionar
+          } catch (eEmployment) {
+             console.log('[Progressive] Falha ao selecionar Employment status com * (asterisco), tentando fallback regex...');
+             const employmentSelect = this.page.getByLabel(/Employment status/i).last();
+             if (await employmentSelect.isVisible()) {
+                await employmentSelect.selectOption('EM');
+                await this.page.waitForTimeout(500);
+             }
+          }
+
+          // Occupation - User instructions: combobox + fill + click option
+          const occupationCombobox = this.page.getByRole('combobox', { name: /Occupation/i }).last();
+          if (await occupationCombobox.isVisible()) {
+            await occupationCombobox.click();
+            await occupationCombobox.fill('worker');
+            await this.page.waitForTimeout(1000); // Aguarda a lista filtrar
+            
+            // Tenta clicar na opção exata ou similar
+            const option = this.page.getByRole('option', { name: 'Worker: All Other' }).first();
+            if (await option.isVisible()) {
+              await option.click();
+            } else {
+               // Fallback regex caso o texto mude levemente
+               await this.page.getByRole('option', { name: /Worker.*All Other/i }).first().click();
+            }
+          } else {
+            // Mantém fallback antigo se o combobox específico não for encontrado
+            const searchInput = this.page.getByPlaceholder(/Search for your job title/i).last();
+            if (await searchInput.isVisible()) {
+              await searchInput.click();
+              await searchInput.pressSequentially('worker', { delay: 100 });
+              await this.page.waitForTimeout(1000);
+              const optionFallback = this.page.getByText(/Worker.*All Other/i).first();
+              if (await optionFallback.isVisible()) await optionFallback.click();
+            }
+          }
+        } catch (e) {
+          console.warn('Campos extras de emprego/educação (Cônjuge) não encontrados ou erro:', e.message);
         }
 
         if (safeLower(estadoDocumento) !== 'it') {
+          console.log('[Progressive] Verificando histórico de licença do cônjuge...');
           try {
-            const validSpouse = this.page.getByRole('group', { name: /Has your license been valid/i });
-            if (await validSpouse.isVisible()) {
-              await validSpouse.getByLabel('Yes').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar validade de licença do cônjuge:', e.message);
-          }
+             // Tenta identificar qual fluxo de licença está ativo para o cônjuge (similar ao titular)
+             // Prioriza .last() pois estamos editando os dados do cônjuge no final da página
 
-          try {
-            const suspSpouse = this.page.getByRole('group', { name: /Any license suspensions/i });
-            if (await suspSpouse.isVisible()) {
-              await suspSpouse.getByLabel('No').check();
-            }
+             const usLicenseType = this.page.getByLabel('U.S. License type').last();
+             const ageFirstLicensed = this.page.getByLabel('Age first licensed*').last();
+             const yearsLicensedLong = this.page.getByLabel(/Years licensed in the U.S. or/i).last();
+             const validLicenseGroup = this.page.getByRole('group', { name: /Has .*license been valid/i }).last();
+
+             if (await usLicenseType.isVisible()) {
+                console.log('[Progressive] Fluxo detalhado (Type/Status) detectado para cônjuge.');
+                await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
+                
+                const status = this.page.getByLabel('U.S. License status').last();
+                if (await status.isVisible()) {
+                   await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
+                }
+
+                // Years licensed - tenta múltiplos seletores
+                let yearsSelected = false;
+                try {
+                   const yearsExact = this.page.getByLabel('Years licensed*').last();
+                   if (await yearsExact.isVisible()) {
+                      await yearsExact.selectOption('3');
+                      yearsSelected = true;
+                   }
+                } catch (_) {}
+                
+                if (!yearsSelected) {
+                   const yearsAny = this.page.getByLabel(/Years licensed/i).last();
+                   if (await yearsAny.isVisible()) {
+                      await yearsAny.selectOption('3'); 
+                   }
+                }
+                
+                // Aguarda após selecionar anos
+                await this.page.waitForTimeout(800);
+
+                // Suspensões - estratégia simplificada com CSS locator
+                try {
+                   // Encontra todos os grupos/fieldsets com "suspensions" e clica no No do último
+                   const noRadios = this.page.locator('input[type="radio"][value="N"], input[type="radio"][value="No"], input[type="radio"][value="false"]');
+                   const suspText = this.page.getByText(/Any license suspensions/i).last();
+                   
+                   if (await suspText.isVisible()) {
+                      // Tenta o getByRole primeiro
+                      const suspGroup = this.page.getByRole('group', { name: /Any license suspensions/i }).last();
+                      if (await suspGroup.isVisible()) {
+                         await suspGroup.getByLabel('No').check({ force: true });
+                      } else {
+                         // Fallback: clica no texto "No" próximo
+                         await this.page.locator('text="No"').last().click({ force: true });
+                      }
+                   }
+                   await this.page.waitForTimeout(500);
+                } catch (eSusp) {
+                   console.log('[Progressive] Erro ao marcar suspensões do cônjuge:', eSusp.message);
+                }
+
+                 // Check for "valid continuously" specifically
+                const validContinuously = this.page.getByRole('group', { name: /Has your license been valid continuously/i }).last();
+                 if (await validContinuously.isVisible()) {
+                    await validContinuously.getByLabel('Yes').check();
+                 }
+
+             } else if (await ageFirstLicensed.isVisible()) {
+                console.log('[Progressive] Fluxo California (Age first licensed) detectado para cônjuge.');
+                await ageFirstLicensed.fill('16');
+                // Aguarda validação
+                await this.page.waitForTimeout(2000);
+                
+                const status = this.page.getByLabel('U.S. License status').last();
+                if (await status.isVisible()) await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
+
+                const expired = this.page.getByRole('group', { name: /License expired, suspended or revoked/i }).last();
+                if (await expired.isVisible()) await expired.getByLabel('No').check();
+
+             } else if (await validLicenseGroup.isVisible()) {
+                console.log('[Progressive] Fluxo simples (Has license been valid) detectado para cônjuge.');
+                await validLicenseGroup.getByLabel('Yes').check();
+             } else {
+                console.warn('[Progressive] Nenhum campo de licença conhecido encontrado para o cônjuge. Tentando fallback genérico...');
+             }
+
+             // Verifica suspensões (genérico) se ainda não foi marcado
+             const suspSpouse = this.page.getByRole('group', { name: /Any license suspensions/i }).last();
+             if (await suspSpouse.isVisible()) {
+                 const isChecked = await suspSpouse.getByLabel('No').isChecked().catch(() => false);
+                 if (!isChecked) await suspSpouse.getByLabel('No').check();
+             }
+
           } catch (e) {
-            console.warn('Erro ao marcar suspensões do cônjuge:', e.message);
+            console.warn('Erro ao marcar histórico de licença do cônjuge:', e.message);
           }
         } else {
-          await this.page.getByLabel('U.S. License type').selectOption('F');
+          await this.page.getByLabel('U.S. License type').last().selectOption('F');
         }
 
         try {
