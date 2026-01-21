@@ -383,8 +383,107 @@ class LibertyQuoteAutomation {
             } catch (addDriverErr) {
               console.warn('[Liberty] Error inside additional driver flow:', addDriverErr);
             }
-            // Transition from Drivers to History
+
+            // Transition from Drivers to History - Click Save and continue on driver recap screen
             await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {});
+
+            // Spouse flow - If married, after clicking Save and continue on driver recap, fill spouse information
+            if (isMarried) {
+              try {
+                await page.waitForTimeout(1500);
+
+                // Get spouse name from nomeConjuge field (from data-mapper)
+                const spouseFullName = String(data.nomeConjuge || data.nome_conjuge || '').trim();
+                let spouseFirst = '';
+                let spouseLast = '';
+                
+                if (spouseFullName) {
+                  const nameParts = spouseFullName.split(/\s+/).filter(Boolean);
+                  spouseFirst = nameParts[0] || '';
+                  spouseLast = nameParts.length > 1 ? nameParts[nameParts.length - 1] : '';
+                }
+
+                // Fallback: try to find spouse in drivers list or dedicated spouse field
+                if (!spouseFirst) {
+                  const spouseDriversList = (Array.isArray(data.drivers) ? data.drivers : (Array.isArray(data.motoristas) ? data.motoristas : []));
+                  const spouseDriver = spouseDriversList.find(d => {
+                    const rel = String(d.relationship || d.parentesco || '').toLowerCase();
+                    return /spouse|wife|husband|esposa|marido|conjuge/.test(rel);
+                  });
+
+                  const spouseData = spouseDriver || data.spouse || data.conjuge || {};
+                  spouseFirst = String(spouseData.firstName || spouseData.nome || spouseData.first_name || '').trim();
+                  spouseLast = String(spouseData.lastName || spouseData.sobrenome || spouseData.last_name || '').trim();
+                }
+                
+                // Get spouse birthday - prioritize US format
+                const spouseBirthday = String(data.dataNascimentoConjugeUs || data.dataNascimentoConjuge || data.data_nascimento_conjuge || '').trim();
+
+                console.log('[Liberty] Spouse data:', { spouseFirst, spouseLast, spouseBirthday });
+
+                // Fill spouse first name
+                const firstNameField = page.getByRole('textbox', { name: 'First name' });
+                await firstNameField.click({ timeout: 5000 }).catch(() => {});
+                if (spouseFirst) {
+                  await firstNameField.fill(spouseFirst).catch(() => {});
+                }
+
+                // Fill spouse last name
+                const lastNameField = page.getByRole('textbox', { name: 'Last name' });
+                await lastNameField.click({ timeout: 5000 }).catch(() => {});
+                if (spouseLast) {
+                  await lastNameField.fill(spouseLast).catch(() => {});
+                }
+
+                // Fill spouse birthday
+                const birthdayField = page.getByRole('textbox', { name: 'Birthday (MM/DD/YYYY)' });
+                await birthdayField.click({ timeout: 5000 }).catch(() => {});
+                if (spouseBirthday) {
+                  await birthdayField.type(spouseBirthday, { delay: 100 }).catch(() => {});
+                }
+
+                // Click Next to proceed to relationship selection
+                await page.getByRole('button', { name: 'Next' }).click().catch(() => {});
+                await page.waitForTimeout(1000);
+
+                // Select spouse relationship based on primary driver's gender
+                // If primary is male, spouse is Wife; if primary is female, spouse is Husband
+                if (isFemale) {
+                  await page.getByText('Husband').click({ timeout: 3000 }).catch(() => {});
+                } else {
+                  await page.getByText('Wife').click({ timeout: 3000 }).catch(() => {});
+                }
+
+                // License status
+                try {
+                  await page.getByLabel('License statusLicense status').selectOption('DRIVES_MY_VEHICLES').catch(() => {
+                    return page.locator('select').filter({ hasText: /License/ }).first().selectOption('DRIVES_MY_VEHICLES');
+                  });
+                } catch (_) {}
+
+                // Answer No to the question (e.g., license suspended)
+                await page.getByText('No', { exact: true }).click().catch(() => {});
+
+                // Age first licensed for spouse - default to 18
+                await page.getByRole('textbox', { name: 'Age first licensed' }).click().catch(() => {});
+                await page.getByRole('textbox', { name: 'Age first licensed' }).fill('18').catch(() => {});
+
+                // Good student - No
+                try { await page.locator('#goodStudent-radio').getByText('No').click().catch(() => {}); } catch (_) {}
+                // Student away - No
+                try { await page.locator('#studentAway-radio').getByText('No').click().catch(() => {}); } catch (_) {}
+
+                // Save and continue after spouse info
+                await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {});
+                await page.waitForTimeout(1500);
+
+                // Click Save and continue on driver recap screen to proceed
+                await page.getByRole('button', { name: 'Save and continue' }).click({ timeout: 8000 }).catch(() => {});
+
+              } catch (spouseErr) {
+                console.warn('[Liberty] Error in spouse flow:', spouseErr?.message || spouseErr);
+              }
+            }
             
             await page.waitForTimeout(2000);
             
