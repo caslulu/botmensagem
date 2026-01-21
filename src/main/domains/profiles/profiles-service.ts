@@ -2,6 +2,7 @@ import { getProfileSettings, updateProfileSettings } from '../../infra/db/profil
 import { getProfiles, findProfileById, createProfile, updateProfile, deleteProfile } from '../../profiles';
 import { formatProfileForRenderer } from '../../utils/profile-formatter';
 import { createSuccess, createError } from '../../utils/result';
+import { config } from '../../automation/config';
 
 function list() {
   return (getProfiles() || []).map(formatProfileForRenderer).filter(Boolean);
@@ -12,7 +13,12 @@ function get(id: string) {
   if (!profile) {
     return null;
   }
-  return formatProfileForRenderer(profile);
+  const formatted = formatProfileForRenderer(profile);
+  const settings = getProfileSettings(id);
+  return {
+    ...formatted,
+    sendLimit: settings?.send_limit || config.DEFAULT_SEND_LIMIT
+  };
 }
 
 function create(profileData: any) {
