@@ -18,7 +18,7 @@ class MessageSender {
     await page.getByRole('button').filter({ hasText: 'plus-rounded' }).click();
 
     const fileChooserPromise = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Fotos e vídeos' }).click();
+    await page.getByText('Fotos e vídeos').click();
     const fileChooser = await fileChooserPromise;
     if (imagePath) {
       await fileChooser.setFiles(imagePath);
