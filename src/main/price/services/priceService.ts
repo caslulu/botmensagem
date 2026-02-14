@@ -42,11 +42,57 @@ let loadImage: CanvasModule['loadImage'] | undefined;
 let GlobalFonts: CanvasModule['GlobalFonts'] | undefined;
 let canvasAvailable = true;
 
+function loadCanvasNative(): CanvasModule | null {
+  // 1. Standard require (works in dev / non-packaged)
+  try {
+    return require('@napi-rs/canvas') as CanvasModule; // eslint-disable-line @typescript-eslint/no-var-requires
+  } catch (e) {
+    console.warn('[PriceService] Standard require falhou:', (e as Error).message);
+  }
+
+  // 2. In packaged app, load from app.asar.unpacked so native .node
+  //    files are resolved outside the ASAR archive.
+  try {
+    const isPackaged = app && app.isPackaged;
+    if (isPackaged) {
+      const unpackedPaths = [
+        path.join(process.resourcesPath, 'app.asar.unpacked', 'node_modules', '@napi-rs', 'canvas'),
+        path.join(
+          path.dirname(process.execPath),
+          'resources',
+          'app.asar.unpacked',
+          'node_modules',
+          '@napi-rs',
+          'canvas'
+        )
+      ];
+      for (const p of unpackedPaths) {
+        try {
+          console.log('[PriceService] Tentando carregar canvas de:', p);
+          return require(p) as CanvasModule;
+        } catch (e) {
+          console.warn('[PriceService] Falhou em', p, ':', (e as Error).message);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('[PriceService] Falha na detecção de app empacotado:', (e as Error).message);
+  }
+
+  return null;
+}
+
 try {
-  const canvasModule = require('@napi-rs/canvas') as CanvasModule; // eslint-disable-line @typescript-eslint/no-var-requires
-  createCanvas = canvasModule.createCanvas;
-  loadImage = canvasModule.loadImage;
-  GlobalFonts = canvasModule.GlobalFonts;
+  const canvasModule = loadCanvasNative();
+  if (canvasModule) {
+    createCanvas = canvasModule.createCanvas;
+    loadImage = canvasModule.loadImage;
+    GlobalFonts = canvasModule.GlobalFonts;
+    console.log('[PriceService] @napi-rs/canvas carregado com sucesso.');
+  } else {
+    canvasAvailable = false;
+    console.error('[PriceService] @napi-rs/canvas não encontrado em nenhum caminho.');
+  }
 } catch (error) {
   canvasAvailable = false;
   console.error('[PriceService] Falha ao carregar @napi-rs/canvas:', (error as Error).message);
