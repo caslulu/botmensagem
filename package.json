@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "2.0.3",
+  "version": "2.0.4",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
@@ -70,8 +70,12 @@
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "perMachine": false,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true
     },
     "publish": {
       "provider": "github",

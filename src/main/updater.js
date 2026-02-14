@@ -79,7 +79,11 @@ function setupAutoUpdater(mainWindow) {
       buttons: ['Reiniciar Agora', 'Reiniciar Depois']
     }).then((result) => {
       if (result.response === 0) {
-        autoUpdater.quitAndInstall(false, true);
+        // isSilent=true evita o wizard do NSIS e faz uninstall silencioso
+        // isForceRunAfter=true reabre o app após instalação
+        setImmediate(() => {
+          autoUpdater.quitAndInstall(true, true);
+        });
       }
     });
   });
