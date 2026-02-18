@@ -74,6 +74,23 @@ function ensureFolder(dirPath) {
   }
 }
 
+function resolveNativeReadablePath(filePath) {
+  if (!filePath) {
+    return filePath;
+  }
+
+  if (!filePath.includes('app.asar')) {
+    return filePath;
+  }
+
+  const unpacked = filePath.replace('app.asar', 'app.asar.unpacked');
+  if (fs.existsSync(unpacked)) {
+    return unpacked;
+  }
+
+  return filePath;
+}
+
 class PriceService {
   constructor() {
     // Resolve assets dir corretamente para dev vs build empacotado
@@ -141,10 +158,13 @@ class PriceService {
       return;
     }
     try {
-      // Read font via Electron's ASAR-aware fs and register from buffer.
-      // registerFromPath uses native fs which cannot read inside .asar files.
-      const fontBuffer = fs.readFileSync(this.fontPath);
-      GlobalFonts.register(fontBuffer, this.fontFamily);
+      const nativeFontPath = resolveNativeReadablePath(this.fontPath);
+      if (typeof GlobalFonts.registerFromPath === 'function') {
+        GlobalFonts.registerFromPath(nativeFontPath, this.fontFamily);
+      } else {
+        const fontBuffer = fs.readFileSync(nativeFontPath);
+        GlobalFonts.register(fontBuffer, this.fontFamily);
+      }
       this._fontRegistered = true;
     } catch (err) {
       console.warn('[PriceService] Falha ao registrar fonte:', err.message);
@@ -284,11 +304,13 @@ class PriceService {
     let ctx = null;
     let buffer = null;
     try {
-      // Read the file using Electron's ASAR-aware fs, then pass the Buffer
-      // to loadImage. Native code (Skia) cannot read from inside .asar files,
-      // so passing a file path directly would fail with "Failed to create from buffer".
-      const imageBuffer = fs.readFileSync(templatePath);
-      baseImage = await loadImage(imageBuffer);
+      const nativeTemplatePath = resolveNativeReadablePath(templatePath);
+      if (nativeTemplatePath.includes('app.asar')) {
+        const imageBuffer = fs.readFileSync(nativeTemplatePath);
+        baseImage = await loadImage(imageBuffer);
+      } else {
+        baseImage = await loadImage(nativeTemplatePath);
+      }
       const width = baseImage.width || 1600;
       const height = baseImage.height || 2000;
 
@@ -311,9 +333,6 @@ class PriceService {
       ctx = null;
       canvas = null;
       baseImage = null;
-      if (global.gc) {
-        try { global.gc(); } catch (_) {}
-      }
     }
   }
 
