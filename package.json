@@ -1,19 +1,19 @@
 {
   "name": "botmensagem",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
     "start": "electron-vite preview",
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder",
-    "build:win": "electron-vite build && electron-builder --win --x64",
+    "build:win": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64",
     "build:mac": "electron-vite build && electron-builder --mac --universal",
     "rebuild": "electron-rebuild",
     "postinstall": "electron-builder install-app-deps",
     "build:linux": "electron-vite build && electron-builder --linux",
-    "build:dir": "electron-vite build && electron-builder --win --x64 --dir",
-    "publish": "electron-vite build && electron-builder --win --x64 --publish always",
+    "build:dir": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --dir",
+    "publish": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --publish always",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
