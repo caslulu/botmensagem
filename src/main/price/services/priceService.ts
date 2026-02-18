@@ -155,7 +155,10 @@ class PriceService {
       return;
     }
     try {
-      GlobalFonts.registerFromPath(this.fontPath, this.fontFamily);
+      // Read font via Electron's ASAR-aware fs and register from buffer.
+      // registerFromPath uses native fs which cannot read inside .asar files.
+      const fontBuffer = fs.readFileSync(this.fontPath);
+      GlobalFonts.register(fontBuffer, this.fontFamily);
       this._fontRegistered = true;
     } catch (err) {
       console.warn('[PriceService] Falha ao registrar fonte:', (err as Error).message);
@@ -284,7 +287,11 @@ class PriceService {
     let ctx: CanvasRenderingContext2D | null = null;
     let buffer: Buffer | null = null;
     try {
-      baseImage = await loadImage(templatePath);
+      // Read the file using Electron's ASAR-aware fs, then pass the Buffer
+      // to loadImage. Native code (Skia) cannot read from inside .asar files,
+      // so passing a file path directly would fail with "Failed to create from buffer".
+      const imageBuffer = fs.readFileSync(templatePath);
+      baseImage = await loadImage(imageBuffer);
       const width = baseImage.width || 1600;
       const height = baseImage.height || 2000;
 
