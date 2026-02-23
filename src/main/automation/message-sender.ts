@@ -1,5 +1,6 @@
 import type { Page } from 'playwright';
 import type Logger from './utils/logger';
+import { config } from './config';
 
 class MessageSender {
   constructor(private readonly logger: Logger) {}
@@ -15,22 +16,10 @@ class MessageSender {
   }
 
   private async _sendInternal(page: Page, message: string, imagePath: string | null): Promise<void> {
-    await page.getByRole('button').filter({ hasText: 'plus-rounded' }).click();
-
-    const fileChooserPromise = page.waitForEvent('filechooser');
-    await page.getByText('Fotos e vídeos').click();
-    const fileChooser = await fileChooserPromise;
     if (imagePath) {
-      await fileChooser.setFiles(imagePath);
+      await this.attachImage(page, imagePath);
+      await page.waitForTimeout(2000);
     }
-
-    try {
-      await page.locator('img[src^="blob:"]').first().waitFor({ state: 'visible', timeout: 10000 });
-    } catch {
-      // best-effort preview wait
-    }
-
-    await page.waitForTimeout(2000);
 
     if (message) {
       await page.keyboard.insertText(message);
@@ -38,6 +27,36 @@ class MessageSender {
     }
     
     await page.keyboard.press('Enter');
+  }
+
+  private async attachImage(page: Page, imagePath: string): Promise<void> {
+    const attachButton = page
+      .locator('button[aria-label="Anexar"], button[aria-label="Attach"], span[data-icon="plus-rounded"]')
+      .first();
+
+    await attachButton.click({ timeout: config.MESSAGE_BOX_TIMEOUT_MS });
+
+    const photosAndVideosOption = page
+      .getByText(/^Fotos e vídeos$/i)
+      .or(page.getByRole('button', { name: /^Fotos e vídeos$/i }))
+      .or(page.getByRole('menuitem', { name: /^Fotos e vídeos$/i }))
+      .first();
+
+    const [fileChooser] = await Promise.all([
+      page.waitForEvent('filechooser', { timeout: config.MESSAGE_BOX_TIMEOUT_MS }),
+      photosAndVideosOption.click({ timeout: config.MESSAGE_BOX_TIMEOUT_MS })
+    ]);
+
+    await fileChooser.setFiles(imagePath);
+
+    try {
+      await page.locator('img[src^="blob:"]').first().waitFor({
+        state: 'visible',
+        timeout: config.ATTACHMENT_TIMEOUT_MS
+      });
+    } catch {
+      // best-effort preview wait
+    }
   }
 }
 
