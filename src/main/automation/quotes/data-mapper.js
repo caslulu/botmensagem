@@ -188,7 +188,7 @@ function mapQuoteToProgressive(quote) {
   const data = {
     firstName,
     lastName,
-    email: generateEmail(fullName, document),
+    email: normalizeString(payload.email) || generateEmail(fullName, document),
   dataNascimento: normalizeString(payload.data_nascimento),
   dataNascimentoUs: formatDateForUs(payload.data_nascimento),
     zipcode,
