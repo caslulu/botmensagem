@@ -1,75 +1,117 @@
-# Insurance Helper (Botmensagem)
+# Insurance Helper (botmensagem)
 
-## Project Overview
-**Insurance Helper** is an Electron-based desktop application designed to automate insurance-related workflows. It primarily focuses on generating RTA (Real-Time Adherence) PDFs, automating quote retrievals from insurance providers like Progressive and Liberty, and managing price forms. The application features a modern React frontend and a robust Node.js backend leveraging Playwright for browser automation.
+## What The Application Does Today
+
+Insurance Helper is an Electron desktop application used to operate insurance workflows from a single interface. The current product combines:
+
+- profile-based access and session reuse
+- admin-only WhatsApp bulk messaging for archived chats
+- RTA PDF generation
+- quote queue management integrated with Trello
+- insurance quote browser automation
+- price image generation
+- in-app onboarding/help content
+
+## Current UI Modules
+
+The renderer navigation is defined in `src/renderer/src/app/modules.ts`, not in the legacy service registry.
+
+- `mensagens`: starts/stops WhatsApp automation, shows logs, manages saved messages
+- `rta`: fills and exports RTA PDFs
+- `cotacoes`: syncs Trello queue cards with local quotes, creates new cards, runs quote automation
+- `price`: generates local PNG price cards from manual input or saved quotes
+- `howto`: in-app usage guide
+- `novidades`: in-app status/current-state panel
+- `roadmap`: kanban board persisted locally
+- `perfil`: edits the selected profile
+- `config`: general settings plus full profile management for admins
+
+## Important Product Truths
+
+- Quote automation currently supports only `Progressive` and `Liberty`.
+- RTA templates exist for `allstate`, `progressive`, `geico`, and `liberty`.
+- The price renderer currently generates a local image in `Downloads`; the main-side service can attach to Trello only when called with a linked `cotacaoId`, which the current `PriceView` does not send.
+- The quotes screen is the main Trello-facing workflow. There is no standalone Trello page in the sidebar.
+- The WhatsApp automation is profile-driven and admin-gated.
+- The current UI enforces up to 5 saved messages per profile and up to 10 profiles total.
 
 ## Architecture
-The project follows the standard Electron architecture with a separation between the Main and Renderer processes:
 
-*   **Main Process (`src/main/`)**: Handles the application lifecycle, native integrations, SQLite database, and heavy automation tasks using Playwright.
-*   **Renderer Process (`src/renderer/`)**: A React application styled with Tailwind CSS, providing the user interface.
-*   **Preload (`src/preload/`)**: Acts as a secure bridge, exposing specific APIs (via `contextBridge`) from the Main process to the Renderer.
+### Main Process
 
-## Tech Stack
-*   **Runtime**: Electron v39
-*   **Frontend**: React v19, Tailwind CSS v3
-*   **Automation**: Playwright v1.56 (Chromium)
-*   **Database**: SQLite (via `sql.js`)
-*   **PDF Generation**: `pdf-lib`
-*   **Language**: TypeScript
+`src/main/` owns:
 
-## Key Directories
+- Electron lifecycle and window creation
+- IPC handlers under `src/main/ipc/`
+- SQLite persistence via `src/main/infra/db/sqlite.ts`
+- WhatsApp and quote automations
+- Trello integration
+- RTA and price generation
+- production auto-update wiring
 
-### `src/main/`
-Contains the backend logic.
-*   `main.ts`: Application entry point.
-*   `automation/`: Logic for browser automation (Playwright), including `automation-controller.ts`, `browser-manager.ts`, and provider-specific scripts.
-*   `infra/db/`: Database configuration and repositories (`sqlite.ts` defines the schema).
-*   `ipc/`: IPC handlers for communication between Main and Renderer processes.
-*   `rta/` & `price/`: Business logic for RTA generation and pricing modules.
+### Renderer
 
-### `src/renderer/`
-Contains the frontend UI code.
-*   `src/App.tsx`: Main application component.
-*   `src/pages/`: Page components for different modules (Quotes, RTA, Settings, etc.).
-*   `src/components/`: Reusable UI components.
+`src/renderer/` is a React 19 app styled with Tailwind CSS. Most feature screens live under `src/renderer/src/pages/`.
 
-### `data/`
-Used for storing local artifacts during development (e.g., profiles, sessions). In production, `userData` directory is used.
+### Preload
 
-## Database Schema
-The SQLite database (`messages.db`) includes the following key tables:
-*   `profiles`: User profiles with configuration.
-*   `quotes`: Stores insurance quote data and Trello card links.
-*   `roadmap_items`: Manages the internal project roadmap.
-*   `messages` & `profile_sessions`: Support for the messaging/automation infrastructure.
+`src/preload/preload.ts` registers the secure `window.*` bridges. Keep renderer access inside these bridges instead of exposing Node APIs directly.
 
-## Building and Running
+## Persistence And File Locations
 
-### Development
-To start the application in development mode (simultaneous Main and Renderer hot-reload):
-```bash
-npm run dev
-```
-*Optional: Use `PWDEBUG=1 npm run dev` to open the Playwright inspector.*
+- SQLite database: `userData/messages.db`
+- WhatsApp sessions: `userData/sessions/<profileId>`
+- copied profile images: `userData/profiles/`
+- generated RTAs: `Downloads/rta-*.pdf`
+- generated price images: `Downloads/*.png`
 
-### Build
-To build the application for production (Windows x64 by default):
-```bash
-npm run build
-```
-Other build commands:
-*   `npm run build:dir`: Unpacked build for testing.
-*   `npm run build:mac`: Build for macOS.
-*   `npm run build:linux`: Build for Linux.
+Primary tables:
 
-## Automation Workflow
-The automation logic is centralized in `AutomationController`.
-1.  **Launch**: `BrowserManager` launches a browser instance.
-2.  **Execution**: Scripts navigate provider websites (Progressive, Liberty), fill forms, and scrape data.
-3.  **Control**: The process supports pausing (`pause: true`) for manual intervention during the flow.
+- `profiles`
+- `profile_settings`
+- `profile_sessions`
+- `messages`
+- `quotes`
+- `roadmap_items`
 
-## Conventions
-*   **IPC**: All IPC channels should be defined in `src/preload` and handled in `src/main/ipc`.
-*   **Styling**: Use Tailwind CSS classes for styling components.
-*   **Types**: Maintain strong typing with TypeScript interfaces shared between processes where possible.
+## Trello Configuration
+
+The Trello service resolves credentials from:
+
+1. process env
+2. `src/main/config/trello-config.js`
+3. `.env` / `trello.env` files found in supported search paths
+
+Expected keys:
+
+- `TRELLO_KEY`
+- `TRELLO_TOKEN`
+- `TRELLO_ID_LIST`
+- `URL_TRELLO` optional
+
+## Build And Runtime Notes
+
+- `npm run dev` starts Electron Vite in development mode.
+- `npm run build` packages the current platform.
+- `npm run build:win`, `build:mac`, `build:linux`, `build:dir`, and `publish` are available.
+- `npm test` is currently a placeholder and intentionally fails.
+- Production uses `electron-updater` with GitHub Releases.
+
+## Coding Guidance For This Repo
+
+- Prefer the TypeScript source files over older CommonJS compatibility layers when both exist.
+- Keep IPC pairs aligned:
+  - preload bridge in `src/preload/bridges/*`
+  - handler in `src/main/ipc/*`
+- Reuse repository modules in `src/main/infra/db/` instead of bypassing them.
+- Preserve profile/session semantics. Each profile maps to its own persistent session directory.
+- When touching docs or onboarding content, include the in-app docs under:
+  - `src/renderer/src/pages/howto/`
+  - `src/renderer/src/pages/news/`
+
+## Areas Most Likely To Drift
+
+- product copy that still mentions a standalone Trello module
+- docs that imply all price flows upload to Trello
+- references to unsupported quote providers
+- references to JS entry points where the repo now uses TS source

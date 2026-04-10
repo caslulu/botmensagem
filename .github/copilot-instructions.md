@@ -1,106 +1,113 @@
 # GitHub Copilot Instructions
 
-This file contains instructions for GitHub Copilot on how to assist with code generation and suggestions within this repository.
+These instructions describe how code suggestions should align with the current application, not with older product assumptions.
 
-## Context
+## Product Context
 
-This is an application used to automate tasks of an Insurance agency. It performs many tasks including sending messages, creating cards, generating quotes, pricing, and creating RTAs.
+This repository contains an Electron desktop application used to operate insurance workflows. The current system includes:
 
-## Stack & Architecture
+- profile selection and profile administration
+- admin-only WhatsApp automation for archived chats
+- RTA PDF generation
+- quote queue management synced with Trello
+- quote browser automation
+- price image generation
+- in-app help, news, and roadmap screens
 
-1. **Stack**: Electron desktop application with React (TypeScript) for the renderer process and JavaScript for the main process. SQLite (via sql.js) stores user data.
-2. **Coding Pattern**: Follow clean code principles with modular components, clear naming conventions, and exception handling where necessary. Avoid excessive comments.
-3. **Folder Structure**: Code is organized into distinct modules. Place shared components in a `helpers/` folder when used across multiple modules.
-4. **UI Design**: Modern, minimalistic, and professional interface using Tailwind CSS and React component libraries. Target non-technical users with intuitive, accessible UX.
+## Current Module Map
 
-## Modules
+The sidebar used by the renderer is defined in `src/renderer/src/app/modules.ts`.
 
-### 1. WhatsApp Automation
-Sends messages to every archived group. Users select messages and images, then the application sends them to all archived groups.
+- `mensagens`: WhatsApp automation and message management
+- `rta`: RTA PDF generation
+- `cotacoes`: Trello queue + local quote mirror + quote automation
+- `price`: local price image generation
+- `howto`: usage guide
+- `novidades`: current-state/news content
+- `roadmap`: kanban board
+- `perfil`: selected profile settings
+- `config`: general settings and admin profile management
 
-### 2. Trello Automation
-Creates Trello cards from predefined templates. Users fill a form and the application creates cards in the board and stores the quote in the database for future use.
+Do not assume there is a separate Trello page in the visible navigation. Trello UI lives mainly inside the quotes flow via `src/renderer/src/pages/trello/components/TrelloForm.tsx`.
 
-### 3. Quote Automation
-Generates insurance quotes. Users select a quote (created via Trello module) and an insurance company (Progressive, Liberty; future support for Allstate, Geico). The application fills out the quote on the insurance company website.
+## Key Behavior Constraints
 
-### 4. Price Module
-Generates image templates for insurance companies. Users select the quote, insurance company, and fill the price. The application adds taxes, generates the image, saves to disk, and uploads to the Trello card.
+- Quote automation currently supports only `Progressive` and `Liberty`.
+- RTA supports templates for `allstate`, `progressive`, `geico`, and `liberty`.
+- The `PriceView` currently generates a local image and does not pass `cotacaoId`, so that UI flow does not upload to Trello.
+- WhatsApp automation can only be started by admin profiles.
+- The UI currently allows up to 10 profiles and up to 5 saved messages per profile.
+- The default WhatsApp send limit is `200`.
 
-### 5. RTA Module
-Creates RTA (Registration Title Application) forms. Users fill required information and receive a completed PDF form.
+## Stack And Architecture
 
----
+1. Stack:
+   - Electron 39
+   - React 19 + Tailwind CSS
+   - Playwright for browser automation
+   - SQLite via `sql.js`
+   - `pdf-lib` for RTA generation
+2. Main process:
+   - lifecycle, IPC, persistence, Trello, automation, file generation
+3. Renderer:
+   - React pages under `src/renderer/src/pages/`
+4. Preload:
+   - secure `window.*` bridges registered in `src/preload/preload.ts`
+
+## Source-Of-Truth Paths
+
+- Main entry: `src/main/main.ts`
+- Window/bootstrap: `src/main/core/app.ts`, `src/main/window-manager.ts`
+- Database schema: `src/main/infra/db/sqlite.ts`
+- IPC registration: `src/main/ipc/index.ts`
+- Quote automation service: `src/main/automation/quotes/quote-automation-service.js`
+- Trello service: `src/main/trello/services/trelloService.ts`
+- In-app docs: `src/renderer/src/pages/howto/`, `src/renderer/src/pages/news/`
 
 ## Development Guidelines
 
-### Electron Security & IPC
-- Use secure `BrowserWindow` settings: enable `contextIsolation`, disable `nodeIntegration`, enable `sandbox`
-- Return structured results via `src/main/utils/result.js` (`createSuccess`, `createError`)
-- Register IPC handlers under `src/main/ipc/` following the `register*Handlers` pattern in `src/main/ipc/index.js`
-- Keep IPC channels typed and predictable
+### Electron Security And IPC
 
-### Persistence & File System
-- Use `src/main/database.js` (sql.js) for all database operations
-- Always resolve paths via `src/main/automation/utils/path-resolver.js` (`getUserDataDir`, `getSessionsRoot`)
-- Never write files outside the resolved user data directory
-- Keep filenames deterministic and avoid unintentional overwrites
+- Keep `contextIsolation: true`, `nodeIntegration: false`, and `sandbox: true`
+- Add new renderer capabilities through preload bridges plus IPC handlers
+- Prefer structured responses through `src/main/utils/result.js`
 
-### Logging
-- Use `src/main/automation/utils/logger.js` for progress/error logs in automation flows
-- Emit user-facing logs via its `emitter` when available instead of `console.log` directly
-- Include contextual prefixes (profile name, module, etc.)
+### Persistence
 
-### React Components & TypeScript
-- Place shared React components under `src/renderer/src/components/` or `src/renderer/src/components/layout/`
-- Use strict, typed props and IPC bridges defined in `src/preload/preload.js`
-- Avoid `any` type; define lightweight types in `src/renderer/src/global.d.ts` when needed
-- Follow clean component patterns with clear separation of concerns
+- Use the repository layer under `src/main/infra/db/`
+- Keep generated data under user data or Downloads, following existing services
+- Preserve per-profile session directories via `src/main/automation/utils/path-resolver.ts`
 
-### UI & Styling
-- Tailwind CSS is the base styling framework
-- Prefer headless libraries (Radix UI, Headless UI) for accessible components
-- Use controlled form libraries (React Hook Form + Zod) for validation
-- Keep UI minimalistic, consistent, and intuitive for non-technical users
+### React And Renderer Code
 
-### Testing
-- Add unit tests (Jest/Vitest) for pure helpers and business logic
-- Write e2e tests (Playwright) under `e2e/` for critical user flows
-- Keep tests focused and avoid flaky selectors
-- Test security boundaries and error states
+- Shared components belong under `src/renderer/src/components/`
+- Feature-specific UI should stay close to its page folder
+- Prefer typed props and predictable state flows
+- Do not introduce a new navigation source of truth when `DEFAULT_MODULES` already owns the sidebar
 
-### Error Handling
-- Surface actionable messages in the renderer
-- Return machine-friendly structures via IPC: `{ success, error, ... }`
-- Use `createError` with safe messages; avoid leaking stack traces to UI
-- Handle errors gracefully with user-friendly messages
+### Automation Features
 
-### Module Boundaries
-- Respect existing module structure under `src/main/*` (whatsapp, trello, quotes, price, rta)
-- New quote providers go in `src/main/automation/quotes/providers/`
-- Expose consistent interfaces: login, form fill, submission
-- Keep module dependencies minimal and explicit
+- New quote providers belong under `src/main/automation/quotes/providers/`
+- Keep provider mapping explicit in the quote automation service
+- WhatsApp automation changes should preserve the current profile/session model
 
-### Configuration & Secrets
-- Read Trello credentials from `src/main/config/trello-config.js` (copy from `.example`)
-- Never hardcode secrets in source code
-- Use environment fallbacks only when explicitly supported
-- Keep sensitive configuration out of version control
+### Configuration And Secrets
 
-### Assets & Output
-- Price images/output write to `PathResolver.getUserDataDir()/price/output`
-- Follow patterns in `src/main/price/services/priceService.js`
-- Use deterministic filenames for predictable file management
+- Trello credentials come from env or `src/main/config/trello-config.js`
+- Never hardcode secrets
+- Keep secret-bearing files out of version control
 
-### Performance & Rate Limiting
-- Implement rate limiting/backoff for WhatsApp automation to avoid throttling
-- Batch operations where possible
-- Reuse browser sessions via `PathResolver.getSessionsRoot()`
-- Profile performance-critical paths
+### Tests And Quality
 
-### Code Style
-- Follow ESLint/Prettier defaults if present
-- Use clear, descriptive names
-- Prefer early returns over nested conditionals
-- Avoid inline comments except where strictly necessary
-- Keep functions small and focused (single responsibility)
+- There is no configured automated test suite today; do not assume Jest/Vitest is already wired
+- If adding tests, keep them scoped and consistent with the repo
+- Prefer actionable errors surfaced to the renderer
+
+### Documentation
+
+- When product behavior changes, update both repo docs and in-app docs
+- Treat these as documentation surfaces:
+  - `README.md`
+  - `GEMINI.md`
+  - `src/renderer/src/pages/howto/components/HowToGuide.tsx`
+  - `src/renderer/src/pages/news/NewsView.tsx`
