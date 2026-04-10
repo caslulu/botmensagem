@@ -4,7 +4,8 @@ import { app } from 'electron';
 import trelloConfig from '../../config/trello-config';
 import { formatVehicles, formatPeople, formatDateToMmDdYyyy } from '../utils/formatters';
 
-const DEFAULT_API_URL = 'https://api.trello.com/1/cards';
+const TRELLO_API_ROOT = 'https://api.trello.com/1';
+const DEFAULT_API_URL = `${TRELLO_API_ROOT}/cards`;
 
 type AttachmentInput =
   | string
@@ -31,6 +32,48 @@ type TrelloCardResponse = {
   id: string;
   shortUrl?: string;
   name?: string;
+};
+
+type TrelloBoardList = {
+  id: string;
+  name: string;
+};
+
+type TrelloCardAttachment = {
+  id: string;
+  name?: string;
+  url?: string;
+  mimeType?: string;
+  previews?: Array<{ url?: string; width?: number; height?: number }>;
+};
+
+type TrelloListCardResponse = {
+  id: string;
+  idList?: string;
+  idAttachmentCover?: string | null;
+  name?: string;
+  desc?: string;
+  shortUrl?: string;
+  dateLastActivity?: string;
+  attachments?: TrelloCardAttachment[];
+};
+
+export type TrelloListCard = {
+  id: string;
+  idList: string;
+  name: string;
+  desc: string;
+  shortUrl: string;
+  dateLastActivity: string;
+  attachmentCount: number;
+  coverUrl: string;
+  attachmentNames: string[];
+};
+
+export type TrelloListCardsResult = {
+  listId: string;
+  listName: string;
+  cards: TrelloListCard[];
 };
 
 type AttachmentSummary = {
@@ -75,6 +118,28 @@ type PreparedAttachment = {
 function sanitizeString(value: unknown): string {
   if (value === undefined || value === null) return '';
   return String(value).trim();
+}
+
+function normalizeComparable(value: unknown): string {
+  return sanitizeString(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/\s+/g, ' ')
+    .toLowerCase();
+}
+
+function parseBoardRef(boardRef: string | undefined): string {
+  const raw = sanitizeString(boardRef);
+  if (!raw) {
+    throw new Error('Board do Trello não informado.');
+  }
+
+  const match = raw.match(/trello\.com\/b\/([^/?#]+)/i);
+  if (match?.[1]) {
+    return match[1];
+  }
+
+  return raw.replace(/\.json$/i, '');
 }
 
 function composeAddress(data: TrelloCardInput | undefined): string {
@@ -352,6 +417,109 @@ class TrelloService {
     }
   }
 
+  private buildAuthParams(extraParams: Record<string, string> = {}): URLSearchParams {
+    const { apiKey, apiToken } = this.credentials;
+    return new URLSearchParams({
+      key: apiKey,
+      token: apiToken,
+      ...extraParams
+    });
+  }
+
+  private async fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+    const response = await fetch(url, init);
+    if (!response.ok) {
+      let message = `Falha na API do Trello (status ${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string };
+        message = payload?.message || message;
+      } catch (_) {
+        // ignore json parsing errors
+      }
+      throw new Error(message);
+    }
+
+    return response.json() as Promise<T>;
+  }
+
+  async getBoardLists(boardRef: string): Promise<TrelloBoardList[]> {
+    const boardId = parseBoardRef(boardRef);
+    const params = this.buildAuthParams({
+      fields: 'name',
+      filter: 'open'
+    });
+    const url = `${TRELLO_API_ROOT}/boards/${encodeURIComponent(boardId)}/lists?${params.toString()}`;
+    const payload = await this.fetchJson<Array<{ id?: string; name?: string }>>(url);
+
+    return payload
+      .filter((item) => sanitizeString(item?.id))
+      .map((item) => ({
+        id: sanitizeString(item.id),
+        name: sanitizeString(item.name) || 'Lista sem nome'
+      }));
+  }
+
+  async getListCards(options: {
+    boardRef?: string;
+    listId?: string;
+    listName?: string;
+  }): Promise<TrelloListCardsResult> {
+    const providedListId = sanitizeString(options?.listId);
+    let listId = providedListId;
+    let listName = sanitizeString(options?.listName);
+
+    if (!listId) {
+      const boardRef = sanitizeString(options?.boardRef);
+      const desiredListName = normalizeComparable(options?.listName);
+      const lists = await this.getBoardLists(boardRef);
+      const matchedList = lists.find((item) => normalizeComparable(item.name) === desiredListName);
+
+      if (!matchedList) {
+        throw new Error(`Lista do Trello não encontrada: ${options?.listName || 'sem nome'}.`);
+      }
+
+      listId = matchedList.id;
+      listName = matchedList.name;
+    }
+
+    const params = this.buildAuthParams({
+      fields: 'name,desc,shortUrl,dateLastActivity,idList,idAttachmentCover',
+      attachments: 'true',
+      attachment_fields: 'name,url,previews,mimeType'
+    });
+
+    const url = `${TRELLO_API_ROOT}/lists/${encodeURIComponent(listId)}/cards?${params.toString()}`;
+    const payload = await this.fetchJson<TrelloListCardResponse[]>(url);
+
+    const cards = payload.map((card) => {
+      const attachments = Array.isArray(card.attachments) ? card.attachments : [];
+      const coverAttachment = attachments.find((item) => item.id === card.idAttachmentCover) || attachments[0];
+      const previews = Array.isArray(coverAttachment?.previews) ? coverAttachment.previews : [];
+      const largestPreview = previews[previews.length - 1];
+      const coverUrl =
+        sanitizeString(largestPreview?.url) ||
+        sanitizeString(coverAttachment?.url);
+
+      return {
+        id: sanitizeString(card.id),
+        idList: sanitizeString(card.idList) || listId,
+        name: sanitizeString(card.name) || 'Card sem nome',
+        desc: sanitizeString(card.desc),
+        shortUrl: sanitizeString(card.shortUrl),
+        dateLastActivity: sanitizeString(card.dateLastActivity),
+        attachmentCount: attachments.length,
+        coverUrl,
+        attachmentNames: attachments.map((item) => sanitizeString(item.name)).filter(Boolean)
+      };
+    });
+
+    return {
+      listId,
+      listName: listName || 'Lista do Trello',
+      cards
+    };
+  }
+
   async createTrelloCard(data: TrelloCardInput = {}): Promise<{
     id: string;
     url: string;
@@ -452,6 +620,30 @@ class TrelloService {
     }
 
     return summary;
+  }
+
+  async deleteCard(cardId: string): Promise<boolean> {
+    const targetId = sanitizeString(cardId);
+    if (!targetId) {
+      throw new Error('cardId é obrigatório para excluir o card.');
+    }
+
+    const params = this.buildAuthParams();
+    const url = `${TRELLO_API_ROOT}/cards/${encodeURIComponent(targetId)}?${params.toString()}`;
+    const response = await fetch(url, { method: 'DELETE' });
+
+    if (!response.ok) {
+      let message = `Falha ao excluir card (status ${response.status})`;
+      try {
+        const payload = (await response.json()) as { message?: string };
+        message = payload?.message || message;
+      } catch (_) {
+        // ignore json parsing errors
+      }
+      throw new Error(message);
+    }
+
+    return true;
   }
 }
 

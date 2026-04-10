@@ -51,6 +51,28 @@ export function registerTrelloHandlers(): void {
       return createError(error, { data: null });
     }
   });
+
+  ipcMain.handle('trello:get-list-cards', async (_event, payload: Record<string, unknown>) => {
+    try {
+      const result = await trelloService.getListCards({
+        boardRef: typeof payload?.boardRef === 'string' ? payload.boardRef : typeof payload?.boardUrl === 'string' ? payload.boardUrl : '',
+        listId: typeof payload?.listId === 'string' ? payload.listId : '',
+        listName: typeof payload?.listName === 'string' ? payload.listName : ''
+      });
+      return createSuccess(result);
+    } catch (error) {
+      return createError(error, { cards: [] });
+    }
+  });
+
+  ipcMain.handle('trello:delete-card', async (_event, cardId: string) => {
+    try {
+      const deleted = await trelloService.deleteCard(cardId);
+      return createSuccess({ deleted });
+    } catch (error) {
+      return createError(error, { deleted: false });
+    }
+  });
 }
 
 async function fetchVinInfo(vin: string): Promise<{ year: string; make: string; model: string } | null> {

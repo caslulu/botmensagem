@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 
+type TrelloFormProps = {
+  onSuccess?: () => void;
+};
+
 interface Vehicle {
   ano: string;
   marca: string;
@@ -149,7 +153,7 @@ async function decodeVin(vin: string) {
   }
 }
 
-export const TrelloForm: React.FC = () => {
+export const TrelloForm: React.FC<TrelloFormProps> = ({ onSuccess }) => {
   const [form, setForm] = useState<TrelloFormData>(initialForm);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
@@ -285,12 +289,14 @@ export const TrelloForm: React.FC = () => {
         if (res.success) {
           setResult(`Card criado: ${res.card?.url || 'Sucesso'}`);
           setForm(initialForm);
+          onSuccess?.();
         } else {
           setError((res as any)?.error || 'Erro ao criar card.');
         }
       } else {
         setResult('Card criado com sucesso.');
         setForm(initialForm);
+        onSuccess?.();
       }
     } catch (e: any) {
       setError(e?.message || 'Erro ao criar card.');

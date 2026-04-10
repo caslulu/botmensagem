@@ -1,4 +1,4 @@
-import { WhatsAppAutomationView, RtaView, TrelloView, QuotesView, PriceView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView } from './pages'
+import { WhatsAppAutomationView, RtaView, QuotesView, PriceView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView } from './pages'
 
 import React, { useState } from 'react'
 import AppShell from './components/layout/AppShell'
@@ -145,7 +145,6 @@ function AppContent() {
             />
           )}
           {activeModuleId === 'rta' && <RtaView />}
-          {activeModuleId === 'trello' && <TrelloView />}
           {activeModuleId === 'cotacoes' && <QuotesView />}
           {activeModuleId === 'price' && <PriceView />}
           {activeModuleId === 'howto' && <HowToView />}

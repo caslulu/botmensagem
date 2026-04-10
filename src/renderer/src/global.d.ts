@@ -46,6 +46,8 @@ interface TrelloAPI {
   authCheck: () => AsyncResult<IpcResult<{ authenticated?: boolean }>>;
   createCard: (payload: any) => AsyncResult<IpcResult<{ card?: any }>>;
   decodeVin: (vin: string) => AsyncResult<IpcResult<{ data?: { year?: string; make?: string; model?: string } | null }>>;
+  getListCards: (payload: any) => AsyncResult<IpcResult<{ listId?: string; listName?: string; cards?: any[] }>>;
+  deleteCard: (cardId: string) => AsyncResult<IpcResult<{ deleted?: boolean }>>;
 }
 
 interface PriceAPI {
