@@ -1,0 +1,86 @@
+const STANDARD_QUOTE_DEFAULTS = Object.freeze({
+  annualMileageText: '3000',
+  annualMileageBucket: '0 - 3,999',
+  libertyMinimumMiles: '250',
+  occupationSearch: 'worker',
+  educationOption: '2',
+  employmentOption: 'EM',
+  primaryResidenceOption: 'T',
+  licenseYearsOption: '3',
+  ageFirstLicensed: '16',
+  spouseAgeFirstLicensed: '18',
+  timePeriodMonths: '12'
+});
+
+function safeLower(value) {
+  return typeof value === 'string' ? value.toLowerCase() : '';
+}
+
+function includesAny(value, terms = []) {
+  const normalized = safeLower(value);
+  return terms.some((term) => normalized.includes(term));
+}
+
+function mapVehicleOwnership(value) {
+  const normalized = safeLower(value);
+  if (!normalized) return 'E';
+  if (includesAny(normalized, ['less', 'menos', 'less than 1', '1 month'])) return 'E';
+  if (includesAny(normalized, ['1 month - 1 year', '1 ano', '1 - 3', '1-3'])) return 'A';
+  if (includesAny(normalized, ['1 year - 3 years', '1-3 years'])) return 'B';
+  if (includesAny(normalized, ['3 years - 5 years', '3-5 years', '3-5'])) return 'C';
+  if (includesAny(normalized, ['5 years', '5 ou mais', '5 years or more', 'mais de 5', '>=5', '5+'])) return 'D';
+  return 'E';
+}
+
+function mapInsuranceDuration(value) {
+  const normalized = safeLower(value);
+  if (!normalized) return { hasInsurance: true, option: 'C' };
+  if (includesAny(normalized, ['nunca', 'never'])) return { hasInsurance: false, option: null };
+  if (includesAny(normalized, ['menos', 'less'])) return { hasInsurance: true, option: 'A' };
+  if (normalized.includes('1-3')) return { hasInsurance: true, option: 'B' };
+  if (normalized.includes('3-5')) return { hasInsurance: true, option: 'C' };
+  return { hasInsurance: true, option: 'D' };
+}
+
+function mapResidenceDuration(value) {
+  const normalized = safeLower(value);
+  if (!normalized) return 'B';
+  if (normalized.includes('mais')) return 'C';
+  return 'B';
+}
+
+function isFinancedVehicle(value) {
+  const normalized = safeLower(value);
+  return /financi|finance|payments|paying|lease/.test(normalized) && !/quitad|paid|own/.test(normalized);
+}
+
+function isMarriedStatus(value) {
+  const normalized = safeLower(value);
+  return /married|casad/.test(normalized) && !/single|solteir/.test(normalized);
+}
+
+function isFemaleGender(value) {
+  const normalized = safeLower(value);
+  return /fem/.test(normalized) || /woman|mulher/.test(normalized);
+}
+
+function derivePurchaseYear(value, currentYear = new Date().getFullYear()) {
+  const normalized = safeLower(value);
+  if (/menos de 1|less than 1|< ?1/.test(normalized)) return currentYear;
+  if (/1-3|1\/3|1 a 3|1\s*3|1 to 3/.test(normalized)) return currentYear - 2;
+  if (/3-5|3\/5|3 a 5|3\s*5|3 to 5/.test(normalized)) return currentYear - 4;
+  if (/5\+|5 or more|5\s*\+/.test(normalized)) return currentYear - 5;
+  return currentYear;
+}
+
+module.exports = {
+  STANDARD_QUOTE_DEFAULTS,
+  safeLower,
+  mapVehicleOwnership,
+  mapInsuranceDuration,
+  mapResidenceDuration,
+  isFinancedVehicle,
+  isMarriedStatus,
+  isFemaleGender,
+  derivePurchaseYear
+};

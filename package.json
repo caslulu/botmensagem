@@ -8,7 +8,7 @@
     "dev": "electron-vite dev",
     "build": "electron-vite build && electron-builder",
     "build:win": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64",
-    "build:mac": "electron-vite build && electron-builder --mac --universal",
+    "build:mac": "node scripts/generate-mac-icon.js && electron-vite build && electron-builder --mac --universal",
     "rebuild": "electron-rebuild",
     "postinstall": "electron-builder install-app-deps",
     "build:linux": "electron-vite build && electron-builder --linux",
@@ -57,6 +57,7 @@
       "asar": true
     },
     "mac": {
+      "icon": "build/icon.icns",
       "target": [
         "dmg",
         "zip"

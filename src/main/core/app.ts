@@ -18,6 +18,7 @@ export function startMainProcess(): void {
     await initializeApp();
 
     const dockLogoCandidates = [
+      path.join(process.cwd(), 'build', 'icon.png'),
       path.join(__dirname, '..', 'assets', 'logo.png'),
       path.join(__dirname, '..', '..', 'assets', 'images', 'logo.png'),
       path.join(__dirname, '..', '..', 'assets', 'images', 'profiles', 'logo.png'),
@@ -31,7 +32,7 @@ export function startMainProcess(): void {
         const { generateRoundedIcon } = await import('../utils/icon-generator');
         const roundedOut = path.join(__dirname, '..', 'assets', 'logo-rounded.png');
         try {
-          await generateRoundedIcon(logoPath, roundedOut, 512, 36).catch(() => null);
+          await generateRoundedIcon(logoPath, roundedOut, 512, 104).catch(() => null);
           const toUse = fs.existsSync(roundedOut) ? roundedOut : logoPath;
           app.dock.setIcon(toUse);
         } catch (err) {

@@ -1,5 +1,13 @@
 const { chromium } = require('playwright');
 const ChromeDetector = require('../../utils/chrome-detector');
+const {
+  STANDARD_QUOTE_DEFAULTS,
+  derivePurchaseYear,
+  isFemaleGender,
+  isFinancedVehicle,
+  isMarriedStatus,
+  mapInsuranceDuration
+} = require('../quote-defaults');
 
 class LibertyQuoteAutomation {
   constructor(options = {}) {
@@ -157,9 +165,9 @@ class LibertyQuoteAutomation {
               data.tenho_seguro,
               data.insured
             ];
-            const raw = String((insuranceCandidates.find(Boolean) || '')).toLowerCase();
-            const isNo = /^(no|false|none|nunca|never|não)$/.test(raw) || /nunca|never|no|none/.test(raw);
-            const isYes = /^(yes|true|sim)$/.test(raw) || /yes|sim|true/.test(raw) || (/\d/.test(raw) && !/0/.test(raw));
+            const insuranceProfile = mapInsuranceDuration(insuranceCandidates.find(Boolean) || '');
+            const isYes = insuranceProfile.hasInsurance;
+            const isNo = !insuranceProfile.hasInsurance;
 
             if (isYes) {
               try { await page.locator('#visualRadioGroupV2-4 label').filter({ hasText: 'Yes' }).first().click().catch(() => {}); } catch (_) {}
@@ -196,21 +204,11 @@ class LibertyQuoteAutomation {
             for (let idx = 0; idx < vehicles.length; idx++) {
               const vehicle = vehicles[idx] || {};
               const vin = String(vehicle.vin || vehicle.VIN || vehicle.numero_chassi || data.vin || '').trim();
-              const financeRaw = String(vehicle.financiado || data.financiado || vehicle.estado || vehicle.payment_status || '').toLowerCase();
-              const isFinanced = /financi|finance|payments|paying/.test(financeRaw) && !/quitad|paid|own/.test(financeRaw);
+              const financeRaw = String(vehicle.financiado || data.financiado || vehicle.estado || vehicle.payment_status || '').trim();
+              const isFinanced = isFinancedVehicle(financeRaw);
 
-              const tenureRaw = String(vehicle.tempo_com_veiculo || data.tempo_com_veiculo || data.tempoComVeiculo || '').toLowerCase();
-              const currentYear = new Date().getFullYear();
-              let purchaseYear = currentYear;
-              if (/menos de 1|less than 1|< ?1/.test(tenureRaw)) {
-                purchaseYear = currentYear;
-              } else if (/1-3|1\/3|1 a 3|1\s*3|1 to 3/.test(tenureRaw)) {
-                purchaseYear = currentYear - 2;
-              } else if (/3-5|3\/5|3 a 5|3\s*5|3 to 5/.test(tenureRaw)) {
-                purchaseYear = currentYear - 4;
-              } else if (/5\+|5 or more|5\s*\+/.test(tenureRaw)) {
-                purchaseYear = currentYear - 5;
-              }
+              const tenureRaw = String(vehicle.tempo_com_veiculo || data.tempo_com_veiculo || data.tempoComVeiculo || '').trim();
+              const purchaseYear = derivePurchaseYear(tenureRaw);
 
               try { await page.getByTestId('Vin Input').click({ timeout: 8000 }).catch(() => {}); } catch (_) {}
               if (vin) {
@@ -261,7 +259,7 @@ class LibertyQuoteAutomation {
               try {
                 const milesField = page.getByRole('textbox', { name: 'Number of Miles' });
                 await milesField.click({ timeout: 8000 }).catch(() => {});
-                await milesField.fill('250').catch(() => {});
+                await milesField.fill(STANDARD_QUOTE_DEFAULTS.libertyMinimumMiles).catch(() => {});
               } catch (_) {}
 
               try { await page.locator('#optInRideshare-radio').getByText('No').click().catch(() => {}); } catch (_) {}
@@ -288,8 +286,8 @@ class LibertyQuoteAutomation {
                 data.casado,
                 data.isMarried
               ];
-              const maritalRaw = String((maritalCandidates.find(Boolean) || '')).toLowerCase();
-              const isMarried = /married|casad/.test(maritalRaw) && !/single|solteir/.test(maritalRaw);
+              const maritalRaw = String(maritalCandidates.find(Boolean) || '');
+              const isMarried = isMarriedStatus(maritalRaw);
 
               if (isMarried) {
                 try { await page.getByText('Yes').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
@@ -298,15 +296,15 @@ class LibertyQuoteAutomation {
               }
 
               const genderCandidates = [data.gender, data.genero, data.sexo];
-              const genderRaw = String((genderCandidates.find(Boolean) || '')).toLowerCase();
-              const isFemale = /fem/i.test(genderRaw) || /woman|mulher/.test(genderRaw);
+              const genderRaw = String(genderCandidates.find(Boolean) || '');
+              const isFemale = isFemaleGender(genderRaw);
               if (isFemale) {
                 try { await page.getByText('Female').click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
               } else {
                 try { await page.getByText('Male', { exact: true }).click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
               }
 
-              const ageLicensed = String(data.ageFirstLicensed || data.idadeHabilitado || data.ageLicensed || 18);
+              const ageLicensed = String(data.ageFirstLicensed || data.idadeHabilitado || data.ageLicensed || STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed);
               try { await page.getByRole('textbox', { name: 'Age first licensed' }).click({ timeout: 5000 }).catch(() => {}); } catch (_) {}
               try { await page.getByRole('textbox', { name: 'Age first licensed' }).fill(ageLicensed).catch(() => {}); } catch (_) {}
 
@@ -372,7 +370,7 @@ class LibertyQuoteAutomation {
                 await page.getByText('No', { exact: true }).click().catch(() => {});
                 
                 await page.getByRole('textbox', { name: 'Age first licensed' }).click().catch(() => {});
-                await page.getByRole('textbox', { name: 'Age first licensed' }).fill('18').catch(() => {});
+                await page.getByRole('textbox', { name: 'Age first licensed' }).fill(STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed).catch(() => {});
                 
                 try { await page.locator('#goodStudent-radio').getByText('No').click().catch(() => {}); } catch (_) {}
                 try { await page.locator('#studentAway-radio').getByText('No').click().catch(() => {}); } catch (_) {}
@@ -466,7 +464,7 @@ class LibertyQuoteAutomation {
 
                 // Age first licensed for spouse - default to 18
                 await page.getByRole('textbox', { name: 'Age first licensed' }).click().catch(() => {});
-                await page.getByRole('textbox', { name: 'Age first licensed' }).fill('18').catch(() => {});
+                await page.getByRole('textbox', { name: 'Age first licensed' }).fill(STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed).catch(() => {});
 
                 // Good student - No
                 try { await page.locator('#goodStudent-radio').getByText('No').click().catch(() => {}); } catch (_) {}
@@ -501,21 +499,18 @@ class LibertyQuoteAutomation {
               } catch (_) {}
 
               // 2. Current Insurance Logic
-              let hasInsurance = false;
-              try {
-                 const insuranceCandidates = [
-                  data.hasInsurance,
-                  data.has_insurance,
-                  data.tempoDeSeguro,
-                  data.tempo_de_seguro,
-                  data.insurance,
-                  data.current_insurance,
-                  data.tenho_seguro,
-                  data.insured
-                ];
-                const raw = String((insuranceCandidates.find(Boolean) || '')).toLowerCase();
-                hasInsurance = /^(yes|true|sim)$/.test(raw) || /yes|sim|true/.test(raw) || (/\d/.test(raw) && !/0/.test(raw));
-              } catch(_) {}
+              const insuranceCandidates = [
+                data.hasInsurance,
+                data.has_insurance,
+                data.tempoDeSeguro,
+                data.tempo_de_seguro,
+                data.insurance,
+                data.current_insurance,
+                data.tenho_seguro,
+                data.insured
+              ];
+              const insuranceProfile = mapInsuranceDuration(insuranceCandidates.find(Boolean) || '');
+              const hasInsurance = insuranceProfile.hasInsurance;
 
               if (hasInsurance) {
                  await page.locator('#autoPolicyIndicator-radio').getByText('Yes').click({ timeout: 5000 }).catch(() => {});

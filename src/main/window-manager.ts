@@ -22,6 +22,7 @@ class WindowManager {
     }
 
     const logoCandidates = [
+      path.join(process.cwd(), 'build', 'icon.png'),
       path.join(__dirname, 'assets', 'logo-rounded.png'),
       path.join(__dirname, 'assets', 'logo.png'),
       path.join(__dirname, '..', '..', 'assets', 'images', 'logo.png'),

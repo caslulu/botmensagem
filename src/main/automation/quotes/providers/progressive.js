@@ -1,62 +1,26 @@
 const { chromium } = require('playwright');
 const { splitName, formatDateForUs } = require('../data-mapper');
 const ChromeDetector = require('../../utils/chrome-detector');
+const {
+  STANDARD_QUOTE_DEFAULTS,
+  isFinancedVehicle,
+  mapInsuranceDuration,
+  mapResidenceDuration,
+  mapVehicleOwnership,
+  safeLower
+} = require('../quote-defaults');
+const {
+  checkFirstVisible,
+  clickFirstVisible,
+  fillFirstVisible,
+  firstVisible,
+  selectFirstVisible,
+  typeSequentiallyFirstVisible,
+  waitForAnyVisible
+} = require('../playwright-helpers');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
-
-function safeLower(value) {
-  return typeof value === 'string' ? value.toLowerCase() : '';
-}
-
-function mapVehicleOwnership(value) {
-  const normalized = safeLower(value);
-  if (!normalized) return 'E';
-  if (normalized.includes('less') || normalized.includes('menos') || normalized.includes('less than 1') || normalized.includes('1 month')) {
-    return 'E';
-  }
-  if (normalized.includes('1 month - 1 year') || normalized.includes('1 ano') || normalized.includes('1 - 3') || normalized.includes('1-3')) {
-    return 'A';
-  }
-  if (normalized.includes('1 year - 3 years') || normalized.includes('1-3 years') || normalized.includes('1-3')) {
-    return 'B';
-  }
-  if (normalized.includes('3 years - 5 years') || normalized.includes('3-5 years') || normalized.includes('3-5')) {
-    return 'C';
-  }
-  if (normalized.includes('5 years') || normalized.includes('5 ou mais') || normalized.includes('5 years or more') || normalized.includes('mais de 5')) {
-    return 'D';
-  }
-  if (normalized.includes('>=5') || normalized.includes('5+')) {
-    return 'D';
-  }
-  return 'E';
-}
-
-function mapInsuranceDuration(value) {
-  const normalized = safeLower(value);
-  if (!normalized) return { hasInsurance: true, option: 'C' };
-  if (normalized.includes('nunca')) {
-    return { hasInsurance: false, option: null };
-  }
-  if (normalized.includes('menos')) {
-    return { hasInsurance: true, option: 'A' };
-  }
-  if (normalized.includes('1-3')) {
-    return { hasInsurance: true, option: 'B' };
-  }
-  if (normalized.includes('3-5')) {
-  return { hasInsurance: true, option: 'C' };
-  }
-  return { hasInsurance: true, option: 'D' };
-}
-
-function mapResidenceDuration(value) {
-  const normalized = safeLower(value);
-  if (!normalized) return 'B';
-  if (normalized.includes('mais')) return 'C';
-  return 'B';
-}
 
 class ProgressiveQuoteAutomation {
   constructor(options = {}) {
@@ -102,6 +66,171 @@ class ProgressiveQuoteAutomation {
     }
   }
 
+  pickByPosition(locator, useLast = false) {
+    if (!locator) {
+      return locator;
+    }
+    if (useLast && typeof locator.last === 'function') {
+      return locator.last();
+    }
+    if (typeof locator.first === 'function') {
+      return locator.first();
+    }
+    return locator;
+  }
+
+  async answerChoiceInGroup(groupPatterns = [], answerText = 'No', { useLast = false } = {}) {
+    const patterns = Array.isArray(groupPatterns) ? groupPatterns : [groupPatterns];
+
+    for (const pattern of patterns) {
+      const group = await firstVisible([
+        () => this.pickByPosition(this.page.getByRole('group', { name: pattern }), useLast),
+        () => this.pickByPosition(this.page.getByLabel(pattern), useLast)
+      ]);
+
+      if (!group) {
+        continue;
+      }
+
+      const answered = await checkFirstVisible([
+        () => group.getByLabel(answerText, { exact: true }),
+        () => group.getByRole('radio', { name: answerText, exact: true })
+      ], { force: true }).catch(() => false);
+
+      if (answered) {
+        return true;
+      }
+
+      const clicked = await clickFirstVisible([
+        () => group.getByText(new RegExp(`^${answerText}$`, 'i')).first()
+      ], { force: true }).catch(() => false);
+
+      if (clicked) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async preencherOccupationPadrao({ useLast = false } = {}) {
+    const inputCandidates = [
+      () => this.pickByPosition(this.page.getByPlaceholder(/Search for your job title/i), useLast),
+      () => this.pickByPosition(this.page.getByRole('combobox', { name: /Occupation/i }), useLast),
+      () => this.pickByPosition(this.page.getByLabel(/Occupation/i), useLast)
+    ];
+
+    const targetInput = await waitForAnyVisible(inputCandidates, 3000);
+    if (!targetInput) {
+      return false;
+    }
+
+    try {
+      await targetInput.click({ timeout: 3000 });
+    } catch (_) {
+      // ignore
+    }
+
+    await typeSequentiallyFirstVisible([() => targetInput], STANDARD_QUOTE_DEFAULTS.occupationSearch, { delay: 100 }).catch(() => false);
+
+    await clickFirstVisible([
+      () => this.pickByPosition(this.page.getByRole('button', { name: 'Search' }), useLast)
+    ], { timeout: 2000 }).catch(() => false);
+
+    const optionClicked = await clickFirstVisible([
+      () => this.page.getByRole('option', { name: /Worker.*All Other/i }).first(),
+      () => this.page.getByText(/Worker.*All Other/i).first(),
+      () => this.page.getByText('Transportation Worker').first()
+    ], { timeout: 2500 }).catch(() => false);
+
+    if (optionClicked) {
+      return true;
+    }
+
+    try {
+      await targetInput.press('Enter');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async preencherHistoricoLicencaPadrao({ estadoDocumento, useLast = false, ageFirstLicensed = STANDARD_QUOTE_DEFAULTS.ageFirstLicensed } = {}) {
+    const isInternational = safeLower(estadoDocumento) === 'it';
+    const licenseTypeCandidates = [
+      () => this.pickByPosition(this.page.getByLabel('U.S. License type'), useLast)
+    ];
+
+    if (isInternational) {
+      await selectFirstVisible(licenseTypeCandidates, ['F', { index: 1 }]).catch(() => false);
+      return;
+    }
+
+    await selectFirstVisible(licenseTypeCandidates, [{ label: 'Personal' }, { index: 1 }]).catch(() => false);
+    await selectFirstVisible([
+      () => this.pickByPosition(this.page.getByLabel('U.S. License status'), useLast)
+    ], [{ label: 'Valid' }, { index: 1 }]).catch(() => false);
+
+    await fillFirstVisible([
+      () => this.pickByPosition(this.page.getByLabel('Age first licensed*'), useLast),
+      () => this.pickByPosition(this.page.getByLabel(/Age first licensed/i), useLast)
+    ], ageFirstLicensed, { timeout: 5000 }).catch(() => false);
+
+    await selectFirstVisible([
+      () => this.pickByPosition(this.page.getByLabel('Years licensed*'), useLast),
+      () => this.pickByPosition(this.page.getByLabel(/Years licensed in the U\.S\. or/i), useLast),
+      () => this.pickByPosition(this.page.getByLabel(/Years licensed/i), useLast)
+    ], [STANDARD_QUOTE_DEFAULTS.licenseYearsOption, { index: 1 }]).catch(() => false);
+
+    await this.answerChoiceInGroup([/Has .*license been valid/i, /Has your license been valid/i], 'Yes', { useLast });
+    await this.answerChoiceInGroup([/Any license suspensions/i], 'No', { useLast });
+    await this.answerChoiceInGroup([/Has your license been valid continuously/i], 'Yes', { useLast });
+    await this.answerChoiceInGroup([/License expired, suspended or revoked/i], 'No', { useLast });
+  }
+
+  async preencherPerguntasPadraoSemHistorico({ useLast = false } = {}) {
+    await this.answerChoiceInGroup([/Accidents, claims, or other/i], 'No', { useLast });
+    await this.answerChoiceInGroup([/DWIs/i], 'No', { useLast });
+    await this.answerChoiceInGroup([/Tickets or violations/i], 'No', { useLast });
+  }
+
+  async preencherCamposVeiculoPadrao(veiculo = {}) {
+    const annualMileageText = STANDARD_QUOTE_DEFAULTS.annualMileageText;
+    const annualMileageBucket = STANDARD_QUOTE_DEFAULTS.annualMileageBucket;
+    const ownLeaseValue = isFinancedVehicle(veiculo.financiado) ? '2' : '3';
+
+    await waitForAnyVisible([
+      () => this.page.getByLabel('Learn more aboutPrimary use*'),
+      () => this.page.getByLabel('Learn more aboutVehicle use*'),
+      () => this.page.getByRole('textbox', { name: /Estimated annual mileage|Number of Miles/i }),
+      () => this.page.getByLabel(/How long have you had this vehicle/i),
+      () => this.page.getByLabel('Own or lease?')
+    ], 6000).catch(() => null);
+
+    await selectFirstVisible([
+      () => this.page.getByLabel('Learn more aboutPrimary use*'),
+      () => this.page.getByLabel('Learn more aboutVehicle use*')
+    ], ['1', { index: 1 }]).catch(() => false);
+
+    await selectFirstVisible([
+      () => this.page.getByLabel('Own or lease?')
+    ], [ownLeaseValue]).catch(() => false);
+
+    await selectFirstVisible([
+      () => this.page.getByLabel(/How long have you had this vehicle/i)
+    ], [mapVehicleOwnership(veiculo.tempo_com_veiculo), { index: 1 }]).catch(() => false);
+
+    await fillFirstVisible([
+      () => this.page.getByRole('textbox', { name: 'Estimated annual mileage' }),
+      () => this.page.getByRole('textbox', { name: /Annual mileage|Number of Miles/i })
+    ], annualMileageText).catch(() => false);
+
+    await selectFirstVisible([
+      () => this.page.getByLabel('Learn more aboutAnnual'),
+      () => this.page.getByLabel(/Annual mileage/i)
+    ], [annualMileageBucket, { index: 1 }]).catch(() => false);
+  }
+
   async ensureValidLicenseYes() {
     if (!this.page) {
       return false;
@@ -116,7 +245,6 @@ class ProgressiveQuoteAutomation {
       // ignore
     }
     return false;
-        await this.ensureValidLicenseYes();
   }
 
   async ensureFreshRun() {
@@ -404,10 +532,28 @@ class ProgressiveQuoteAutomation {
       this.page.getByRole('button', { name: 'Continue' }),
       { timeout: 15000 }
     );
-    await this.clickButton(
-      this.page.getByRole('button', { name: 'Continue' }),
-      { timeout: 15000 }
-    );
+
+    const nextStep = await waitForAnyVisible([
+      () => this.page.getByRole('button', { name: 'Continue' }),
+      () => this.page.getByRole('button', { name: /Ok, start my quote/i }),
+      () => this.page.getByRole('combobox', { name: 'Street number and name' }),
+      () => this.page.getByRole('textbox', { name: 'City' }),
+      () => this.page.getByRole('textbox', { name: /ZIP Code/i })
+    ], 6000);
+
+    if (!nextStep) {
+      return;
+    }
+
+    try {
+      const text = await nextStep.textContent();
+      const label = String(text || '').trim();
+      if (/^continue$/i.test(label)) {
+        await nextStep.click({ timeout: 10000 });
+      }
+    } catch (_) {
+      // Se o próximo passo já for a tela de endereço, a próxima função assume.
+    }
   }
 
   async informacoesEndereco(data) {
@@ -446,10 +592,6 @@ class ProgressiveQuoteAutomation {
       this.page.setDefaultTimeout(30000);
     }
 
-    if (this.novaInterface === undefined) {
-      this.novaInterface = await this.page.isVisible("label:has-text('Vehicle use')");
-    }
-
     for (let index = 0; index < veiculos.length; index += 1) {
       const veiculo = veiculos[index];
       if (!veiculo?.vin) {
@@ -471,95 +613,7 @@ class ProgressiveQuoteAutomation {
 
       // Aguarda um pouco para a interface atualizar após o VIN
       await this.page.waitForTimeout(2000);
-
-      // Verifica se é o fluxo com inputs de texto (CA, FL, etc)
-      let isTextFlow = false;
-      try {
-        // Tenta esperar pelo seletor específico da Califórnia ou Florida (Mileage Textbox)
-        const primaryUse = this.page.getByLabel('Learn more aboutPrimary use*');
-        const annualMileage = this.page.getByRole('textbox', { name: 'Estimated annual mileage' });
-
-        await Promise.race([
-          primaryUse.waitFor({ state: 'visible', timeout: 3000 }),
-          annualMileage.waitFor({ state: 'visible', timeout: 3000 })
-        ]);
-        isTextFlow = true;
-      } catch (e) {
-        isTextFlow = false;
-      }
-
-      console.log(`Fluxo Texto (CA/FL) detectado: ${isTextFlow}`);
-
-      if (isTextFlow) {
-        console.log('Preenchendo campos do fluxo Texto (CA/FL)...');
-        
-        // Primary use -> Commute (Option 1)
-        try {
-          const primaryUse = this.page.getByLabel('Learn more aboutPrimary use*');
-          if (await primaryUse.isVisible()) {
-            await primaryUse.selectOption('1');
-          }
-        } catch (e) {
-          console.warn('Erro ao preencher Primary use (CA/FL):', e.message);
-        }
-
-        // Estimated annual mileage -> 3000
-        try {
-          const annualMileage = this.page.getByRole('textbox', { name: 'Estimated annual mileage' });
-          if (await annualMileage.isVisible()) {
-            await annualMileage.click();
-            await annualMileage.fill('3000');
-          }
-        } catch (e) {
-          console.warn('Erro ao preencher Annual Mileage (CA/FL):', e.message);
-        }
-
-        // Own or lease?
-        try {
-          const ownLeaseField = this.page.getByLabel('Own or lease?');
-          if (await ownLeaseField.isVisible()) {
-            if (safeLower(veiculo.financiado).includes('financiado')) {
-              await ownLeaseField.selectOption('2');
-            } else {
-              await ownLeaseField.selectOption('3');
-            }
-          }
-        } catch (e) {
-          console.warn('Erro ao preencher Own/Lease (CA/FL):', e.message);
-        }
-
-      } else {
-        // Fluxo Padrão
-        try {
-          await this.selectWithPause(this.page.getByLabel('Learn more aboutVehicle use*'), '1');
-        } catch (_) {
-          // ignore
-        }
-
-        try {
-          const ownLeaseField = this.page.getByLabel('Own or lease?');
-          if (safeLower(veiculo.financiado).includes('financiado')) {
-            await this.selectWithPause(ownLeaseField, '2');
-          } else {
-            await this.selectWithPause(ownLeaseField, '3');
-          }
-        } catch (_) {}
-
-        try {
-          const ownership = mapVehicleOwnership(veiculo.tempo_com_veiculo);
-          const ownershipField = this.page.getByLabel(/How long have you had this vehicle/i);
-          await ownershipField.waitFor({ state: 'visible', timeout: 8000 });
-          await this.selectWithPause(ownershipField, ownership);
-        } catch (_) {}
-
-        try {
-          if (this.novaInterface) {
-            await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), '0 - 3,999');
-          } else {
-            await this.selectWithPause(this.page.getByLabel('Learn more aboutAnnual'), { index: 1 });
-          }
-        } catch (_) {}
-      }
+      await this.preencherCamposVeiculoPadrao(veiculo);
 
       // Tenta clicar em "Done" para salvar o veículo atual antes de prosseguir
       // Isso é crucial para voltar à lista de veículos e permitir adicionar o próximo
@@ -615,269 +669,43 @@ class ProgressiveQuoteAutomation {
       console.warn('[ProgressiveAutomation] Falha ao selecionar estado civil:', error?.message || error);
     }
 
-    // 1. Tenta preencher campos de Educação/Emprego (se existirem)
     try {
-      const educationId = '#DriversAddPniDetails_embedded_questions_list_HighestLevelOfEducation';
-      const employmentId = '#DriversAddPniDetails_embedded_questions_list_EmploymentStatus';
+      await selectFirstVisible([
+        () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_HighestLevelOfEducation'),
+        () => this.page.getByLabel(/Highest level of education/i)
+      ], [STANDARD_QUOTE_DEFAULTS.educationOption, { index: 1 }]);
 
-      // Education
-      const educationLoc = this.page.locator(educationId);
-      if (await educationLoc.isVisible()) {
-        await educationLoc.selectOption('2');
-      } else {
-        const educationSelect = this.page.getByLabel(/Highest level of education/i);
-        if (await educationSelect.isVisible()) {
-          await educationSelect.selectOption('2');
-        }
-      }
+      await selectFirstVisible([
+        () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_EmploymentStatus'),
+        () => this.page.getByLabel(/Employment status/i)
+      ], [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]);
 
-      // Employment
-      const employmentLoc = this.page.locator(employmentId);
-      if (await employmentLoc.isVisible()) {
-        await employmentLoc.selectOption('EM');
-      } else {
-        const employmentSelect = this.page.getByLabel(/Employment status/i);
-        if (await employmentSelect.isVisible()) {
-          await employmentSelect.selectOption('EM');
-        }
-      }
-
-      // Occupation
-      try {
-        console.log('Tentando preencher Occupation...');
-        
-        const searchInput = this.page.getByPlaceholder('Search for your job title...');
-        const combobox = this.page.getByRole('combobox', { name: 'Occupation view entire list' });
-
-        let targetInput = null;
-        let isNewVariation = false;
-
-        // Verifica qual está visível
-        if (await searchInput.isVisible()) {
-          targetInput = searchInput;
-          isNewVariation = true;
-        } else if (await combobox.isVisible()) {
-          targetInput = combobox;
-        } else {
-          // Se nenhum visível, espera um pouco
-          try {
-            await searchInput.waitFor({ state: 'visible', timeout: 3000 });
-            targetInput = searchInput;
-            isNewVariation = true;
-          } catch {
-            try {
-              await combobox.waitFor({ state: 'visible', timeout: 3000 });
-              targetInput = combobox;
-            } catch {
-              console.log('Nenhum input principal de Occupation apareceu no tempo limite.');
-            }
-          }
-        }
-
-        if (targetInput) {
-          console.log(isNewVariation ? 'Variação "Search" encontrada.' : 'Variação "Combobox" encontrada.');
-          await targetInput.click();
-          await this.page.waitForTimeout(500);
-          
-          // Usa pressSequentially para garantir que o site registre a digitação
-          await targetInput.pressSequentially('worker', { delay: 100 });
-          await this.page.waitForTimeout(1000);
-          
-          if (isNewVariation) {
-            const searchBtn = this.page.getByRole('button', { name: 'Search' });
-            if (await searchBtn.isVisible()) {
-              await searchBtn.click();
-              await this.page.waitForTimeout(1000);
-            }
-
-            // Para a variação de busca, tenta selecionar "Transportation Worker"
-            const transOption = this.page.getByText('Transportation Worker').first();
-            if (await transOption.isVisible()) {
-              await transOption.click();
-            } else {
-              // Fallback se não achar Transportation Worker
-              const option = this.page.getByText(/Worker.*All Other/i).first();
-              if (await option.isVisible()) {
-                await option.click();
-              } else {
-                await targetInput.press('Enter');
-              }
-            }
-          } else {
-            // Variação Combobox
-            const option = this.page.getByText(/Worker.*All Other/i).first();
-            if (await option.isVisible()) {
-              await option.click();
-            } else {
-              console.log('Opção não encontrada, tentando Enter...');
-              await targetInput.press('Enter');
-            }
-          }
-        } else {
-          throw new Error('Nenhum input principal encontrado');
-        }
-      } catch (e) {
-        console.error('Erro ao preencher Occupation (tentativa principal):', e.message);
-        
-        // Fallback: Tenta pelo label genérico se o role específico falhar
-        try {
-          console.log('Tentando fallback para Occupation...');
-          // Usa .first() para evitar erro de strict mode se houver múltiplos elementos (ex: input + botão search)
-          const fallbackInput = this.page.getByLabel(/Occupation/i).first();
-          if (await fallbackInput.isVisible()) {
-            await fallbackInput.click();
-            await fallbackInput.fill('worker');
-            await this.page.waitForTimeout(1000);
-            await fallbackInput.press('Enter');
-          }
-        } catch (fallbackError) {
-          console.error('Erro no fallback de Occupation:', fallbackError.message);
-        }
-      }
+      await this.preencherOccupationPadrao();
     } catch (e) {
       console.log('Campos extras de emprego/educação não encontrados ou erro ao preencher:', e.message);
     }
 
-    // 2. Tenta preencher Residência
     try {
       this.page.setDefaultTimeout(5000);
-      await this.page.getByLabel('Primary residence*').selectOption('T');
-    } catch (_) {
-      console.log('[Progressive] Falha no seletor principal de residência, tentando fallback...');
-      try {
-        await this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence').selectOption('T');
-      } catch (error) {
-        console.warn('[ProgressiveAutomation] Falha ao preencher residência (fallback):', error?.message || error);
-      }
+      await selectFirstVisible([
+        () => this.page.getByLabel('Primary residence*'),
+        () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence')
+      ], [STANDARD_QUOTE_DEFAULTS.primaryResidenceOption, { index: 1 }]);
+    } catch (error) {
+      console.warn('[ProgressiveAutomation] Falha ao preencher residência:', error?.message || error);
     } finally {
       this.page.setDefaultTimeout(30000);
     }
 
     try {
-      if (safeLower(estadoDocumento) !== 'it') {
-        console.log('Verificando campos de histórico de licença...');
-        
-        await this.page.waitForTimeout(1000);
-
-        // Seletores para os diferentes fluxos
-        const usLicenseType = this.page.getByLabel('U.S. License type');
-        const ageFirstLicensed = this.page.getByLabel('Age first licensed*');
-        const yearsLicensedLong = this.page.getByLabel(/Years licensed in the U.S. or/i);
-        const validLicense = this.page.getByRole('group', { name: 'Has your license been valid' });
-
-        // 1. Verifica Fluxo Detalhado (Type + Status + Years)
-        if (await usLicenseType.isVisible()) {
-          console.log('Fluxo detalhado (Type/Status) detectado.');
-          
-          // U.S. License type -> Personal
-          await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
-          
-          // U.S. License status -> Valid
-          const status = this.page.getByLabel('U.S. License status');
-          if (await status.isVisible()) {
-            await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
-          }
-
-          // Years licensed (qualquer variação do label)
-          const yearsAny = this.page.getByLabel(/Years licensed/i);
-          if (await yearsAny.isVisible()) {
-            await yearsAny.selectOption('3');
-          }
-
-          // Suspensions
-          const suspensions = this.page.getByRole('group', { name: /Any license suspensions/i });
-          if (await suspensions.isVisible()) {
-            await suspensions.getByLabel('No').check();
-          }
-
-          // Has your license been valid continuously for the last 12 months?
-          try {
-            const validContinuously = this.page.getByRole('group', { name: /Has your license been valid continuously/i });
-            if (await validContinuously.isVisible()) {
-              await validContinuously.getByLabel('Yes').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar valid license continuously:', e.message);
-          }
-
-        }
-        // 1.5 Verifica Fluxo California (Status + Age First Licensed)
-        else if (await ageFirstLicensed.isVisible()) {
-          console.log('Fluxo California (Age first licensed) detectado.');
-          await ageFirstLicensed.fill('16');
-          
-          console.log('Aguardando 10s para conferência manual da idade...');
-          await this.page.waitForTimeout(10000);
-
-          const status = this.page.getByLabel('U.S. License status');
-          if (await status.isVisible()) {
-            await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
-          }
-          
-          const expired = this.page.getByRole('group', { name: /License expired, suspended or revoked/i });
-          if (await expired.isVisible()) {
-            await expired.getByLabel('No').check();
-          }
-        } 
-        // 2. Verifica Fluxo Intermediário (Apenas Years Licensed longo)
-        else if (await yearsLicensedLong.isVisible()) {
-          console.log('Campo "Years licensed" (fluxo simplificado) detectado.');
-          await yearsLicensedLong.selectOption('3');
-        } 
-        // 3. Verifica Fluxo Antigo (Valid License Checkbox)
-        else if (await validLicense.isVisible()) {
-          console.log('Campo "Has your license been valid" detectado.');
-          await validLicense.getByLabel('Yes').check();
-          await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
-        } 
-        // 4. Fallback: Espera explícita se nada apareceu ainda
-        else {
-          console.log('Nenhum campo visível imediatamente. Aguardando...');
-          try {
-            // Tenta esperar pelo License Type primeiro (novo fluxo comum)
-            await usLicenseType.waitFor({ state: 'visible', timeout: 3000 });
-            // Se apareceu, chama recursivamente ou repete a lógica (aqui vou repetir simplificado)
-            await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
-            const status = this.page.getByLabel('U.S. License status');
-            if (await status.isVisible()) await status.selectOption({ label: 'Valid' }).catch(() => {});
-            const years = this.page.getByLabel(/Years licensed/i);
-            if (await years.isVisible()) await years.selectOption('3');
-            const susp = this.page.getByRole('group', { name: /Any license suspensions/i });
-            if (await susp.isVisible()) await susp.getByLabel('No').check();
-          } catch (e) {
-            // Se falhar, tenta o fluxo antigo como último recurso
-            console.log('Fallback final para fluxo antigo...');
-            if (await validLicense.isVisible()) {
-               await validLicense.getByLabel('Yes').check();
-               await this.page.getByRole('group', { name: 'Any license suspensions in' }).getByLabel('No').check();
-            }
-          }
-        }
-      } else {
-        await this.page.getByLabel('U.S. License type').selectOption('F');
-      }
+      await this.page.waitForTimeout(1000);
+      await this.preencherHistoricoLicencaPadrao({
+        estadoDocumento,
+        ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.ageFirstLicensed
+      });
+      await this.preencherPerguntasPadraoSemHistorico();
 
       await this.page.waitForTimeout(1000);
-
-      // Accidents
-      try {
-        await this.page.getByRole('group', { name: /Accidents, claims, or other/i }).getByLabel('No').check();
-      } catch (e) { console.warn('Erro ao marcar Accidents:', e.message); }
-      
-      // DWIs (California e outros estados)
-      try {
-        const dwiGroup = this.page.getByRole('group', { name: /DWIs/i });
-        if (await dwiGroup.isVisible()) {
-          await dwiGroup.getByLabel('No').check();
-        }
-      } catch (e) { console.warn('Erro ao marcar DWIs:', e.message); }
-
-      // Tickets
-      try {
-        await this.page.getByRole('group', { name: /Tickets or violations/i }).getByLabel('No').check();
-      } catch (e) { console.warn('Erro ao marcar Tickets:', e.message); }
-      
-      await this.page.waitForTimeout(1500);
       await this.clickButton(
         this.page.getByRole('button', { name: 'Continue' }),
         { timeout: 20000 }
@@ -950,174 +778,30 @@ class ProgressiveQuoteAutomation {
           console.warn('[Progressive] Erro ao selecionar gênero do cônjuge:', e.message);
         }
 
-        // Tenta preencher campos de Educação/Emprego para o Cônjuge
         try {
-          // Education
-          const educationSelect = this.page.getByLabel(/Highest level of education/i).last();
-          if (await educationSelect.isVisible()) {
-            await educationSelect.selectOption('2');
-          }
+          await selectFirstVisible([
+            () => this.page.getByLabel(/Highest level of education/i).last()
+          ], [STANDARD_QUOTE_DEFAULTS.educationOption, { index: 1 }]);
 
-          // Employment - User instructions: await page.getByLabel('Employment status*').selectOption('EM');
-          try {
-             // Tenta o seletor exato com last()
-             await this.page.getByLabel('Employment status*').last().selectOption('EM');
-             await this.page.waitForTimeout(500); // Aguarda após selecionar
-          } catch (eEmployment) {
-             console.log('[Progressive] Falha ao selecionar Employment status com * (asterisco), tentando fallback regex...');
-             const employmentSelect = this.page.getByLabel(/Employment status/i).last();
-             if (await employmentSelect.isVisible()) {
-                await employmentSelect.selectOption('EM');
-                await this.page.waitForTimeout(500);
-             }
-          }
+          await selectFirstVisible([
+            () => this.page.getByLabel('Employment status*').last(),
+            () => this.page.getByLabel(/Employment status/i).last()
+          ], [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]);
 
-          // Occupation - User instructions: combobox + fill + click option
-          const occupationCombobox = this.page.getByRole('combobox', { name: /Occupation/i }).last();
-          if (await occupationCombobox.isVisible()) {
-            await occupationCombobox.click();
-            await occupationCombobox.fill('worker');
-            await this.page.waitForTimeout(1000); // Aguarda a lista filtrar
-            
-            // Tenta clicar na opção exata ou similar
-            const option = this.page.getByRole('option', { name: 'Worker: All Other' }).first();
-            if (await option.isVisible()) {
-              await option.click();
-            } else {
-               // Fallback regex caso o texto mude levemente
-               await this.page.getByRole('option', { name: /Worker.*All Other/i }).first().click();
-            }
-          } else {
-            // Mantém fallback antigo se o combobox específico não for encontrado
-            const searchInput = this.page.getByPlaceholder(/Search for your job title/i).last();
-            if (await searchInput.isVisible()) {
-              await searchInput.click();
-              await searchInput.pressSequentially('worker', { delay: 100 });
-              await this.page.waitForTimeout(1000);
-              const optionFallback = this.page.getByText(/Worker.*All Other/i).first();
-              if (await optionFallback.isVisible()) await optionFallback.click();
-            }
-          }
+          await this.preencherOccupationPadrao({ useLast: true });
         } catch (e) {
           console.warn('Campos extras de emprego/educação (Cônjuge) não encontrados ou erro:', e.message);
         }
 
-        if (safeLower(estadoDocumento) !== 'it') {
-          console.log('[Progressive] Verificando histórico de licença do cônjuge...');
-          try {
-             // Tenta identificar qual fluxo de licença está ativo para o cônjuge (similar ao titular)
-             // Prioriza .last() pois estamos editando os dados do cônjuge no final da página
-
-             const usLicenseType = this.page.getByLabel('U.S. License type').last();
-             const ageFirstLicensed = this.page.getByLabel('Age first licensed*').last();
-             const yearsLicensedLong = this.page.getByLabel(/Years licensed in the U.S. or/i).last();
-             const validLicenseGroup = this.page.getByRole('group', { name: /Has .*license been valid/i }).last();
-
-             if (await usLicenseType.isVisible()) {
-                console.log('[Progressive] Fluxo detalhado (Type/Status) detectado para cônjuge.');
-                await usLicenseType.selectOption({ label: 'Personal' }).catch(() => usLicenseType.selectOption({ index: 1 }));
-                
-                const status = this.page.getByLabel('U.S. License status').last();
-                if (await status.isVisible()) {
-                   await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
-                }
-
-                // Years licensed - tenta múltiplos seletores
-                let yearsSelected = false;
-                try {
-                   const yearsExact = this.page.getByLabel('Years licensed*').last();
-                   if (await yearsExact.isVisible()) {
-                      await yearsExact.selectOption('3');
-                      yearsSelected = true;
-                   }
-                } catch (_) {}
-                
-                if (!yearsSelected) {
-                   const yearsAny = this.page.getByLabel(/Years licensed/i).last();
-                   if (await yearsAny.isVisible()) {
-                      await yearsAny.selectOption('3'); 
-                   }
-                }
-                
-                // Aguarda após selecionar anos
-                await this.page.waitForTimeout(800);
-
-                // Suspensões - estratégia simplificada com CSS locator
-                try {
-                   // Encontra todos os grupos/fieldsets com "suspensions" e clica no No do último
-                   const noRadios = this.page.locator('input[type="radio"][value="N"], input[type="radio"][value="No"], input[type="radio"][value="false"]');
-                   const suspText = this.page.getByText(/Any license suspensions/i).last();
-                   
-                   if (await suspText.isVisible()) {
-                      // Tenta o getByRole primeiro
-                      const suspGroup = this.page.getByRole('group', { name: /Any license suspensions/i }).last();
-                      if (await suspGroup.isVisible()) {
-                         await suspGroup.getByLabel('No').check({ force: true });
-                      } else {
-                         // Fallback: clica no texto "No" próximo
-                         await this.page.locator('text="No"').last().click({ force: true });
-                      }
-                   }
-                   await this.page.waitForTimeout(500);
-                } catch (eSusp) {
-                   console.log('[Progressive] Erro ao marcar suspensões do cônjuge:', eSusp.message);
-                }
-
-                 // Check for "valid continuously" specifically
-                const validContinuously = this.page.getByRole('group', { name: /Has your license been valid continuously/i }).last();
-                 if (await validContinuously.isVisible()) {
-                    await validContinuously.getByLabel('Yes').check();
-                 }
-
-             } else if (await ageFirstLicensed.isVisible()) {
-                console.log('[Progressive] Fluxo California (Age first licensed) detectado para cônjuge.');
-                await ageFirstLicensed.fill('16');
-                // Aguarda validação
-                await this.page.waitForTimeout(2000);
-                
-                const status = this.page.getByLabel('U.S. License status').last();
-                if (await status.isVisible()) await status.selectOption({ label: 'Valid' }).catch(() => status.selectOption({ index: 1 }));
-
-                const expired = this.page.getByRole('group', { name: /License expired, suspended or revoked/i }).last();
-                if (await expired.isVisible()) await expired.getByLabel('No').check();
-
-             } else if (await validLicenseGroup.isVisible()) {
-                console.log('[Progressive] Fluxo simples (Has license been valid) detectado para cônjuge.');
-                await validLicenseGroup.getByLabel('Yes').check();
-             } else {
-                console.warn('[Progressive] Nenhum campo de licença conhecido encontrado para o cônjuge. Tentando fallback genérico...');
-             }
-
-             // Verifica suspensões (genérico) se ainda não foi marcado
-             const suspSpouse = this.page.getByRole('group', { name: /Any license suspensions/i }).last();
-             if (await suspSpouse.isVisible()) {
-                 const isChecked = await suspSpouse.getByLabel('No').isChecked().catch(() => false);
-                 if (!isChecked) await suspSpouse.getByLabel('No').check();
-             }
-
-          } catch (e) {
-            console.warn('Erro ao marcar histórico de licença do cônjuge:', e.message);
-          }
-        } else {
-          await this.page.getByLabel('U.S. License type').last().selectOption('F');
-        }
-
         try {
-          const accidentsSpouse = this.page.getByRole('group', { name: /Accidents, claims, or other/i });
-          if (await accidentsSpouse.isVisible()) {
-            await accidentsSpouse.getByLabel('No').check();
-          }
+          await this.preencherHistoricoLicencaPadrao({
+            estadoDocumento,
+            useLast: true,
+            ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed
+          });
+          await this.preencherPerguntasPadraoSemHistorico({ useLast: true });
         } catch (e) {
-          console.warn('Erro ao marcar acidentes do cônjuge:', e.message);
-        }
-
-        try {
-          const ticketsSpouse = this.page.getByRole('group', { name: /Tickets or violations/i });
-          if (await ticketsSpouse.isVisible()) {
-            await ticketsSpouse.getByLabel('No').check();
-          }
-        } catch (e) {
-          console.warn('Erro ao marcar tickets do cônjuge:', e.message);
+          console.warn('Erro ao marcar histórico do cônjuge:', e.message);
         }
 
         // Garante que todos os campos importantes do cônjuge foram exibidos pelo menos uma vez
@@ -1155,42 +839,16 @@ class ProgressiveQuoteAutomation {
           await this.page.getByLabel('Marital status*').selectOption('S');
           await this.page.getByLabel('Relationship to', { exact: false }).selectOption('O');
 
-          // Histórico de licença do driver extra
-          try {
-            const validExtra = this.page.getByRole('group', { name: /Has .*license been valid/i });
-            if (await validExtra.isVisible()) {
-              await validExtra.getByLabel('Yes').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar validade de licença do driver extra:', e.message);
-          }
+          await this.preencherHistoricoLicencaPadrao({
+            estadoDocumento: pessoa.documento_estado,
+            ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed
+          }).catch((e) => {
+            console.warn('Erro ao marcar histórico do driver extra:', e.message);
+          });
 
-          try {
-            const suspExtra = this.page.getByRole('group', { name: /Any license suspensions/i });
-            if (await suspExtra.isVisible()) {
-              await suspExtra.getByLabel('No').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar suspensões do driver extra:', e.message);
-          }
-
-          try {
-            const accidentsExtra = this.page.getByRole('group', { name: /Accidents, claims, or other/i });
-            if (await accidentsExtra.isVisible()) {
-              await accidentsExtra.getByLabel('No').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar acidentes do driver extra:', e.message);
-          }
-
-          try {
-            const ticketsExtra = this.page.getByRole('group', { name: /Tickets or violations/i });
-            if (await ticketsExtra.isVisible()) {
-              await ticketsExtra.getByLabel('No').check();
-            }
-          } catch (e) {
-            console.warn('Erro ao marcar tickets do driver extra:', e.message);
-          }
+          await this.preencherPerguntasPadraoSemHistorico().catch((e) => {
+            console.warn('Erro ao marcar perguntas padrão do driver extra:', e.message);
+          });
           await this.clickButton(
             this.page.getByRole('button', { name: 'Continue' }),
             { timeout: 20000 }
@@ -1200,14 +858,6 @@ class ProgressiveQuoteAutomation {
         }
       }
     }
-          await this.clickButton(
-        this.page.getByRole('button', { name: 'Continue' }),
-        { timeout: 20000 }
-      );
-                await this.clickButton(
-        this.page.getByRole('button', { name: 'Continue' }),
-        { timeout: 20000 }
-      );
   }
 
   async informacoesSeguroAnterior({ tempoDeSeguro, tempoNoEndereco }) {
@@ -1215,21 +865,27 @@ class ProgressiveQuoteAutomation {
 
     try {
       if (!hasInsurance) {
-        await this.page.getByLabel('Do you have auto insurance').getByLabel('No').check();
-        await this.page.getByLabel('Have you had auto insurance in the last 31 days?*').getByLabel('No').check();
+        await this.answerChoiceInGroup([/Do you have auto insurance/i], 'No');
+        await this.answerChoiceInGroup([/Have you had auto insurance in the last 31 days/i], 'No');
       } else {
-        await this.page.getByLabel('Do you have auto insurance').getByLabel('Yes').check();
+        await this.answerChoiceInGroup([/Do you have auto insurance/i], 'Yes');
         if (option) {
-          await this.page.getByLabel('How long have you been with').selectOption(option);
+          await selectFirstVisible([
+            () => this.page.getByLabel('How long have you been with'),
+            () => this.page.getByLabel(/How long have you been with/i)
+          ], [option, { index: 1 }]);
         }
       }
 
-      await this.page.getByLabel('Do you have non-auto policies').getByLabel('No').check();
-      await this.page.getByLabel('Have you had auto insurance').getByLabel('No').check();
+      await this.answerChoiceInGroup([/Do you have non-auto policies/i], 'No');
+      await this.answerChoiceInGroup([/Have you had auto insurance/i], 'No');
 
       try {
         const residenceOption = mapResidenceDuration(tempoNoEndereco);
-        await this.page.getByLabel('How long have you lived at').selectOption(residenceOption);
+        await selectFirstVisible([
+          () => this.page.getByLabel('How long have you lived at'),
+          () => this.page.getByLabel(/How long have you lived at/i)
+        ], [residenceOption, { index: 1 }]);
       } catch (error) {
         console.warn('[ProgressiveAutomation] Falha ao selecionar tempo no endereço:', error?.message || error);
       }

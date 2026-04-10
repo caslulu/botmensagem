@@ -43,27 +43,28 @@ function generateRoundedIcon(srcPath, outPath, size = 512, radius = 40) {
           img.onload = () => {
             const canvas = document.getElementById('c');
             const ctx = canvas.getContext('2d');
-            // draw rounded rect background (white transparent)
             const r = ${radius};
             const w = canvas.width, h = canvas.height;
+            const padding = Math.round(w * 0.085);
+            const innerW = w - (padding * 2);
+            const innerH = h - (padding * 2);
             ctx.clearRect(0,0,w,h);
             ctx.save();
             ctx.beginPath();
-            ctx.moveTo(r,0);
-            ctx.arcTo(w,0,w,h,r);
-            ctx.arcTo(w,h,0,h,r);
-            ctx.arcTo(0,h,0,0,r);
-            ctx.arcTo(0,0,w,0,r);
+            ctx.moveTo(padding + r, padding);
+            ctx.arcTo(padding + innerW, padding, padding + innerW, padding + innerH, r);
+            ctx.arcTo(padding + innerW, padding + innerH, padding, padding + innerH, r);
+            ctx.arcTo(padding, padding + innerH, padding, padding, r);
+            ctx.arcTo(padding, padding, padding + innerW, padding, r);
             ctx.closePath();
-            ctx.fillStyle = 'rgba(255,255,255,0)';
-            ctx.fill();
             ctx.clip();
-            // draw image centered and cover
-            const ratio = Math.max(w/img.width, h/img.height);
+            // Draw the source image inside an inset rounded mask so the app icon
+            // reads less like a raw square image in the macOS switcher/dock.
+            const ratio = Math.max(innerW / img.width, innerH / img.height);
             const iw = img.width * ratio;
             const ih = img.height * ratio;
-            const ix = (w - iw)/2;
-            const iy = (h - ih)/2;
+            const ix = padding + ((innerW - iw) / 2);
+            const iy = padding + ((innerH - ih) / 2);
             ctx.drawImage(img, ix, iy, iw, ih);
             const dataUrl = canvas.toDataURL('image/png');
             ipcRenderer.send('${channel}', dataUrl);
