@@ -462,8 +462,11 @@ export const QuotesList: React.FC = () => {
         <div className="quotes-board-column__glow" aria-hidden="true" />
         <div className="quotes-board-header">
           <div>
-            <p className="quotes-board-kicker">Lista sincronizada</p>
-            <h2 className="quotes-board-title">{boardLabel}</h2>
+            <p className="quotes-board-kicker">Módulo de cotações</p>
+            <h2 className="quotes-board-title">Cotações</h2>
+            <p className="quotes-board-intro">
+              Fila sincronizada com <strong>{boardLabel}</strong> e espelho local do app.
+            </p>
           </div>
           <button className="quotes-board-refresh" onClick={fetchQuotes} disabled={loading}>
             {loading ? 'Atualizando...' : 'Atualizar'}

@@ -25,8 +25,7 @@ function AppContent() {
     selectedProfileId,
     setSelectedProfileId,
     reloadProfiles,
-    createProfile,
-    updateProfile
+    createProfile
   } = useProfileContext();
   const [modules] = useState<ServiceModule[]>(DEFAULT_MODULES);
   const [showProfileModal, setShowProfileModal] = useState(false);
@@ -104,38 +103,12 @@ function AppContent() {
       activeModuleId={activeModuleId}
       onSelectModule={handleSelectModule}
       selectedProfileIsAdmin={!!selectedProfile?.isAdmin || (tempAdminAccess !== null && tempAdminAccess === activeModuleId)}
+      selectedProfile={selectedProfile}
+      isDarkMode={isDarkMode}
+      onToggleTheme={toggleTheme}
+      onResetProfile={handleResetProfile}
     >
-      <div className="container mx-auto py-8 px-6">
-        <header className="flex items-center justify-between mb-8 bg-white/50 dark:bg-slate-800/50 p-6 rounded-2xl backdrop-blur-sm border border-white/20 shadow-sm">
-          <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 dark:from-white dark:to-slate-300 bg-clip-text text-transparent">
-              Insurance Helper
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400 mt-1">
-              Bem-vindo, <span className="font-semibold text-brand-600 dark:text-brand-400">{selectedProfile?.name}</span>
-            </p>
-          </div>
-          
-          <div className="flex gap-3">
-            <button 
-              className="w-10 h-10 rounded-full flex items-center justify-center bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-brand-50 hover:text-brand-600 dark:hover:bg-slate-600 transition-all shadow-sm border border-slate-200 dark:border-slate-600"
-              onClick={toggleTheme}
-              title={isDarkMode ? 'Mudar para modo claro' : 'Mudar para modo escuro'}
-            >
-              {isDarkMode ? '☀️' : '🌙'}
-            </button>
-            
-            <div className="h-10 w-px bg-slate-200 dark:bg-slate-700 mx-1"></div>
-
-            <button 
-              className="btn-secondary flex items-center gap-2" 
-              onClick={handleResetProfile}
-            >
-              <span>↶</span> Trocar perfil
-            </button>
-          </div>
-        </header>
-
+      <div className="mx-auto w-full max-w-[1600px] px-4 py-5 sm:px-6 lg:px-8 lg:py-6">
         <main className="animate-fade-in">
           {activeModuleId === 'mensagens' && (
             <WhatsAppAutomationView
