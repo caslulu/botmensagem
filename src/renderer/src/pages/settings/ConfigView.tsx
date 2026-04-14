@@ -3,9 +3,36 @@ import { useProfileContext } from '../../app/providers';
 import { ProfileEditModal } from '../../components/profile/ProfileEditModal';
 import type { Profile } from '../../components/profile/ProfileCard';
 
+const SETTINGS_CARDS = [
+  {
+    title: 'Tema',
+    detail: 'Use o botão no topo para alternar entre modo claro e escuro.'
+  },
+  {
+    title: 'Sessões por perfil',
+    detail: 'Cada operador mantém sua própria sessão e preferências separadas.'
+  },
+  {
+    title: 'Notificações',
+    detail: 'A área está reservada para alertas e lembretes futuros.'
+  }
+];
+
+function ProfileTypeBadge({ isAdmin }: { isAdmin?: boolean }) {
+  return isAdmin ? (
+    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-amber-700 dark:bg-amber-500/15 dark:text-amber-200">
+      Admin
+    </span>
+  ) : (
+    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+      Operador
+    </span>
+  );
+}
+
 export const ConfigView: React.FC = () => {
   const { profiles, selectedProfileId, reloadProfiles, updateProfile, deleteProfile } = useProfileContext();
-  const currentProfile = profiles.find(p => p.id === selectedProfileId);
+  const currentProfile = profiles.find((p) => p.id === selectedProfileId);
   const isAdmin = currentProfile?.isAdmin;
 
   const [editingProfile, setEditingProfile] = useState<Profile | null>(null);
@@ -31,7 +58,7 @@ export const ConfigView: React.FC = () => {
       } else {
         setEditError(result.error);
       }
-    } catch (err) {
+    } catch {
       setEditError('Erro ao salvar perfil');
     } finally {
       setEditLoading(false);
@@ -49,84 +76,134 @@ export const ConfigView: React.FC = () => {
       } else {
         alert(result.error || 'Erro ao deletar perfil');
       }
-    } catch (err) {
+    } catch {
       alert('Erro ao deletar perfil');
     }
   };
 
   return (
-    <section className="card p-6 space-y-6">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">Configurações</h2>
-        <p className="text-slate-500 dark:text-slate-300 text-sm">Ajuste preferências gerais do aplicativo.</p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Tema</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Use o botão no topo para alternar claro/escuro.</p>
-        </div>
-        <div className="p-4 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/70 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-800 dark:text-slate-100">Notificações</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Configure alertas de automação e lembretes (em breve).</p>
-        </div>
-      </div>
-
-      {isAdmin && (
-        <div className="space-y-4">
-          <div className="border-t border-slate-200 dark:border-slate-800 pt-6">
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Todos os perfis</h3>
-            <p className="text-slate-500 dark:text-slate-300 text-sm">Gerencie todos os perfis cadastrados no sistema.</p>
+    <div className="space-y-6">
+      <section className="page-hero">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
+              Preferências do sistema
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+              Ajustes gerais e manutenção de perfis
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
+              Tudo o que afeta a experiência do app fica reunido aqui. Se você for administrador, também pode revisar e editar todos os perfis cadastrados.
+            </p>
           </div>
 
-          <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50">
+          <div className="grid gap-3 sm:grid-cols-3">
+            {SETTINGS_CARDS.map((card) => (
+              <div key={card.title} className="mini-stat">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white">{card.title}</p>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{card.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {isAdmin ? (
+        <section className="card p-5 sm:p-6">
+          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Todos os perfis</h3>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                Revise, edite ou remova perfis cadastrados no sistema.
+              </p>
+            </div>
+            <span className="status-pill">{profiles.length} perfil{profiles.length === 1 ? '' : 's'}</span>
+          </div>
+
+          <div className="grid gap-3 md:hidden">
+            {profiles.map((profile) => (
+              <article key={profile.id} className="surface-subtle">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold text-slate-900 dark:text-white">{profile.name}</p>
+                    <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{profile.id}</p>
+                  </div>
+                  <ProfileTypeBadge isAdmin={profile.isAdmin} />
+                </div>
+
+                <div className="mt-4 flex flex-wrap gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleEdit(profile)}
+                    className="btn-secondary min-h-[40px] px-3 py-2 text-xs"
+                  >
+                    Editar
+                  </button>
+                  {!profile.isAdmin ? (
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(profile.id)}
+                      className="btn-danger min-h-[40px] px-3 py-2 text-xs"
+                    >
+                      Excluir
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            ))}
+          </div>
+
+          <div className="table-responsive hidden md:block">
             <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-800">
-              <thead className="bg-slate-50 dark:bg-slate-800/50">
+              <thead className="bg-slate-50/85 dark:bg-slate-900/80">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Nome</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">ID</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tipo</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Ações</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Nome</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">ID</th>
+                  <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Tipo</th>
+                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200 dark:divide-slate-800">
                 {profiles.map((profile) => (
-                  <tr key={profile.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-800 dark:text-slate-200">{profile.name}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">{profile.id}</td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                      {profile.isAdmin ? (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400">
-                          Admin
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-400">
-                          Operador
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-3">
-                      <button
-                        onClick={() => handleEdit(profile)}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                      >
-                        Editar
-                      </button>
-                      {!profile.isAdmin && (
+                  <tr key={profile.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-900/70 transition-colors">
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-white">{profile.name}</td>
+                    <td className="px-6 py-4 text-sm text-slate-500 dark:text-slate-400">{profile.id}</td>
+                    <td className="px-6 py-4 text-sm"><ProfileTypeBadge isAdmin={profile.isAdmin} /></td>
+                    <td className="px-6 py-4 text-right text-sm">
+                      <div className="flex justify-end gap-3">
                         <button
-                          onClick={() => handleDelete(profile.id)}
-                          className="text-rose-600 hover:text-rose-900 dark:text-rose-400 dark:hover:text-rose-300"
+                          type="button"
+                          onClick={() => handleEdit(profile)}
+                          className="text-sm font-semibold text-brand-700 transition-colors hover:text-brand-900 dark:text-brand-300 dark:hover:text-brand-100"
                         >
-                          Excluir
+                          Editar
                         </button>
-                      )}
+                        {!profile.isAdmin ? (
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(profile.id)}
+                            className="text-sm font-semibold text-rose-600 transition-colors hover:text-rose-800 dark:text-rose-300 dark:hover:text-rose-100"
+                          >
+                            Excluir
+                          </button>
+                        ) : null}
+                      </div>
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
+        </section>
+      ) : (
+        <section className="card p-5 sm:p-6">
+          <div className="surface-subtle">
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Acesso de operador</h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
+              As configurações avançadas de perfis ficam disponíveis somente para administradores. Você ainda pode alternar o tema e manter sua operação normalmente.
+            </p>
+          </div>
+        </section>
       )}
 
       <ProfileEditModal
@@ -137,8 +214,6 @@ export const ConfigView: React.FC = () => {
         loading={editLoading}
         error={editError}
       />
-
-      <div className="text-xs text-slate-400 dark:text-slate-500">Mais opções chegarão aqui.</div>
-    </section>
+    </div>
   );
 };

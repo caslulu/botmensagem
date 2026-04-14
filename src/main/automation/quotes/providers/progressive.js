@@ -282,7 +282,6 @@ class ProgressiveQuoteAutomation {
   async killOrphanChrome() {
     try {
       if (process.platform === 'win32') {
-        console.log('[Progressive] Matando processos Chrome/Chromium órfãos...');
         await execAsync('taskkill /F /IM chrome.exe /T 2>nul').catch(() => {});
         await execAsync('taskkill /F /IM chromium.exe /T 2>nul').catch(() => {});
         await new Promise(resolve => setTimeout(resolve, 500));
@@ -294,12 +293,10 @@ class ProgressiveQuoteAutomation {
 
   async cleanup() {
     if (this.isCleaningUp) {
-      console.log('[Progressive] Cleanup já em andamento, ignorando chamada duplicada');
       return;
     }
 
     this.isCleaningUp = true;
-    console.log('[Progressive] Iniciando cleanup...');
     
     let browserProcess = null;
     
@@ -311,7 +308,6 @@ class ProgressiveQuoteAutomation {
 
     try {
       if (this.page && !this.page.isClosed()) {
-        console.log('[Progressive] Fechando página...');
         this.page.removeAllListeners();
         await this.page.close().catch(() => {});
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -320,7 +316,6 @@ class ProgressiveQuoteAutomation {
 
     try {
       if (this.context) {
-        console.log('[Progressive] Fechando contexto...');
         this.context.removeAllListeners();
         await this.context.close().catch(() => {});
         await new Promise(resolve => setTimeout(resolve, 300));
@@ -329,7 +324,6 @@ class ProgressiveQuoteAutomation {
 
     try {
       if (this.browser && this.browser.isConnected()) {
-        console.log('[Progressive] Fechando browser...');
         this.browser.removeAllListeners();
         await this.browser.close().catch(() => {});
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -337,7 +331,6 @@ class ProgressiveQuoteAutomation {
     } catch (e) { /* ignore */ }
 
     if (browserProcess && !browserProcess.killed) {
-      console.log('[Progressive] Forçando término do processo do browser...');
       try {
         browserProcess.kill('SIGKILL');
         await new Promise(resolve => setTimeout(resolve, 800));
@@ -354,8 +347,6 @@ class ProgressiveQuoteAutomation {
       const mainWindow = allWindows.find(w => !w.isDestroyed()) || allWindows[0];
       
       if (mainWindow && !mainWindow.isDestroyed()) {
-        console.log('[Progressive] Restaurando foco para janela principal...');
-        
         if (mainWindow.isMinimized()) {
           mainWindow.restore();
         }
@@ -378,8 +369,6 @@ class ProgressiveQuoteAutomation {
     this.context = null;
     this.browser = null;
     this.isCleaningUp = false;
-    
-    console.log('[Progressive] Cleanup concluído');
   }
 
   async run(data, options = {}) {
@@ -398,10 +387,7 @@ class ProgressiveQuoteAutomation {
 
     const chromePath = ChromeDetector.detect();
     if (chromePath) {
-      console.log(`[Progressive] Usando Google Chrome: ${chromePath}`);
       launchOptions.executablePath = chromePath;
-    } else {
-      console.log('[Progressive] Chrome não encontrado. Usando Chromium do Playwright');
     }
 
     let browser = null;
@@ -423,17 +409,14 @@ class ProgressiveQuoteAutomation {
 
       // Listeners para detectar quando a página/browser é fechado externamente
       page.on('close', () => {
-        console.log('[Progressive] Página fechada externamente - limpando recursos...');
         this.cleanup().catch(() => {});
       });
 
       context.on('close', () => {
-        console.log('[Progressive] Contexto fechado externamente - limpando recursos...');
         this.cleanup().catch(() => {});
       });
 
       browser.on('disconnected', () => {
-        console.log('[Progressive] Browser desconectado - limpando recursos...');
         this.cleanup().catch(() => {});
       });
 
@@ -623,8 +606,7 @@ class ProgressiveQuoteAutomation {
           await doneBtn.click();
           await this.page.waitForTimeout(1000);
         }
-      } catch (e) {
-        console.log('[Progressive] Botão Done não encontrado ou não necessário:', e.message);
+      } catch (_) {
       }
     }
     await this.page.waitForTimeout(2000);
@@ -681,8 +663,7 @@ class ProgressiveQuoteAutomation {
       ], [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]);
 
       await this.preencherOccupationPadrao();
-    } catch (e) {
-      console.log('Campos extras de emprego/educação não encontrados ou erro ao preencher:', e.message);
+    } catch (_) {
     }
 
     try {
@@ -729,8 +710,6 @@ class ProgressiveQuoteAutomation {
           spouseGenderOption = 'Nonbinary';
         }
 
-        console.log(`[Progressive] Tentando selecionar gênero do cônjuge: ${spouseGenderOption}`);
-        
         // Aguarda um pouco para garantir que a página carregou todos os elementos
         await this.page.waitForTimeout(1500);
 

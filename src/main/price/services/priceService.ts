@@ -85,7 +85,6 @@ function loadCanvasNative(): CanvasModule | null {
       ];
       for (const p of unpackedPaths) {
         try {
-          console.log('[PriceService] Tentando carregar canvas de:', p);
           return require(p) as CanvasModule;
         } catch (e) {
           console.warn('[PriceService] Falhou em', p, ':', (e as Error).message);
@@ -105,7 +104,6 @@ try {
     createCanvas = canvasModule.createCanvas;
     loadImage = canvasModule.loadImage;
     GlobalFonts = canvasModule.GlobalFonts;
-    console.log('[PriceService] @napi-rs/canvas carregado com sucesso.');
   } else {
     canvasAvailable = false;
     console.error('[PriceService] @napi-rs/canvas não encontrado em nenhum caminho.');
@@ -139,8 +137,6 @@ class PriceService {
       this.assetsDir = possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
       if (!fs.existsSync(this.assetsDir)) {
         console.error('[PriceService] Assets não encontrados. Caminhos testados:', possiblePaths);
-      } else {
-        console.log('[PriceService] Assets encontrados em:', this.assetsDir);
       }
     }
 

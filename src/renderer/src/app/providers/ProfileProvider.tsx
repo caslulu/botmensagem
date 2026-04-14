@@ -31,8 +31,6 @@ async function fetchProfiles(): Promise<Profile[]> {
   if (window.profile?.getProfiles) {
     try {
       const result = await window.profile.getProfiles();
-      console.log('[ProfileProvider] Raw IPC result:', result);
-      console.log('[ProfileProvider] Is array?', Array.isArray(result));
       return Array.isArray(result) ? result : [];
     } catch (err) {
       console.error('[ProfileProvider] Error fetching profiles:', err);

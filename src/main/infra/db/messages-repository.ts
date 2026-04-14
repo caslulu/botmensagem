@@ -197,11 +197,9 @@ export function seedInitialMessages(profiles: SeedProfile[]): void {
   countStmt.free();
 
   if (count === 0) {
-    console.log('Banco de dados vazio, importando mensagens iniciais...');
     profiles.forEach((profile) => {
       try {
         addMessage(profile.id, profile.message ?? '', profile.imagePath);
-        console.log(`✓ Mensagem inicial adicionada para ${profile.name}`);
       } catch (error) {
         console.error(`Erro ao adicionar mensagem para ${profile.name}:`, (error as Error).message);
       }

@@ -1,28 +1,118 @@
 import React from 'react';
 
+const STEPS = [
+  {
+    title: 'Selecione um operador',
+    detail: 'Escolha um perfil existente ou crie um novo para abrir a sessão correta do sistema.'
+  },
+  {
+    title: 'Entre no módulo certo',
+    detail: 'Use o menu lateral para abrir mensagens, RTA, cotações, preço, perfil ou configurações.'
+  },
+  {
+    title: 'Finalize o arquivo ou ação',
+    detail: 'Os fluxos principais salvam arquivos em Downloads ou atualizam o Trello conforme o módulo.'
+  }
+];
+
+const MODULES = [
+  {
+    title: 'Mensagens',
+    detail: 'Disponível para administradores. Ajuste o limite de envios, acompanhe os logs e gerencie mensagens salvas.'
+  },
+  {
+    title: 'RTA',
+    detail: 'Preencha seguradora, veículo, título e proprietário para gerar o PDF final.'
+  },
+  {
+    title: 'Cotações',
+    detail: 'Sincronize a fila do Trello, crie cards novos e rode automações suportadas.'
+  },
+  {
+    title: 'Preço',
+    detail: 'Gere imagens de preço em PNG com suporte a PT, EN e ES.'
+  },
+  {
+    title: 'Perfil',
+    detail: 'Edite nome, imagem e dados básicos do operador selecionado.'
+  },
+  {
+    title: 'Configurações',
+    detail: 'Se for admin, visualize todos os perfis e faça manutenção da base.'
+  }
+];
+
+const TIPS = [
+  'Somente administradores podem iniciar disparos automáticos no WhatsApp.',
+  'Os arquivos gerados por RTA e preço são salvos na pasta Downloads.',
+  'Cada perfil reaproveita sua própria sessão do WhatsApp Web.',
+  'Se o Trello falhar, a tela de cotações ainda mostra o espelho salvo localmente.'
+];
+
 export const HowToGuide: React.FC = () => (
   <div className="space-y-6">
-    <section className="card p-6">
-      <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-4">Como usar o Insurance Helper</h2>
-      <ul className="list-disc pl-6 text-slate-600 dark:text-slate-300 space-y-3">
-        <li><b className="text-slate-800 dark:text-slate-200">Selecione um operador:</b> escolha um perfil existente ou cadastre um novo para acessar os módulos. O sistema aceita até 10 perfis.</li>
-        <li><b className="text-slate-800 dark:text-slate-200">Enviar mensagem automática:</b> disponível para administradores. Escolha a mensagem ativa do perfil, ajuste o limite de envios e acompanhe os logs em tempo real.</li>
-        <li><b className="text-slate-800 dark:text-slate-200">RTA automático:</b> selecione a seguradora, preencha os dados do cliente, veículo e título e gere o PDF final na pasta Downloads.</li>
-        <li><b className="text-slate-800 dark:text-slate-200">Cotações:</b> sincronize a fila do Trello, crie um novo card no próprio painel e rode a automação de cotação quando o item já tiver espelho local no app.</li>
-        <li><b className="text-slate-800 dark:text-slate-200">Preço automático:</b> carregue uma cotação salva ou preencha manualmente os campos para gerar a imagem de preço em PNG na pasta Downloads.</li>
-        <li><b className="text-slate-800 dark:text-slate-200">Perfil e configurações:</b> edite seu perfil atual e, se você for admin, gerencie todos os perfis cadastrados.</li>
-      </ul>
+    <section className="page-hero">
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-3xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
+            Guia rápido
+          </p>
+          <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+            Como usar o app no dia a dia
+          </h2>
+          <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
+            Este resumo ajuda no onboarding e também serve como referência rápida durante a operação.
+          </p>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-3">
+          {STEPS.map((step, index) => (
+            <div key={step.title} className="mini-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-600 dark:text-brand-300">
+                Etapa {index + 1}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{step.title}</p>
+              <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{step.detail}</p>
+            </div>
+          ))}
+        </div>
+      </div>
     </section>
-    <section className="card p-6">
-      <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Dicas rápidas</h3>
-      <ul className="list-disc pl-6 text-slate-600 dark:text-slate-300 space-y-3">
-        <li>Use a barra lateral para navegar entre módulos operacionais, conteúdo de apoio e área da conta.</li>
-        <li>Somente administradores podem iniciar disparos automáticos no WhatsApp.</li>
-        <li>Cada perfil possui sessão própria do WhatsApp e limite de envios configurável; o padrão atual é 200 grupos.</li>
-        <li>Os arquivos gerados por RTA e Preço automático são salvos na pasta Downloads do computador.</li>
-        <li>A automação de cotações disponível hoje atende Progressive e Liberty.</li>
-        <li>Se o Trello não responder, a tela de cotações continua mostrando o espelho salvo localmente.</li>
-      </ul>
+
+    <section className="card p-5 sm:p-6">
+      <div className="mb-5">
+        <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Módulos principais</h3>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Resumo do que cada área faz para o operador.
+        </p>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {MODULES.map((module) => (
+          <article key={module.title} className="surface-subtle">
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">{module.title}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-500 dark:text-slate-400">{module.detail}</p>
+          </article>
+        ))}
+      </div>
+    </section>
+
+    <section className="card p-5 sm:p-6">
+      <div className="mb-5">
+        <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Dicas rápidas</h3>
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+          Pontos importantes para evitar dúvidas comuns durante a operação.
+        </p>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-2">
+        {TIPS.map((tip) => (
+          <div key={tip} className="surface-subtle flex items-start gap-3">
+            <span className="mt-1 text-brand-600 dark:text-brand-300">•</span>
+            <p className="text-sm leading-6 text-slate-600 dark:text-slate-300">{tip}</p>
+          </div>
+        ))}
+      </div>
     </section>
   </div>
 );

@@ -133,8 +133,6 @@ class QuotesRepository {
           // ignore
         }
       }
-
-      console.log('[QuotesRepository] Cotações legacy migradas para o banco de dados.');
     } catch (error) {
       console.warn('[QuotesRepository] Falha ao migrar cotações legacy:', (error as Error).message);
     }

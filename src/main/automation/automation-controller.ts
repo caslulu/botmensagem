@@ -10,6 +10,7 @@ import type { AutomationProfile, AutomationRunResult, ValidatedAutomationProfile
 class AutomationController extends EventEmitter {
   private isRunning = false;
   private stopRequested = false;
+  private isShuttingDown = false;
   private activeProfile: ValidatedAutomationProfile | null = null;
   private runPromise: Promise<void> | null = null;
 
@@ -92,6 +93,47 @@ class AutomationController extends EventEmitter {
     };
   }
 
+  async shutdown(): Promise<void> {
+    if (this.isShuttingDown) {
+      return;
+    }
+
+    this.isShuttingDown = true;
+    this.stopRequested = true;
+
+    const browserManager = this.browserManager;
+    const runPromise = this.runPromise;
+
+    this.logger.warn('Encerrando automação e fechando o navegador para finalizar o app...');
+
+    try {
+      const tasks: Promise<unknown>[] = [];
+
+      if (browserManager) {
+        tasks.push(
+          browserManager.close().catch((error) => {
+            this.logger.error('Erro ao fechar navegador durante encerramento', error as Error);
+          })
+        );
+      }
+
+      if (runPromise) {
+        tasks.push(
+          runPromise.catch((error) => {
+            this.logger.warn(`Execução encerrada durante shutdown: ${(error as Error)?.message || error}`);
+          })
+        );
+      }
+
+      if (tasks.length > 0) {
+        await Promise.allSettled(tasks);
+      }
+    } finally {
+      this.cleanup();
+      this.isShuttingDown = false;
+    }
+  }
+
   private async run(): Promise<void> {
     try {
       this.logger.info('Iniciando processo de automação...');
@@ -172,6 +214,15 @@ class AutomationController extends EventEmitter {
     if (this.chatProcessor) {
       this.chatProcessor.reset();
     }
+
+    if (this.browserManager && typeof this.browserManager.removeAllListeners === 'function') {
+      this.browserManager.removeAllListeners();
+    }
+
+    this.browserManager = null;
+    this.whatsappService = null;
+    this.messageSender = null;
+    this.chatProcessor = null;
   }
 
   private checkStopRequested(): void {

@@ -241,7 +241,6 @@ export function migrateSessionDirs(): void {
       if (fs.existsSync(row.session_dir) && !fs.existsSync(newDir)) {
         try {
           fs.renameSync(row.session_dir, newDir);
-          console.log(`✓ Diretório de sessão migrado: ${row.session_dir} -> ${newDir}`);
         } catch (err) {
           console.warn(`Falha ao mover sessão, tentando copiar: ${row.session_dir}`, err);
           try {
@@ -264,7 +263,6 @@ export function migrateSessionDirs(): void {
 
   if (updated.length) {
     saveDatabase();
-    console.log(`✓ Migração de sessões concluída (${updated.length})`);
   }
 }
 

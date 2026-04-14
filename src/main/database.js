@@ -53,7 +53,6 @@ function ensureDefaultProfileImages() {
           fs.copyFileSync(assetPath, userDataPath);
         }
         profilesRepo.updateProfile(id, { imagePath: userDataPath });
-        console.log(`✓ Caminho da imagem do perfil ${id} atualizado para ${userDataPath}`);
       } catch (error) {
         console.warn(`Falha ao ajustar imagem do perfil ${id}:`, error.message);
       }
@@ -116,7 +115,6 @@ function seedInitialProfiles() {
     initialProfiles.forEach((p) => {
       try {
         profilesRepo.createProfile(p);
-        console.log(`✓ Perfil inicial criado: ${p.name}`);
       } catch (error) {
         console.error('Erro ao criar perfil inicial', p.id, error);
       }

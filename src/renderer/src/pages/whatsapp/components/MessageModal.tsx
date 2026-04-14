@@ -82,8 +82,8 @@ export const MessageModal: React.FC<MessageModalProps> = ({ open, mode, profileI
   };
 
   return (
-    <div className={`modal-overlay ${open ? '' : 'hidden'}`}>
-      <div className="modal-content">
+    <div className={`modal-overlay transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+      <div className={`modal-content transform transition-all duration-300 ${open ? 'translate-y-0 scale-100' : 'translate-y-4 scale-95'}`}>
         <div className="modal-header">
           <h3 className="text-xl font-semibold text-slate-800 dark:text-white">{mode === 'add' ? 'Adicionar mensagem' : 'Editar mensagem'}</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white text-2xl leading-none transition-colors">×</button>
@@ -101,7 +101,7 @@ export const MessageModal: React.FC<MessageModalProps> = ({ open, mode, profileI
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">Imagem (opcional)</label>
-            <div className="flex gap-2">
+            <div className="flex flex-col gap-2 sm:flex-row">
               <input
                 type="text"
                 className="input-control flex-1"

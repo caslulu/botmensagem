@@ -30,7 +30,7 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
     };
     window.automation.onLog(handler);
     return () => {
-      // No off method available in current API
+      // API atual não expõe unsubscribe.
     };
   }, []);
 
@@ -52,8 +52,8 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
       if (settings?.send_limit) {
         setSendLimit(settings.send_limit);
       }
-    } catch (e) {
-      console.error('Erro ao carregar settings', e);
+    } catch (error) {
+      console.error('Erro ao carregar settings', error);
     }
   };
 
@@ -63,8 +63,8 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
     try {
       await window.profile?.updateSendLimit(profileId, sendLimit);
       setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: `Configuração salva: ${sendLimit} grupos` }]);
-    } catch (e: any) {
-      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: `Erro ao salvar configuração: ${e.message}` }]);
+    } catch (error: any) {
+      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: `Erro ao salvar configuração: ${error.message}` }]);
     } finally {
       setLimitLoading(false);
     }
@@ -76,12 +76,12 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
     setStatus('Iniciando automação…');
     try {
       const response = await window.automation.start(profileId);
-      setStatus('Automação em execução.');
+      setStatus('Automação em execução');
       setAutomationRunning(true);
       setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: response?.message || 'Automação iniciada.' }]);
-    } catch (e: any) {
-      setStatus('Erro ao iniciar automação. Veja os logs.');
-      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: e?.message || 'Erro ao iniciar automação.' }]);
+    } catch (error: any) {
+      setStatus('Erro ao iniciar automação');
+      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: error?.message || 'Erro ao iniciar automação.' }]);
     } finally {
       setStartLoading(false);
     }
@@ -93,89 +93,136 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
     setStatus('Encerrando automação…');
     try {
       const response = await window.automation.stop();
-      setStatus('Automação parada.');
+      setStatus('Automação parada');
       setAutomationRunning(false);
       setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: response?.message || 'Automação interrompida.' }]);
-    } catch (e: any) {
-      setStatus('Erro ao parar automação. Veja os logs.');
-      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: e?.message || 'Erro ao parar automação.' }]);
+    } catch (error: any) {
+      setStatus('Erro ao parar automação');
+      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: error?.message || 'Erro ao parar automação.' }]);
     } finally {
       setStopLoading(false);
     }
   };
 
   return (
-    <section className="card p-6 mb-6">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4">
-        <div>
-          <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Operador selecionado</p>
-          <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">{profileName || '—'}</h2>
-        </div>
-        <div className="flex items-center gap-4">
-          <button
-            className="btn-primary"
-            onClick={handleStart}
-            disabled={!profileId || !isAdmin || automationRunning || startLoading}
-          >
-            {startLoading ? 'Iniciando…' : 'Iniciar envios'}
-          </button>
-          <button
-            className="btn-secondary"
-            onClick={handleStop}
-            disabled={!automationRunning || stopLoading}
-          >
-            {stopLoading ? 'Parando…' : 'Parar envios'}
-          </button>
-        </div>
-      </div>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,320px)_1fr]">
-        <article className="card space-y-4">
-          <header className="space-y-1">
-            <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Status</p>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{status}</h3>
-          </header>
-          
-          <div className="p-4 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
-              <label className="block text-xs font-semibold text-slate-500 dark:text-slate-400 mb-2">Limite de Envios (Grupos)</label>
-              <div className="flex gap-2">
-                  <input 
-                    type="number" 
-                    value={sendLimit} 
-                    onChange={(e) => setSendLimit(Number(e.target.value))} 
-                    className="input-control py-1 px-2 text-sm"
-                    min="1"
-                    max="1000"
-                  />
-                  <button 
-                    onClick={handleSaveLimit} 
-                    disabled={limitLoading || !profileId}
-                    className="btn-secondary text-xs px-3"
-                  >
-                      {limitLoading ? '...' : 'Salvar'}
-                  </button>
-              </div>
+    <div className="space-y-6">
+      <section className="page-hero">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
+              WhatsApp automático
+            </p>
+            <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
+              Controle os envios do operador ativo
+            </h2>
+            <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
+              Ajuste o limite, acompanhe logs em tempo real e mantenha uma única mensagem ativa por perfil.
+            </p>
           </div>
 
-          <div className="space-y-3">
-            <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Logs recentes</h4>
-            <div ref={logRef} className="max-h-72 overflow-y-auto rounded-xl bg-slate-50 dark:bg-slate-950/60 p-4 text-xs text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-transparent">
-              {logs.length === 0 && <div className="text-slate-400 dark:text-slate-500">Nenhum log ainda.</div>}
-              {logs.map((log, idx) => (
-                <div key={idx} className="border-b border-slate-200 dark:border-white/5 pb-2 last:border-none last:pb-0">
-                  [{log.timestamp}] {log.message}
-                </div>
-              ))}
+          <div className="grid gap-3 sm:grid-cols-3">
+            <div className="mini-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Operador</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{profileName || 'Nenhum perfil'}</p>
+            </div>
+            <div className="mini-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Status</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{status}</p>
+            </div>
+            <div className="mini-stat">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 dark:text-slate-500">Permissão</p>
+              <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">{isAdmin ? 'Administrador' : 'Bloqueado para operador'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[minmax(0,350px)_minmax(0,1fr)]">
+        <article className="card p-5 sm:p-6">
+          <div className="space-y-5">
+            <header className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Controle da automação</p>
+              <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">{status}</h3>
+              <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
+                Inicie ou interrompa o fluxo manualmente e ajuste o alcance máximo antes de disparar.
+              </p>
+            </header>
+
+            <div className="surface-subtle">
+              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Limite de envios (grupos)</label>
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <input
+                  type="number"
+                  value={sendLimit}
+                  onChange={(event) => setSendLimit(Number(event.target.value))}
+                  className="input-control"
+                  min="1"
+                  max="1000"
+                />
+                <button
+                  onClick={handleSaveLimit}
+                  disabled={limitLoading || !profileId}
+                  className="btn-secondary whitespace-nowrap"
+                  type="button"
+                >
+                  {limitLoading ? 'Salvando…' : 'Salvar limite'}
+                </button>
+              </div>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                className="btn-primary"
+                onClick={handleStart}
+                disabled={!profileId || !isAdmin || automationRunning || startLoading}
+                type="button"
+              >
+                {startLoading ? 'Iniciando…' : 'Iniciar envios'}
+              </button>
+              <button
+                className="btn-secondary"
+                onClick={handleStop}
+                disabled={!automationRunning || stopLoading}
+                type="button"
+              >
+                {stopLoading ? 'Parando…' : 'Parar envios'}
+              </button>
+            </div>
+
+            <div className="surface-subtle">
+              <p className="text-sm font-semibold text-slate-900 dark:text-white">Regras importantes</p>
+              <ul className="mt-3 space-y-3 text-sm text-slate-500 dark:text-slate-400">
+                <li>Somente administradores podem iniciar a automação.</li>
+                <li>O limite de grupos fica salvo por operador.</li>
+                <li>Os logs ajudam a entender falhas e confirmar execução.</li>
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-semibold text-slate-700 dark:text-slate-200">Logs recentes</h4>
+              <div ref={logRef} className="custom-scrollbar max-h-80 overflow-y-auto rounded-[24px] border border-slate-200/80 bg-slate-50/90 p-4 text-xs leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-950/70 dark:text-slate-300">
+                {logs.length === 0 ? <div className="text-slate-400 dark:text-slate-500">Nenhum log ainda.</div> : null}
+                {logs.map((log, idx) => (
+                  <div key={idx} className="border-b border-slate-200/80 pb-2 last:border-none last:pb-0 dark:border-white/5">
+                    [{log.timestamp}] {log.message}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </article>
-        <section className="card space-y-4">
-          <header>
-            <p className="text-sm uppercase tracking-wide text-slate-500 dark:text-slate-400">Mensagens salvas</p>
-            <h3 className="text-lg font-semibold text-slate-800 dark:text-white">Gerenciar mensagens</h3>
+
+        <section className="card p-5 sm:p-6">
+          <header className="mb-5">
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Biblioteca do operador</p>
+            <h3 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">Mensagens salvas</h3>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+              Escolha a mensagem ativa, crie novas variações e mantenha o repertório organizado por perfil.
+            </p>
           </header>
           <MessageManager profileId={profileId} />
         </section>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 };

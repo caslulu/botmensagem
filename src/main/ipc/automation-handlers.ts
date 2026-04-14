@@ -5,10 +5,6 @@ import * as profilesService from '../domains/profiles/profiles-service';
 export function registerAutomationHandlers(): void {
   ipcMain.handle('automation:profiles', async () => {
     const profiles = ((profilesService.list() || []) as Array<any>).filter(Boolean);
-    console.log('[IPC] automation:profiles returning:', profiles.length, 'profiles');
-    profiles.forEach((profile) =>
-      console.log(`  - ${profile.name} (${profile.id}) admin=${profile.isAdmin} thumb=${Boolean(profile.thumbnail)}`)
-    );
     return profiles;
   });
 

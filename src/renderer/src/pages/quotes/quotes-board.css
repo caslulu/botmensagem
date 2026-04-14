@@ -1,17 +1,17 @@
 .quotes-board-shell {
-  --quotes-surface: rgba(9, 13, 7, 0.94);
-  --quotes-surface-soft: rgba(19, 25, 14, 0.86);
-  --quotes-border: rgba(145, 174, 97, 0.16);
-  --quotes-text: #edf2de;
-  --quotes-muted: rgba(220, 231, 192, 0.64);
-  --quotes-accent: #2e8fff;
-  --quotes-accent-soft: rgba(46, 143, 255, 0.22);
+  --quotes-surface: rgba(8, 18, 21, 0.95);
+  --quotes-surface-soft: rgba(12, 24, 28, 0.88);
+  --quotes-border: rgba(119, 154, 148, 0.2);
+  --quotes-text: #eef6f4;
+  --quotes-muted: rgba(210, 226, 223, 0.7);
+  --quotes-accent: #2d8478;
+  --quotes-accent-soft: rgba(45, 132, 120, 0.24);
   --quotes-danger: #f87171;
   display: grid;
-  grid-template-columns: minmax(360px, 430px) minmax(0, 1fr);
+  grid-template-columns: minmax(340px, 410px) minmax(0, 1fr);
   gap: 1.25rem;
   align-items: start;
-  font-family: 'Avenir Next', 'Segoe UI Variable', 'Trebuchet MS', sans-serif;
+  font-family: 'Manrope', 'Segoe UI Variable', 'Avenir Next', sans-serif;
 }
 
 .quotes-board-column,
@@ -21,8 +21,8 @@
   border: 1px solid var(--quotes-border);
   border-radius: 2rem;
   background:
-    radial-gradient(circle at top, rgba(129, 153, 75, 0.14), transparent 42%),
-    linear-gradient(180deg, rgba(11, 17, 7, 0.98), rgba(8, 12, 5, 0.96));
+    radial-gradient(circle at top, rgba(45, 132, 120, 0.18), transparent 42%),
+    linear-gradient(180deg, rgba(8, 18, 21, 0.98), rgba(10, 15, 20, 0.96));
   box-shadow: 0 28px 60px rgba(2, 6, 23, 0.32);
   color: var(--quotes-text);
 }
@@ -63,7 +63,7 @@
 
 .quotes-board-kicker {
   margin: 0 0 0.35rem;
-  color: #b8ca87;
+  color: #8bd4c8;
   font-size: 0.74rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -190,7 +190,7 @@
 .quotes-board-add-card:hover {
   transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(184, 202, 135, 0.22);
+  border-color: rgba(139, 212, 200, 0.26);
 }
 
 .quotes-board-composer {
@@ -562,11 +562,11 @@
 }
 
 .quotes-board-empty__icon {
-  color: #b8ca87;
+  color: #8bd4c8;
   font-size: 2rem;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1100px) {
   .quotes-board-shell {
     grid-template-columns: 1fr;
   }

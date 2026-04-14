@@ -389,6 +389,17 @@ export const QuotesList: React.FC = () => {
     setSelectedInsurer(normalizeAutomationInsurer(selected.seguradora));
   }, [selected]);
 
+  useEffect(() => {
+    if (!showCreateForm) return undefined;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [showCreateForm]);
+
   const handleDelete = async (item: QuoteBoardItem) => {
     setLoading(true);
     setError(null);
@@ -539,39 +550,14 @@ export const QuotesList: React.FC = () => {
           })}
         </div>
 
-        {showCreateForm ? (
-          <div className="quotes-board-composer">
-            <div className="quotes-board-composer__header">
-              <div>
-                <strong>Nova cotação</strong>
-                <span>Preencha seguindo o padrão atual para criar o card na fila.</span>
-              </div>
-              <button
-                type="button"
-                className="quotes-board-composer__close"
-                onClick={() => setShowCreateForm(false)}
-              >
-                Fechar
-              </button>
-            </div>
-
-            <TrelloForm
-              onSuccess={() => {
-                setShowCreateForm(false);
-                fetchQuotes();
-              }}
-            />
-          </div>
-        ) : (
-          <button
-            type="button"
-            className="quotes-board-add-card"
-            onClick={() => setShowCreateForm(true)}
-          >
-            <span>+</span>
-            <span>Adicionar um card</span>
-          </button>
-        )}
+        <button
+          type="button"
+          className="quotes-board-add-card"
+          onClick={() => setShowCreateForm(true)}
+        >
+          <span>+</span>
+          <span>Adicionar um card</span>
+        </button>
       </section>
 
       <section className="quotes-board-panel">
@@ -704,6 +690,52 @@ export const QuotesList: React.FC = () => {
           </div>
         )}
       </section>
+
+      {showCreateForm ? (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
+          onClick={() => setShowCreateForm(false)}
+        >
+          <div
+            className="flex max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/90 px-6 py-5 dark:border-slate-800 dark:bg-slate-900/90">
+              <div className="min-w-0">
+                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
+                  Nova cotação
+                </p>
+                <h3 className="mt-1 text-2xl font-semibold text-slate-800 dark:text-white">
+                  Criar card no Trello
+                </h3>
+                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+                  Preencha os dados da cotação em uma janela centralizada, sem apertar o board.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
+                onClick={() => setShowCreateForm(false)}
+                aria-label="Fechar modal de criação"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 6 6 18" />
+                  <path d="m6 6 12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
+              <TrelloForm
+                onSuccess={() => {
+                  setShowCreateForm(false);
+                  fetchQuotes();
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 };

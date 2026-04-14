@@ -6,21 +6,22 @@ module.exports = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', 'Segoe UI', 'system-ui', 'sans-serif']
+        sans: ['Manrope', 'Segoe UI Variable', 'Avenir Next', 'system-ui', 'sans-serif'],
+        display: ['Fraunces', 'Iowan Old Style', 'Georgia', 'serif']
       },
       colors: {
         brand: {
-          50: '#f0f5ff',
-          100: '#e5edff',
-          200: '#cddbfe',
-          300: '#b4c6fc',
-          400: '#8da2fb',
-          500: '#6366f1', // Indigo-like primary
-          600: '#4f46e5',
-          700: '#4338ca',
-          800: '#3730a3',
-          900: '#312e81',
-          950: '#1e1b4b',
+          50: '#eef9f7',
+          100: '#d6eee9',
+          200: '#b0ddd5',
+          300: '#82c5b9',
+          400: '#53a697',
+          500: '#2d8478',
+          600: '#246b62',
+          700: '#205650',
+          800: '#1d4642',
+          900: '#1a3a37',
+          950: '#0d2120',
         },
         slate: {
           50: '#f8fafc',
@@ -37,14 +38,14 @@ module.exports = {
         }
       },
       boxShadow: {
-        glass: '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
-        'glass-sm': '0 4px 16px 0 rgba(31, 38, 135, 0.07)',
-        card: '0 2px 8px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1)',
-        'card-hover': '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)'
+        glass: '0 24px 60px rgba(15, 23, 42, 0.12)',
+        'glass-sm': '0 12px 30px rgba(15, 23, 42, 0.08)',
+        card: '0 18px 45px rgba(15, 23, 42, 0.08)',
+        'card-hover': '0 28px 60px rgba(15, 23, 42, 0.14)'
       },
       backgroundImage: {
-        'gradient-radial': 'radial-gradient(circle at top, rgba(79, 70, 229, 0.15), transparent 40%)',
-        'gradient-subtle': 'linear-gradient(to bottom right, rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.4))'
+        'gradient-radial': 'radial-gradient(circle at top, rgba(45, 132, 120, 0.16), transparent 42%)',
+        'gradient-subtle': 'linear-gradient(to bottom right, rgba(255, 255, 255, 0.94), rgba(248, 250, 252, 0.76))'
       }
     }
   },

@@ -53,6 +53,17 @@ class QuoteAutomationService {
       result
     };
   }
+
+  async shutdown() {
+    const providers = Object.values(this.providers || {});
+    await Promise.allSettled(
+      providers.map(async (provider) => {
+        if (provider && typeof provider.cleanup === 'function') {
+          await provider.cleanup();
+        }
+      })
+    );
+  }
 }
 
 module.exports = new QuoteAutomationService();

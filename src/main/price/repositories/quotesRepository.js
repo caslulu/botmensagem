@@ -119,8 +119,6 @@ class QuotesRepository {
           fs.unlinkSync(LEGACY_QUOTES_FILE);
         } catch (_) {}
       }
-
-      console.log('[QuotesRepository] Cotações legacy migradas para o banco de dados.');
     } catch (error) {
       console.warn('[QuotesRepository] Falha ao migrar cotações legacy:', error.message);
     }

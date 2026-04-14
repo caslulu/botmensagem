@@ -105,7 +105,6 @@ class LibertyQuoteAutomation {
         }
       } catch (_) {}
 
-      console.log('Liberty automation completed initial steps.');
         await page.waitForTimeout(3500);
 
         try {
@@ -417,8 +416,6 @@ class LibertyQuoteAutomation {
                 // Get spouse birthday - prioritize US format
                 const spouseBirthday = String(data.dataNascimentoConjugeUs || data.dataNascimentoConjuge || data.data_nascimento_conjuge || '').trim();
 
-                console.log('[Liberty] Spouse data:', { spouseFirst, spouseLast, spouseBirthday });
-
                 // Fill spouse first name
                 const firstNameField = page.getByRole('textbox', { name: 'First name' });
                 await firstNameField.click({ timeout: 5000 }).catch(() => {});
@@ -541,7 +538,6 @@ class LibertyQuoteAutomation {
                     await page.getByRole('textbox', { name: 'Date you first got insurance' }).fill(dateStr).catch(() => {});
                  } catch (_) {}
 
-                 console.log('[Liberty] Waiting 15s for manual liability fill...');
                  await page.getByRole('button', { name: 'Next' }).click();
                  await page.waitForTimeout(15000);
                   

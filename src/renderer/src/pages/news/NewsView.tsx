@@ -138,7 +138,7 @@ export const NewsView: React.FC = () => {
               <span className="px-3 py-1 rounded-full bg-white/80 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">Pronto para onboarding interno</span>
             </div>
           </div>
-          <div className="grid grid-cols-2 gap-3 min-w-[240px]">
+          <div className="grid min-w-[240px] grid-cols-1 gap-3 sm:grid-cols-2">
             {quickStarts.map((item) => (
               <div key={item.title} className="border border-white/50 dark:border-slate-800 rounded-xl bg-white/70 dark:bg-slate-900/70 p-4 shadow-sm">
                 <div className="text-sm font-semibold text-slate-800 dark:text-slate-100">{item.title}</div>

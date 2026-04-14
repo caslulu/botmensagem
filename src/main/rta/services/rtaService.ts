@@ -67,8 +67,6 @@ class RtaService {
             this.assetsDir = possiblePaths.find((p) => fs.existsSync(p)) || possiblePaths[0];
             if (!fs.existsSync(this.assetsDir)) {
                 console.error('[RtaService] Assets não encontrados. Caminhos testados:', possiblePaths);
-            } else {
-                console.log('[RtaService] Assets encontrados em:', this.assetsDir);
             }
         }
 

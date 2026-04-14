@@ -28,9 +28,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
   };
 
   return (
-    <div className={`fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity duration-300 ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-      <div className={`bg-white dark:bg-slate-900 p-6 rounded-xl max-w-2xl w-full shadow-xl transform transition-all duration-300 border border-slate-200 dark:border-slate-800 ${open ? 'scale-100 translate-y-0' : 'scale-95 translate-y-4'}`}>
-        <div className="flex items-center justify-between mb-6">
+    <div className={`modal-overlay transition-opacity duration-300 ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`}>
+      <div className={`modal-content transform transition-all duration-300 ${open ? 'translate-y-0 scale-100' : 'translate-y-4 scale-95'}`}>
+        <div className="modal-header">
           <h3 className="text-xl font-bold text-slate-800 dark:text-white">Editar perfil</h3>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -38,7 +38,7 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
             </svg>
           </button>
         </div>
-        <form className="space-y-6" onSubmit={handleSubmit}>
+        <form id="editProfileForm" className="modal-body space-y-6" onSubmit={handleSubmit}>
           <div className="grid gap-6 md:grid-cols-2">
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Nome do operador</label>
@@ -89,9 +89,9 @@ export const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ open, profil
           </div>
           {error && <p className="text-sm text-rose-500 dark:text-rose-400 bg-rose-50 dark:bg-rose-900/20 p-3 rounded-lg border border-rose-200 dark:border-rose-800">{error}</p>}
         </form>
-        <div className="flex justify-end gap-3 mt-8">
+        <div className="modal-footer">
           <button className="btn-secondary px-6" type="button" onClick={onClose} disabled={loading}>Cancelar</button>
-          <button className="btn-primary px-6" type="submit" disabled={loading} onClick={handleSubmit}>
+          <button className="btn-primary px-6" type="submit" form="editProfileForm" disabled={loading}>
             {loading ? 'Salvando…' : 'Salvar alterações'}
           </button>
         </div>

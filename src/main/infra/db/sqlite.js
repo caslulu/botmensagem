@@ -28,7 +28,6 @@ async function initDatabase() {
   createSchema();
   ensureProfilesAdminColumn();
   saveDatabase();
-  console.log('✓ Banco de dados inicializado');
   return db;
 }
 
@@ -128,7 +127,6 @@ function ensureProfilesAdminColumn() {
 
     if (!hasAdminColumn) {
       db.run('ALTER TABLE profiles ADD COLUMN is_admin INTEGER DEFAULT 0');
-      console.log('✓ Coluna is_admin adicionada à tabela profiles');
     }
   } catch (error) {
     console.error('Erro ao garantir coluna is_admin na tabela profiles', error);
