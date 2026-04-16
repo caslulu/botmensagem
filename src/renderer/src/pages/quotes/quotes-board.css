@@ -92,6 +92,7 @@
 
 .quotes-board-refresh,
 .quotes-board-primary,
+.quotes-board-success,
 .quotes-board-danger,
 .quotes-board-actions__select select {
   border: 0;
@@ -115,6 +116,7 @@
 
 .quotes-board-refresh:disabled,
 .quotes-board-primary:disabled,
+.quotes-board-success:disabled,
 .quotes-board-danger:disabled {
   opacity: 0.55;
   cursor: not-allowed;
@@ -490,6 +492,7 @@
 }
 
 .quotes-board-primary,
+.quotes-board-success,
 .quotes-board-danger {
   padding: 0.9rem 1.15rem;
   font-weight: 700;
@@ -502,12 +505,19 @@
   box-shadow: 0 14px 26px rgba(46, 143, 255, 0.22);
 }
 
+.quotes-board-success {
+  background: linear-gradient(135deg, #159d7d, #22c7a2);
+  color: #ecfdf5;
+  box-shadow: 0 14px 26px rgba(34, 197, 162, 0.2);
+}
+
 .quotes-board-danger {
   background: rgba(248, 113, 113, 0.16);
   color: #fecaca;
 }
 
 .quotes-board-primary:hover:not(:disabled),
+.quotes-board-success:hover:not(:disabled),
 .quotes-board-danger:hover:not(:disabled) {
   transform: translateY(-1px);
   filter: brightness(1.03);

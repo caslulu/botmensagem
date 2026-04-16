@@ -482,27 +482,105 @@ class ProgressiveQuoteAutomation {
 
   async paginaInicial(zipcode) {
     await this.page.goto('https://www.progressive.com/', { waitUntil: 'load' });
+    await this.waitForNetworkSettled(3000);
 
-    try {
-      const links = this.page.locator("a:has-text('Or, see all 30+ products'), a:has-text('See all 30+ products')");
-      if ((await links.count()) > 0) {
-        await this.clickWithDelay(links.first());
-      } else {
-        await this.clickWithDelay(this.page.getByRole('link', { name: /see all 30\+ products/i }));
+    const quoteFlowSignals = [
+      () => this.page.getByLabel('First Name', { exact: true }),
+      () => this.page.getByLabel(/Primary email address/i),
+      () => this.page.getByLabel(/Date of birth/i),
+      () => this.page.getByRole('combobox', { name: 'Street number and name' }),
+      () => this.page.getByRole('textbox', { name: /Street number and name/i }),
+      () => this.page.getByRole('button', { name: /Ok, start my quote/i }),
+      () => this.page.getByRole('button', { name: "No, I'll add my own" }),
+      () => this.page.locator("input[name='VehiclesNew_embedded_questions_list_Vin']").first()
+    ];
+
+    const waitForQuoteFlow = async () => {
+      const nextStep = await waitForAnyVisible(quoteFlowSignals, 15000);
+      return Boolean(nextStep);
+    };
+
+    const submitHomepageWidget = async () => {
+      const zipFilled = await fillFirstVisible([
+        () => this.page.locator('#zipCode_mma'),
+        () => this.page.locator("input[name='ZipCode']").first(),
+        () => this.page.getByLabel('ZIP Code'),
+        () => this.page.getByRole('textbox', { name: 'ZIP Code' })
+      ], zipcode, { timeout: 15000 }).catch(() => false);
+
+      if (!zipFilled) {
+        return false;
       }
-    } catch (error) {
-      console.warn('[ProgressiveAutomation] Link "see all products" não encontrado:', error?.message || error);
+
+      const clicked = await clickFirstVisible([
+        () => this.page.locator('#qsButton_mma'),
+        () => this.page.locator("input[type='submit'][id='qsButton_mma']"),
+        () => this.page.getByRole('button', { name: 'Get a quote' }),
+        () => this.page.locator("input[type='submit'][value='Get a quote']").first()
+      ], { timeout: 15000 }).catch(() => false);
+
+      if (!clicked) {
+        return false;
+      }
+
+      await this.waitForNetworkSettled(4000);
+      return waitForQuoteFlow();
+    };
+
+    const submitOverlayWidget = async () => {
+      await clickFirstVisible([
+        () => this.page.locator("a:has-text('Or, see all products')").first(),
+        () => this.page.locator("a:has-text('See all 30+ products')").first(),
+        () => this.page.locator("a:has-text('Or, see all 30+ products')").first(),
+        () => this.page.getByRole('link', { name: /see all products/i }).first()
+      ], { timeout: 8000 }).catch(() => false);
+
+      await this.waitForNetworkSettled(1500);
+
+      await clickFirstVisible([
+        () => this.page.locator('#p-au'),
+        () => this.page.locator("button[data-value='AU']").first(),
+        () => this.page.getByRole('option', { name: /^Auto$/i }),
+        () => this.page.getByRole('button', { name: /^Auto$/i })
+      ], { timeout: 15000 }).catch(() => false);
+
+      const zipFilled = await fillFirstVisible([
+        () => this.page.locator('#zipCode_overlay'),
+        () => this.page.locator('#zipCode_overlay_subproducts'),
+        () => this.page.getByLabel('Enter ZIP Code'),
+        () => this.page.getByRole('textbox', { name: 'Enter ZIP Code' })
+      ], zipcode, { timeout: 15000 }).catch(() => false);
+
+      if (!zipFilled) {
+        return false;
+      }
+
+      const clicked = await clickFirstVisible([
+        () => this.page.locator('#qsButton_overlay'),
+        () => this.page.locator('#qsButton_overlay_subproducts'),
+        () => this.page.locator("input[type='submit'][id='qsButton_overlay']").first(),
+        () => this.page.locator("input[type='submit'][id='qsButton_overlay_subproducts']").first(),
+        () => this.page.getByRole('button', { name: 'Get a quote' }),
+        () => this.page.locator("input[type='submit'][value='Get a quote']").last()
+      ], { timeout: 15000 }).catch(() => false);
+
+      if (!clicked) {
+        return false;
+      }
+
+      await this.waitForNetworkSettled(4000);
+      return waitForQuoteFlow();
+    };
+
+    if (await submitHomepageWidget()) {
+      return;
     }
 
-    await this.clickWithDelay(
-      this.page.getByRole('option', { name: 'Auto', exact: true }),
-      { timeout: 15000 }
-    );
-    await this.page.getByRole('textbox', { name: 'Enter ZIP Code' }).fill(zipcode, { timeout: 15000 });
-    await this.clickButton(
-      this.page.getByRole('button', { name: 'Get a quote' }),
-      { timeout: 15000 }
-    );
+    if (await submitOverlayWidget()) {
+      return;
+    }
+
+    throw new Error('Nao foi possivel entrar no fluxo de cotacao atual da Progressive.');
   }
 
   async informacoesBasicas(data) {

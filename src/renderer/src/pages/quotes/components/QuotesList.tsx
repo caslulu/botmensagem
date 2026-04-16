@@ -54,8 +54,7 @@ type QuoteBoardItem = LocalQuote & {
 
 type QuotePayload = Record<string, unknown>;
 
-const QUOTE_QUEUE_BOARD_URL = 'https://trello.com/b/EwhRGV1T/auto-insurance-2.json';
-const QUOTE_QUEUE_LIST_NAME = 'COTAÇÕES PARA FAZER';
+const DEFAULT_QUEUE_LABEL = 'Fila configurada do Trello';
 
 const AUTOMATION_INSURERS = [
   { value: 'progressive', label: 'Progressive' },
@@ -95,6 +94,10 @@ function getPayloadFields(payload: QuotePayload): QuotePayload {
   return {};
 }
 
+function hasTrelloLink(item: { trelloCardId?: string; trelloCardUrl?: string }): boolean {
+  return Boolean(readString(item.trelloCardId) && readString(item.trelloCardUrl));
+}
+
 function normalizeAutomationInsurer(insurer: string): string {
   const normalized = insurer.toLowerCase();
   if (normalized.includes('liberty')) return 'liberty';
@@ -122,6 +125,113 @@ function parseDescriptionLine(description: string, label: string): string {
   if (!description) return '';
   const match = description.match(new RegExp(`^${label}:\\s*(.+)$`, 'im'));
   return match?.[1]?.trim() || '';
+}
+
+function parseIndentedLine(block: string, label: string): string {
+  if (!block) return '';
+  const match = block.match(new RegExp(`^\\s*${label}:\\s*(.+)$`, 'im'));
+  return match?.[1]?.trim() || '';
+}
+
+function parseAddressParts(address: string) {
+  const parts = address
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+  const cityStateZip = parts[parts.length - 1] || '';
+  const cityStateMatch = cityStateZip.match(/^(.+?)\s+-\s+([A-Z]{2})(?:,\s*(.+))?$/i);
+  const fallbackZip = cityStateZip.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || '';
+
+  return {
+    endereco_rua: parts[0] || '',
+    endereco_apt: parts.find((part) => /^apt\s+/i.test(part))?.replace(/^apt\s+/i, '') || '',
+    endereco_cidade: cityStateMatch?.[1]?.trim() || '',
+    endereco_estado: cityStateMatch?.[2]?.trim().toUpperCase() || '',
+    endereco_zipcode: cityStateMatch?.[3]?.trim() || fallbackZip
+  };
+}
+
+function parseVehicleLabel(vehicleLabel: string): { ano: string; marca: string; modelo: string } {
+  const parts = vehicleLabel.split(/\s+/).filter(Boolean);
+  const hasYear = /^\d{4}$/.test(parts[0] || '');
+
+  if (!hasYear) {
+    return { ano: '', marca: '', modelo: vehicleLabel === '-' ? '' : vehicleLabel };
+  }
+
+  return {
+    ano: parts[0] || '',
+    marca: parts[1] || '',
+    modelo: parts.slice(2).join(' ')
+  };
+}
+
+function parseVehiclesFromDescription(description: string) {
+  const blocks = description.match(/🚗 Veículo \d+:[\s\S]*?(?=\n🚗 Veículo \d+:|\nDRIVERS ADICIONAIS:|\nINFORMAÇÕES DO CÔNJUGE:|\nOBSERVAÇÕES:|$)/g) || [];
+
+  return blocks
+    .map((block) => {
+      const vehicleLabel = parseIndentedLine(block, 'Veículo');
+      const parsedVehicle = parseVehicleLabel(vehicleLabel);
+
+      return {
+        ...parsedVehicle,
+        vin: parseIndentedLine(block, 'VIN'),
+        placa: parseIndentedLine(block, 'Placa'),
+        financiado: parseIndentedLine(block, 'Estado'),
+        tempo_com_veiculo: parseIndentedLine(block, 'Tempo com veículo')
+      };
+    })
+    .filter((vehicle) => vehicle.vin || vehicle.placa || vehicle.modelo);
+}
+
+function parseDriversFromDescription(description: string) {
+  const blocks = description.match(/👤 Driver \d+:[\s\S]*?(?=\n👤 Driver \d+:|\nINFORMAÇÕES DO CÔNJUGE:|\nOBSERVAÇÕES:|$)/g) || [];
+
+  return blocks
+    .map((block) => {
+      const documentLine = parseIndentedLine(block, 'Documento');
+      const documentMatch = documentLine.match(/^(.+?)(?:\s+\(([A-Z]{2})\))?$/i);
+
+      return {
+        nome: parseIndentedLine(block, 'Nome'),
+        documento: documentMatch?.[1]?.trim() || documentLine,
+        documento_estado: documentMatch?.[2]?.trim().toUpperCase() || '',
+        data_nascimento: parseIndentedLine(block, 'Data de Nascimento'),
+        parentesco: parseIndentedLine(block, 'Parentesco'),
+        genero: parseIndentedLine(block, 'Gênero')
+      };
+    })
+    .filter((driver) => driver.nome);
+}
+
+function buildPayloadFromTrelloCard(item: QuoteBoardItem): Record<string, unknown> {
+  const address = parseDescriptionLine(item.description, 'Endereço');
+  const spouseSection = item.description.match(/INFORMAÇÕES DO CÔNJUGE:\n([\s\S]*?)(?=\nOBSERVAÇÕES:|$)/i)?.[1] || '';
+  const observations = item.description.match(/OBSERVAÇÕES:\n([\s\S]*?)$/i)?.[1]?.trim() || '';
+
+  return {
+    nome: item.nome,
+    documento: item.documento || parseDescriptionLine(item.description, 'Documento'),
+    documento_estado: parseDescriptionLine(item.description, 'Estado do Documento'),
+    estado_civil: parseDescriptionLine(item.description, 'Estado Civil'),
+    genero: parseDescriptionLine(item.description, 'Gênero'),
+    endereco: address,
+    ...parseAddressParts(address),
+    data_nascimento: parseDescriptionLine(item.description, 'Data de Nascimento'),
+    tempo_de_seguro: parseDescriptionLine(item.description, 'Tempo de Seguro'),
+    tempo_no_endereco: parseDescriptionLine(item.description, 'Tempo no Endereço'),
+    email: parseDescriptionLine(item.description, 'Email'),
+    nome_conjuge: parseDescriptionLine(spouseSection, 'Nome'),
+    data_nascimento_conjuge: parseDescriptionLine(spouseSection, 'Data de Nascimento'),
+    documento_conjuge: parseDescriptionLine(spouseSection, 'Documento'),
+    documento_estado_conjuge: parseDescriptionLine(spouseSection, 'Estado do Documento'),
+    veiculos: parseVehiclesFromDescription(item.description),
+    pessoas: parseDriversFromDescription(item.description),
+    observacoes: observations,
+    trelloImported: true,
+    trelloDescription: item.description
+  };
 }
 
 function mapLocalQuote(item: RawQuote): LocalQuote {
@@ -286,9 +396,10 @@ export const QuotesList: React.FC = () => {
   const [syncWarning, setSyncWarning] = useState<string | null>(null);
   const [selected, setSelected] = useState<QuoteBoardItem | null>(null);
   const [runLoading, setRunLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
   const [runError, setRunError] = useState<string | null>(null);
   const [selectedInsurer, setSelectedInsurer] = useState<string>('progressive');
-  const [boardLabel, setBoardLabel] = useState<string>(QUOTE_QUEUE_LIST_NAME);
+  const [boardLabel, setBoardLabel] = useState<string>(DEFAULT_QUEUE_LABEL);
   const [showCreateForm, setShowCreateForm] = useState(false);
 
   const fetchQuotes = async () => {
@@ -300,10 +411,7 @@ export const QuotesList: React.FC = () => {
     try {
       const [localResult, trelloResult] = await Promise.allSettled([
         window.price?.listQuotes(),
-        window.trello?.getListCards?.({
-          boardRef: QUOTE_QUEUE_BOARD_URL,
-          listName: QUOTE_QUEUE_LIST_NAME
-        })
+        window.trello?.getListCards?.({})
       ]);
 
       const localResponse = localResult.status === 'fulfilled' ? localResult.value : null;
@@ -320,7 +428,7 @@ export const QuotesList: React.FC = () => {
       const mappedLocals = localList.map((item) => mapLocalQuote(item as RawQuote));
       const localByTrelloId = new Map<string, LocalQuote>();
       mappedLocals.forEach((quote) => {
-        if (quote.trelloCardId) {
+        if (hasTrelloLink(quote)) {
           localByTrelloId.set(quote.trelloCardId, quote);
         }
         localByTrelloId.set(quote.id, quote);
@@ -357,7 +465,7 @@ export const QuotesList: React.FC = () => {
           });
 
           const localOnly = mappedLocals
-            .filter((quote) => !usedLocals.has(quote.id) && !quote.trelloCardId)
+            .filter((quote) => !usedLocals.has(quote.id) && !hasTrelloLink(quote))
             .map(mapLocalOnlyQuote);
 
           mergedQuotes = [...mergedQuotes, ...localOnly];
@@ -405,10 +513,10 @@ export const QuotesList: React.FC = () => {
     setError(null);
 
     try {
-      if (item.trelloCardId && window.trello?.deleteCard) {
+      if (hasTrelloLink(item) && window.trello?.deleteCard) {
         const trelloResponse = await window.trello.deleteCard(item.trelloCardId);
-        const trelloDeleted = trelloResponse && typeof trelloResponse === 'object' && 'success' in trelloResponse
-          ? Boolean(trelloResponse.success)
+        const trelloDeleted = trelloResponse && typeof trelloResponse === 'object'
+          ? ('deleted' in trelloResponse ? Boolean((trelloResponse as { deleted?: boolean }).deleted) : ('success' in trelloResponse ? Boolean((trelloResponse as { success?: boolean }).success) : true))
           : true;
 
         if (!trelloDeleted) {
@@ -418,8 +526,8 @@ export const QuotesList: React.FC = () => {
 
       if (item.localQuoteId && window.price?.deleteQuote) {
         const localResponse = await window.price.deleteQuote(item.localQuoteId);
-        const localDeleted = localResponse && typeof localResponse === 'object' && 'success' in localResponse
-          ? Boolean(localResponse.success)
+        const localDeleted = localResponse && typeof localResponse === 'object'
+          ? ('deleted' in localResponse ? Boolean((localResponse as { deleted?: boolean }).deleted) : ('success' in localResponse ? Boolean((localResponse as { success?: boolean }).success) : true))
           : true;
 
         if (!localDeleted) {
@@ -467,6 +575,43 @@ export const QuotesList: React.FC = () => {
     }
   };
 
+  const handleImportFromTrello = async (item: QuoteBoardItem) => {
+    if (!window.price?.upsertQuote) {
+      setError('API para salvar cotação local não disponível.');
+      return;
+    }
+
+    setImportLoading(true);
+    setError(null);
+
+    try {
+      const payload = buildPayloadFromTrelloCard(item);
+      const response = await window.price.upsertQuote({
+        id: item.trelloCardId || item.id,
+        nome: item.nome,
+        documento: readString(payload.documento),
+        payload,
+        trelloCardId: item.trelloCardId,
+        trelloCardUrl: item.trelloCardUrl
+      });
+
+      const saved = response && typeof response === 'object' && 'success' in response
+        ? Boolean(response.success)
+        : true;
+
+      if (!saved) {
+        throw new Error((response as { error?: string })?.error || 'Erro ao adicionar card ao app.');
+      }
+
+      await fetchQuotes();
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : 'Erro ao adicionar card ao app.';
+      setError(message);
+    } finally {
+      setImportLoading(false);
+    }
+  };
+
   return (
     <div className="quotes-board-shell">
       <section className="quotes-board-column">
@@ -486,7 +631,7 @@ export const QuotesList: React.FC = () => {
 
         <div className="quotes-board-meta">
           <span>{quotes.length} card{quotes.length === 1 ? '' : 's'}</span>
-          <span>Board: Auto Insurance 2</span>
+          <span>Origem: Trello configurado</span>
         </div>
 
         {error ? <div className="quotes-board-alert quotes-board-alert--error">{error}</div> : null}
@@ -639,17 +784,26 @@ export const QuotesList: React.FC = () => {
               </div>
 
               <div className="quotes-board-actions__buttons">
+                {selected.source === 'trello' ? (
+                  <button
+                    className="quotes-board-success"
+                    onClick={() => handleImportFromTrello(selected)}
+                    disabled={loading || runLoading || importLoading}
+                  >
+                    {importLoading ? 'Adicionando...' : 'Add ao app'}
+                  </button>
+                ) : null}
                 <button
                   className="quotes-board-primary"
                   onClick={() => handleRunAutomation(selected)}
-                  disabled={loading || runLoading || !selected.canRunAutomation}
+                  disabled={loading || runLoading || importLoading || !selected.canRunAutomation}
                 >
                   {runLoading ? 'Abrindo automação...' : 'Iniciar cotação'}
                 </button>
                 <button
                   className="quotes-board-danger"
                   onClick={() => handleDelete(selected)}
-                  disabled={loading || runLoading}
+                  disabled={loading || runLoading || importLoading}
                 >
                   Excluir card
                 </button>

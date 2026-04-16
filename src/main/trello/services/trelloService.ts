@@ -442,6 +442,22 @@ class TrelloService {
     return response.json() as Promise<T>;
   }
 
+  async getListInfo(listId: string): Promise<TrelloBoardList> {
+    const targetId = sanitizeString(listId);
+    if (!targetId) {
+      throw new Error('Lista do Trello não informada.');
+    }
+
+    const params = this.buildAuthParams({ fields: 'name' });
+    const url = `${TRELLO_API_ROOT}/lists/${encodeURIComponent(targetId)}?${params.toString()}`;
+    const payload = await this.fetchJson<{ id?: string; name?: string }>(url);
+
+    return {
+      id: sanitizeString(payload.id) || targetId,
+      name: sanitizeString(payload.name) || 'Lista do Trello'
+    };
+  }
+
   async getBoardLists(boardRef: string): Promise<TrelloBoardList[]> {
     const boardId = parseBoardRef(boardRef);
     const params = this.buildAuthParams({
@@ -465,12 +481,13 @@ class TrelloService {
     listName?: string;
   }): Promise<TrelloListCardsResult> {
     const providedListId = sanitizeString(options?.listId);
+    const boardRef = sanitizeString(options?.boardRef);
+    const requestedListName = sanitizeString(options?.listName);
     let listId = providedListId;
-    let listName = sanitizeString(options?.listName);
+    let listName = requestedListName;
 
-    if (!listId) {
-      const boardRef = sanitizeString(options?.boardRef);
-      const desiredListName = normalizeComparable(options?.listName);
+    if (!listId && boardRef && requestedListName) {
+      const desiredListName = normalizeComparable(requestedListName);
       const lists = await this.getBoardLists(boardRef);
       const matchedList = lists.find((item) => normalizeComparable(item.name) === desiredListName);
 
@@ -480,6 +497,22 @@ class TrelloService {
 
       listId = matchedList.id;
       listName = matchedList.name;
+    }
+
+    if (!listId) {
+      listId = sanitizeString(this.credentials.listId);
+    }
+
+    if (!listId) {
+      throw new Error('Lista do Trello não informada.');
+    }
+
+    if (!listName) {
+      try {
+        listName = (await this.getListInfo(listId)).name;
+      } catch (_) {
+        listName = 'Lista do Trello';
+      }
     }
 
     const params = this.buildAuthParams({

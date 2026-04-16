@@ -29,6 +29,7 @@ type GenerateOptions = {
   apenasPrever?: boolean;
   campos: Record<string, any>;
   cotacaoId?: string;
+  trelloCardId?: string;
 };
 
 function ensureFolder(dirPath: string): void {
@@ -343,7 +344,7 @@ class PriceService {
   }
 
   async generate(options: GenerateOptions) {
-    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos, cotacaoId } = options;
+    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos, cotacaoId, trelloCardId } = options;
 
     if (!formType || !['quitado', 'financiado'].includes(formType)) {
       throw new Error('Tipo de formulário inválido.');
@@ -394,11 +395,12 @@ class PriceService {
 
     const quotes = this.getQuotes();
     const matchedQuote = cotacaoId ? quotes.find((item: any) => item.id === cotacaoId) : null;
+    const targetTrelloCardId = matchedQuote?.trelloCardId || trelloCardId || '';
 
     let trelloAttachment: any = null;
-    if (!apenasPrever && matchedQuote?.trelloCardId) {
+    if (!apenasPrever && targetTrelloCardId) {
       try {
-        trelloAttachment = await trelloService.attachFile(matchedQuote.trelloCardId, {
+        trelloAttachment = await trelloService.attachFile(targetTrelloCardId, {
           path: outputPath,
           name: path.basename(outputPath)
         });

@@ -15,6 +15,25 @@ interface PriceFormData {
   valor_total_completo: string;
 }
 
+type TrelloQueueCard = {
+  id: string;
+  name?: string;
+  desc?: string;
+  shortUrl?: string;
+  dateLastActivity?: string;
+};
+
+type QueueQuoteOption = {
+  id: string;
+  label: string;
+  nome: string;
+  source: 'trello-local' | 'trello' | 'local';
+  payload: Record<string, any>;
+  localQuoteId?: string;
+  trelloCardId?: string;
+  trelloCardUrl?: string;
+};
+
 const initialForm: PriceFormData = {
   formType: 'quitado',
   seguradora: 'Allstate',
@@ -30,55 +49,169 @@ const initialForm: PriceFormData = {
   valor_total_completo: '',
 };
 
+function readString(...values: unknown[]): string {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+  return '';
+}
+
+function getPayloadFields(payload: Record<string, any>): Record<string, any> {
+  const candidates = [payload.campos, payload.fields, payload.data, payload.processed];
+  for (const entry of candidates) {
+    if (entry && typeof entry === 'object') {
+      return entry;
+    }
+  }
+  return {};
+}
+
+function parseDescriptionLine(description: string, label: string): string {
+  if (!description) return '';
+  const match = description.match(new RegExp(`^${label}:\\s*(.+)$`, 'im'));
+  return match?.[1]?.trim() || '';
+}
+
+function parseListResponse(response: any): any[] {
+  if (Array.isArray(response)) return response;
+  if (response && typeof response === 'object' && 'success' in response) {
+    return response.success && Array.isArray(response.quotes) ? response.quotes : [];
+  }
+  return response && Array.isArray(response?.quotes) ? response.quotes : [];
+}
+
+function normalizeLocalQuote(item: any): QueueQuoteOption {
+  const payload = item?.payload && typeof item.payload === 'object' ? item.payload : {};
+  const fields = getPayloadFields(payload);
+  const nome = readString(item?.nome, payload.nome, fields.nome) || 'Sem nome';
+  const trelloCardId = readString(item?.trelloCardId);
+  const trelloCardUrl = readString(item?.trelloCardUrl);
+
+  return {
+    id: `local:${item?.id}`,
+    label: `${nome}${trelloCardId ? ' - Trello' : ' - Local'}`,
+    nome,
+    source: trelloCardId ? 'trello-local' : 'local',
+    payload,
+    localQuoteId: readString(item?.id),
+    trelloCardId,
+    trelloCardUrl
+  };
+}
+
+function mergeTrelloCard(card: TrelloQueueCard, localQuote?: QueueQuoteOption): QueueQuoteOption {
+  const nome = readString(card.name, localQuote?.nome) || 'Card sem nome';
+  const description = readString(card.desc);
+  const document = parseDescriptionLine(description, 'Documento');
+  const payload = localQuote?.payload || {};
+
+  return {
+    id: `trello:${card.id}`,
+    label: `${nome}${localQuote ? ' - Trello + App' : ' - Trello'}`,
+    nome,
+    source: localQuote ? 'trello-local' : 'trello',
+    payload: localQuote
+      ? payload
+      : {
+          nome,
+          documento: document
+        },
+    localQuoteId: localQuote?.localQuoteId,
+    trelloCardId: card.id,
+    trelloCardUrl: readString(card.shortUrl, localQuote?.trelloCardUrl)
+  };
+}
+
 export const PriceForm: React.FC = () => {
   const [form, setForm] = useState<PriceFormData>(initialForm);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [quotes, setQuotes] = useState<any[]>([]);
+  const [quotes, setQuotes] = useState<QueueQuoteOption[]>([]);
+  const [selectedQuoteId, setSelectedQuoteId] = useState('');
 
-  React.useEffect(() => {
-    async function loadQuotes() {
-      if (window.price?.listQuotes) {
-        try {
-          const res = await window.price.listQuotes();
-          const list = Array.isArray(res)
-            ? res
-            : res && typeof res === 'object' && 'success' in res
-              ? (res.success && Array.isArray((res as any).quotes) ? (res as any).quotes : [])
-              : (res && Array.isArray((res as any).quotes) ? (res as any).quotes : []);
-          setQuotes(Array.isArray(list) ? list : []);
-        } catch (e) {
-          console.error('Erro ao carregar cotações', e);
+  const loadQuotes = async () => {
+    try {
+      const [localResult, trelloResult] = await Promise.allSettled([
+        window.price?.listQuotes(),
+        window.trello?.getListCards?.({})
+      ]);
+
+      const localResponse = localResult.status === 'fulfilled' ? localResult.value : null;
+      const localQuotes = parseListResponse(localResponse).map(normalizeLocalQuote);
+      const localByTrelloId = new Map<string, QueueQuoteOption>();
+      localQuotes.forEach((quote) => {
+        if (quote.trelloCardId) {
+          localByTrelloId.set(quote.trelloCardId, quote);
+        }
+      });
+
+      let mergedQuotes = localQuotes;
+      if (trelloResult.status === 'fulfilled') {
+        const trelloResponse = trelloResult.value;
+        const success = trelloResponse && typeof trelloResponse === 'object' && 'success' in trelloResponse
+          ? Boolean((trelloResponse as any).success)
+          : true;
+        const trelloCards = success && trelloResponse && typeof trelloResponse === 'object' && Array.isArray((trelloResponse as any).cards)
+          ? (trelloResponse as any).cards as TrelloQueueCard[]
+          : [];
+
+        if (trelloCards.length) {
+          const usedLocalIds = new Set<string>();
+          const trelloOptions = trelloCards.map((card) => {
+            const localQuote = localByTrelloId.get(card.id);
+            if (localQuote?.localQuoteId) {
+              usedLocalIds.add(localQuote.localQuoteId);
+            }
+            return mergeTrelloCard(card, localQuote);
+          });
+          const localOnly = localQuotes.filter((quote) => quote.localQuoteId && !usedLocalIds.has(quote.localQuoteId) && !quote.trelloCardId);
+          mergedQuotes = [...trelloOptions, ...localOnly];
         }
       }
+
+      setQuotes(mergedQuotes);
+    } catch (e) {
+      console.error('Erro ao carregar cotações', e);
     }
+  };
+
+  React.useEffect(() => {
     loadQuotes();
   }, []);
 
   const handleQuoteSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const quoteId = e.target.value;
+    setSelectedQuoteId(quoteId);
     if (!quoteId) return;
     
     const quote = quotes.find(q => q.id === quoteId);
-    if (quote && quote.payload) {
-        const data = quote.payload;
-        setForm(prev => ({
-            ...prev,
-            nome: data.nome || quote.nome || prev.nome,
-            formType: data.formType || prev.formType,
-            seguradora: data.seguradora || prev.seguradora,
-            idioma: data.idioma || prev.idioma,
-            taxaCotacao: data.taxaCotacao || prev.taxaCotacao,
-            taxaType: ['320', '400', '500'].includes(String(data.taxaCotacao)) ? String(data.taxaCotacao) as any : 'custom',
-            entrada_basico: data.entrada_basico || prev.entrada_basico,
-            mensal_basico: data.mensal_basico || prev.mensal_basico,
-            valor_total_basico: data.valor_total_basico || prev.valor_total_basico,
-            entrada_completo: data.entrada_completo || prev.entrada_completo,
-            mensal_completo: data.mensal_completo || prev.mensal_completo,
-            valor_total_completo: data.valor_total_completo || prev.valor_total_completo
-        }));
-    }
+    if (!quote) return;
+
+    const data = quote.payload || {};
+    const fields = getPayloadFields(data);
+    const taxValue = readString(data.taxaCotacao, fields.taxaCotacao);
+
+    setForm(prev => ({
+        ...prev,
+        nome: readString(data.nome, fields.nome, quote.nome, prev.nome),
+        formType: readString(data.formType, fields.formType) === 'financiado' ? 'financiado' : prev.formType,
+        seguradora: readString(data.seguradora, fields.seguradora, prev.seguradora),
+        idioma: readString(data.idioma, fields.idioma, prev.idioma),
+        taxaCotacao: taxValue ? Number(taxValue) : prev.taxaCotacao,
+        taxaType: ['320', '400', '500'].includes(taxValue) ? taxValue as any : taxValue ? 'custom' : prev.taxaType,
+        entrada_basico: readString(data.entrada_basico, fields.entrada_basico, prev.entrada_basico),
+        mensal_basico: readString(data.mensal_basico, fields.mensal_basico, prev.mensal_basico),
+        valor_total_basico: readString(data.valor_total_basico, fields.valor_total_basico, prev.valor_total_basico),
+        entrada_completo: readString(data.entrada_completo, fields.entrada_completo, prev.entrada_completo),
+        mensal_completo: readString(data.mensal_completo, fields.mensal_completo, prev.mensal_completo),
+        valor_total_completo: readString(data.valor_total_completo, fields.valor_total_completo, prev.valor_total_completo)
+    }));
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -107,9 +240,12 @@ export const PriceForm: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
+        const selectedQuote = quotes.find(q => q.id === selectedQuoteId);
         const payload = {
-            id: Date.now().toString(),
+            id: selectedQuote?.localQuoteId || selectedQuote?.trelloCardId || Date.now().toString(),
             nome: form.nome,
+            trelloCardId: selectedQuote?.trelloCardId || '',
+            trelloCardUrl: selectedQuote?.trelloCardUrl || '',
             payload: {
                 ...form
             }
@@ -117,16 +253,7 @@ export const PriceForm: React.FC = () => {
         const res = await window.price?.upsertQuote(payload);
         if (res && typeof res === 'object' && 'success' in res && res.success) {
           setResult('Cotação salva com sucesso!');
-          // Reload quotes properly handling IPC wrapper
-          if (window.price?.listQuotes) {
-            const r = await window.price.listQuotes();
-            const list = Array.isArray(r)
-              ? r
-              : r && typeof r === 'object' && 'success' in r
-                ? (r.success && Array.isArray((r as any).quotes) ? (r as any).quotes : [])
-                : (r && Array.isArray((r as any).quotes) ? (r as any).quotes : []);
-            setQuotes(Array.isArray(list) ? list : []);
-          }
+          await loadQuotes();
         } else {
             setError((res as any)?.error || 'Erro ao salvar cotação.');
         }
@@ -155,13 +282,15 @@ export const PriceForm: React.FC = () => {
     }
 
     try {
+      const selectedQuote = quotes.find(q => q.id === selectedQuoteId);
       const payload = {
         formType: form.formType,
         seguradora: form.seguradora,
         idioma: form.idioma,
         taxaCotacao: form.taxaCotacao,
         apenasPrever: false,
-        cotacaoId: null,
+        cotacaoId: selectedQuote?.localQuoteId || null,
+        trelloCardId: selectedQuote?.trelloCardId || null,
         campos: {
             nome: form.nome,
             entrada_basico: form.entrada_basico,
@@ -210,19 +339,17 @@ export const PriceForm: React.FC = () => {
         </div>
         
         <div className="rta-grid rta-grid-auto gap-4">
-           {quotes.length > 0 && (
-             <div className="input-group">
-                <label>Carregar Cotação Salva</label>
-                <select className="input-control" onChange={handleQuoteSelect} defaultValue="">
-                    <option value="" disabled>Selecione uma cotação...</option>
+           <div className="input-group">
+                <label>Cotações para fazer</label>
+                <select className="input-control" onChange={handleQuoteSelect} value={selectedQuoteId}>
+                    <option value="">Selecione uma cotação...</option>
                     {quotes.map((q) => (
                         <option key={q.id} value={q.id}>
-                            {q.nome || 'Sem Nome'} ({q.id})
+                            {q.label}
                         </option>
                     ))}
                 </select>
              </div>
-           )}
 
            <div className="input-group">
               <label>Tipo</label>

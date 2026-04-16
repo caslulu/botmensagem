@@ -31,6 +31,48 @@ class LibertyQuoteAutomation {
     return true;
   }
 
+  async fillTextboxIfVisible(page, name, value, options = {}) {
+    const text = String(value || '').trim();
+    if (!text) return false;
+
+    const timeout = options.timeout ?? 1500;
+    const field = page.getByRole('textbox', { name }).first();
+    try {
+      await field.waitFor({ state: 'visible', timeout });
+      if (options.type) {
+        await field.click({ timeout }).catch(() => {});
+        await field.fill('').catch(() => {});
+        await field.type(text, { delay: options.delay ?? 100 });
+      } else {
+        await field.fill(text, { timeout });
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async clickButtonIfVisible(page, name, timeout = 1500) {
+    const button = page.getByRole('button', { name }).first();
+    try {
+      await button.waitFor({ state: 'visible', timeout });
+      await button.click({ timeout });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async isTextboxVisible(page, name, timeout = 1500) {
+    const field = page.getByRole('textbox', { name }).first();
+    try {
+      await field.waitFor({ state: 'visible', timeout });
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async cleanup() {
     try {
       if (this.page && !this.page.isClosed()) await this.page.close().catch(() => {});
@@ -116,36 +158,36 @@ class LibertyQuoteAutomation {
           const lastName = String(data.lastName || data.last_name || data.last || '').trim();
           const birthday = String(data.dataNascimentoUs || data.birthday || data.dob || '').trim() || '10/10/2000';
 
-          if (firstName) await page.getByRole('textbox', { name: 'First name' }).fill(firstName).catch(() => {});
-          if (lastName) await page.getByRole('textbox', { name: 'Last name' }).fill(lastName).catch(() => {});
-          if (birthday) {
-            try {
-              const dobField = page.getByRole('textbox', { name: 'Birthday (MM/DD/YYYY)' });
-              await dobField.click();
-              await dobField.type(birthday, { delay: 100 });
-            } catch (_) {}
-          }
+          await this.fillTextboxIfVisible(page, 'First name', firstName, { timeout: 5000 });
+          await this.fillTextboxIfVisible(page, 'Last name', lastName, { timeout: 5000 });
+          await this.fillTextboxIfVisible(page, 'Birthday (MM/DD/YYYY)', birthday, { timeout: 5000, type: true });
 
-          try {
-            const nextBtn = page.getByRole('button', { name: 'Next' });
-            if (await nextBtn.count() > 0) await nextBtn.first().click().catch(() => {});
-          } catch (_) {}
+          const clickedPersonalInfoNext = await this.clickButtonIfVisible(page, 'Next', 5000);
+          if (!clickedPersonalInfoNext) {
+            return { success: true };
+          }
 
           const address1 = String(data.rua || data.address1 || data.address || '').trim();
           const address2 = String(data.apt || data.address2 || data.address_2 || '').trim();
           const zip = String(data.zipcode || data.zip || '').trim();
           const city = String(data.cidade || data.city || '').trim();
 
-          if (address1) await page.getByRole('textbox', { name: 'Address 1' }).fill(address1).catch(() => {});
-          if (address2) await page.getByRole('textbox', { name: 'Address 2' }).fill(address2).catch(() => {});
-          if (zip) await page.getByRole('textbox', { name: /ZIP code|ZIP Code|ZIP/ }).fill(zip).catch(() => {});
-          if (city) await page.getByRole('textbox', { name: 'City' }).fill(city).catch(() => {});
+          const addressScreenVisible = await this.isTextboxVisible(page, 'Address 1', 10000);
+          if (!addressScreenVisible) {
+            return { success: true };
+          }
+
+          const filledAddress = await this.fillTextboxIfVisible(page, 'Address 1', address1, { timeout: 3000 });
+          await this.fillTextboxIfVisible(page, 'Address 2', address2);
+          await this.fillTextboxIfVisible(page, /ZIP code|ZIP Code|ZIP/, zip);
+          await this.fillTextboxIfVisible(page, 'City', city);
 
           // Click Next after address
-          try {
-            const nextBtn2 = page.getByRole('button', { name: 'Next' });
-            if (await nextBtn2.count() > 0) await nextBtn2.first().click().catch(() => {});
-          } catch (_) {}
+          if (!filledAddress) {
+            return { success: true };
+          }
+
+          await this.clickButtonIfVisible(page, 'Next');
 
           try { await page.locator('label').filter({ hasText: 'Yes' }).first().click().catch(() => {}); } catch (_) {}
           try { await page.locator('label').filter({ hasText: 'I currently rent' }).first().click().catch(() => {}); } catch (_) {}

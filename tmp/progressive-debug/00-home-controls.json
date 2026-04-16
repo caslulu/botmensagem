@@ -1,0 +1,562 @@
+[
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Skip to Main Content"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "explore",
+    "name": "",
+    "label": "Insurance & more"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "claims",
+    "name": "",
+    "label": "Claims"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "resources",
+    "name": "",
+    "label": "Resources & tools"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "about",
+    "name": "",
+    "label": "About us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "1-833-876-5052, Call us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "login_link",
+    "name": "",
+    "label": "Log in"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Español"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "*Read the associated disclosure for this savings claim."
+  },
+  {
+    "tag": "input",
+    "type": "tel",
+    "role": "",
+    "id": "zipCode_mma",
+    "name": "ZipCode",
+    "label": "ZipCode"
+  },
+  {
+    "tag": "input",
+    "type": "submit",
+    "role": "",
+    "id": "qsButton_mma",
+    "name": "qsButton",
+    "label": "qsButton"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "auto insurance"
+  },
+  {
+    "tag": "ul",
+    "type": "",
+    "role": "list",
+    "id": "overlay-triggers",
+    "name": "",
+    "label": "Bundle and save!› Property› Recreational› See all 30+ products›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Bundle and save!›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Property›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Recreational›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "See all 30+ products›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Continue previous quote›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Find an agent›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "auto insurance"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "*Read the associated disclosure for this savings claim."
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Auto insurance›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Bundle auto and property insurance›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Motorcycle insurance›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "RV insurance›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Life insurance›"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Explore our products"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Bundling› Combine home and auto insurance for more savings."
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Diversity & Inclusion› Progress – it’s in our name and in our approach."
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Resources› Explore tools for navigating insurance and life."
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Careers› Join one of Fortune's 100 Best Companies to Work For."
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Car Insurance"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Home Insurance"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Progressive Answers"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Explore All Products"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "About Us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Careers"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Investors"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Newsroom"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Continue Previous Quote"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Report a Claim"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Make a Payment"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "PerkShare"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "1-833-876-5052"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Contact Us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Progressive App"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Partner With Us"
+  },
+  {
+    "tag": "input",
+    "type": "text",
+    "role": "",
+    "id": "searchTerm",
+    "name": "q",
+    "label": "q"
+  },
+  {
+    "tag": "input",
+    "type": "submit",
+    "role": "",
+    "id": "ssButton",
+    "name": "ssButton",
+    "label": "ssButton"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": ""
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Contact Us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Site Map"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Accessibility Services"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Technical Help"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Privacy & Security"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Terms of Use"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "CA Notice at Collection"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Insurance Resources"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Do Not Sell or Share My Personal Information (CA Residents Only)"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "Prices vary based on how you buy"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "about comparing car insurance rates,"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "See a list of all the insurers"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "contact us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "contact us"
+  },
+  {
+    "tag": "a",
+    "type": "",
+    "role": "",
+    "id": "",
+    "name": "",
+    "label": "https://www.progressiveagent.com"
+  }
+]
