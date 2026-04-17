@@ -40,7 +40,7 @@ class QuotesRepository {
       nome: entry.nome || entry.name || 'Sem nome',
       documento: entry.documento || entry.document || '',
       payload: entry.payload || entry.data || {},
-      trelloCardId: entry.trelloCardId || entry.trello_card_id || entry.cardId || id,
+      trelloCardId: entry.trelloCardId || entry.trello_card_id || entry.cardId || '',
       trelloCardUrl: entry.trelloCardUrl || entry.trello_card_url || entry.cardUrl || ''
     });
   }
@@ -105,7 +105,7 @@ class QuotesRepository {
             id,
             nome: item?.nome || item?.name || 'Sem nome',
             documento: item?.documento || item?.document || '',
-            trelloCardId: item?.trelloCardId || item?.trello_card_id || item?.cardId || id,
+            trelloCardId: item?.trelloCardId || item?.trello_card_id || item?.cardId || '',
             trelloCardUrl: item?.trelloCardUrl || item?.trello_card_url || ''
           });
         });

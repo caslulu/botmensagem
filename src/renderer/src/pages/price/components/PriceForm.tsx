@@ -291,6 +291,7 @@ export const PriceForm: React.FC = () => {
         apenasPrever: false,
         cotacaoId: selectedQuote?.localQuoteId || null,
         trelloCardId: selectedQuote?.trelloCardId || null,
+        trelloCardUrl: selectedQuote?.trelloCardUrl || null,
         campos: {
             nome: form.nome,
             entrada_basico: form.entrada_basico,
@@ -305,8 +306,10 @@ export const PriceForm: React.FC = () => {
       const res = await window.price?.generate(payload);
       if (res && typeof res === 'object' && 'success' in res && res.success) {
         const path = res.result?.outputPath || res.output?.outputPath;
-        setResult(`Imagem gerada: ${path || 'Arquivo salvo.'}`);
-        if (path) window.lastGeneratedPricePath = path; 
+        const trelloUrl = res.result?.trelloCardUrl || res.output?.trelloCardUrl;
+        setResult(`Imagem gerada${trelloUrl ? ' e enviada ao Trello' : ''}: ${path || 'Arquivo salvo.'}`);
+        if (path) window.lastGeneratedPricePath = path;
+        await loadQuotes();
       } else {
         setError((res as any)?.error || 'Erro ao gerar imagem.');
       }

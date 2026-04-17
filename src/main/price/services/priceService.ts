@@ -3,7 +3,8 @@ import fs from 'fs';
 import { app } from 'electron';
 import { parseCurrency, formatWithComma } from '../utils/number';
 import quotesRepository from '../repositories/quotesRepository';
-import trelloService from '../../trello/services/trelloService';
+
+const trelloServiceModule = require('../../trello/services/trelloService'); // eslint-disable-line @typescript-eslint/no-var-requires
 
 type CanvasModule = typeof import('@napi-rs/canvas');
 type CanvasInstance = any;
@@ -30,7 +31,37 @@ type GenerateOptions = {
   campos: Record<string, any>;
   cotacaoId?: string;
   trelloCardId?: string;
+  trelloCardUrl?: string;
 };
+
+type TrelloAttachmentInput = {
+  path: string;
+  name: string;
+};
+
+type TrelloServiceInstance = {
+  attachFile: (cardId: string, attachment: TrelloAttachmentInput) => Promise<any>;
+  createTrelloCard: (data: Record<string, unknown>) => Promise<any>;
+};
+
+function resolveTrelloService(): TrelloServiceInstance {
+  const candidates = [
+    trelloServiceModule,
+    trelloServiceModule?.default,
+    trelloServiceModule?.default?.default
+  ];
+  const service = candidates.find((candidate) => {
+    return candidate
+      && typeof candidate.attachFile === 'function'
+      && typeof candidate.createTrelloCard === 'function';
+  });
+
+  if (!service) {
+    throw new Error('Serviço do Trello indisponível para anexar a imagem.');
+  }
+
+  return service;
+}
 
 function ensureFolder(dirPath: string): void {
   if (!fs.existsSync(dirPath)) {
@@ -395,17 +426,53 @@ class PriceService {
 
     const quotes = this.getQuotes();
     const matchedQuote = cotacaoId ? quotes.find((item: any) => item.id === cotacaoId) : null;
-    const targetTrelloCardId = matchedQuote?.trelloCardId || trelloCardId || '';
+    let targetTrelloCardId = matchedQuote?.trelloCardId || trelloCardId || '';
+    let targetTrelloCardUrl = matchedQuote?.trelloCardUrl || options.trelloCardUrl || '';
 
     let trelloAttachment: any = null;
-    if (!apenasPrever && targetTrelloCardId) {
+    let trelloCard: any = null;
+    if (!apenasPrever) {
       try {
-        trelloAttachment = await trelloService.attachFile(targetTrelloCardId, {
+        const trelloService = resolveTrelloService();
+        const attachment = {
           path: outputPath,
           name: path.basename(outputPath)
-        });
+        };
+
+        if (targetTrelloCardId) {
+          trelloAttachment = await trelloService.attachFile(targetTrelloCardId, attachment);
+        } else {
+          trelloCard = await trelloService.createTrelloCard({
+            nome: campos?.nome || processed?.nome || 'Preço automático',
+            documento: campos?.documento || matchedQuote?.documento || '',
+            observacoes: `Imagem de preço gerada automaticamente (${seguradora}).`,
+            attachments: [attachment]
+          });
+          targetTrelloCardId = trelloCard?.id || '';
+          targetTrelloCardUrl = trelloCard?.url || '';
+          trelloAttachment = trelloCard?.attachments || null;
+        }
+
+        if (targetTrelloCardId && cotacaoId) {
+          quotesRepository.upsert({
+            id: cotacaoId,
+            nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
+            documento: campos?.documento || matchedQuote?.documento || '',
+            payload: {
+              ...(matchedQuote?.payload || {}),
+              formType,
+              seguradora,
+              idioma: language,
+              taxaCotacao,
+              campos
+            },
+            trelloCardId: targetTrelloCardId,
+            trelloCardUrl: targetTrelloCardUrl
+          });
+        }
       } catch (error) {
-        console.warn('[PriceService] Falha ao anexar no Trello:', (error as Error).message);
+        const message = (error as Error).message || 'falha desconhecida';
+        throw new Error(`Imagem gerada em ${outputPath}, mas não foi possível enviar para o Trello: ${message}`);
       }
     }
 
@@ -418,6 +485,9 @@ class PriceService {
       processed,
       cotacao: matchedQuote || null,
       attachedToTrello: Boolean(trelloAttachment),
+      trelloCardId: targetTrelloCardId || null,
+      trelloCardUrl: targetTrelloCardUrl || null,
+      trelloCard,
       trelloAttachment
     };
   }

@@ -30,7 +30,7 @@ function normalizeQuoteRow(row: QuoteRecord | null): Quote | null {
     nome: row.nome || '',
     documento: row.documento || '',
     payload,
-    trelloCardId: row.trello_card_id || row.id || '',
+    trelloCardId: row.trello_card_id || '',
     trelloCardUrl: row.trello_card_url || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -96,7 +96,7 @@ export function upsertQuoteRecord(quote: UpsertQuoteInput): Quote {
 
   const nome = quote.nome || '';
   const documento = quote.documento || '';
-  const trelloCardId = quote.trelloCardId || quote.id;
+  const trelloCardId = quote.trelloCardId || '';
   const trelloCardUrl = quote.trelloCardUrl || '';
   const payloadJson = JSON.stringify(quote.payload || {});
 

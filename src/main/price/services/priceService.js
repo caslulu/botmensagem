@@ -63,7 +63,26 @@ const PathResolverModule = require('../../automation/utils/path-resolver');
 const PathResolver = PathResolverModule.default || PathResolverModule;
 const { parseCurrency, formatWithComma } = require('../utils/number');
 const quotesRepository = require('../repositories/quotesRepository');
-const trelloService = require('../../trello/services/trelloService');
+const trelloServiceModule = require('../../trello/services/trelloService');
+
+function resolveTrelloService() {
+  const candidates = [
+    trelloServiceModule,
+    trelloServiceModule?.default,
+    trelloServiceModule?.default?.default
+  ];
+  const service = candidates.find((candidate) => {
+    return candidate
+      && typeof candidate.attachFile === 'function'
+      && typeof candidate.createTrelloCard === 'function';
+  });
+
+  if (!service) {
+    throw new Error('Serviço do Trello indisponível para anexar a imagem.');
+  }
+
+  return service;
+}
 
 function ensureFolder(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -340,7 +359,8 @@ class PriceService {
       taxaCotacao,
       apenasPrever,
       campos,
-      cotacaoId
+      cotacaoId,
+      trelloCardId
     } = options;
 
     if (!formType || !['quitado', 'financiado'].includes(formType)) {
@@ -400,16 +420,53 @@ class PriceService {
 
     const quotes = this.getQuotes();
     const matchedQuote = cotacaoId ? quotes.find((item) => item.id === cotacaoId) : null;
+    let targetTrelloCardId = matchedQuote?.trelloCardId || trelloCardId || '';
+    let targetTrelloCardUrl = matchedQuote?.trelloCardUrl || options.trelloCardUrl || '';
 
     let trelloAttachment = null;
-    if (!apenasPrever && matchedQuote?.trelloCardId) {
+    let trelloCard = null;
+    if (!apenasPrever) {
       try {
-        trelloAttachment = await trelloService.attachFile(matchedQuote.trelloCardId, {
+        const trelloService = resolveTrelloService();
+        const attachment = {
           path: outputPath,
           name: path.basename(outputPath)
-        });
+        };
+
+        if (targetTrelloCardId) {
+          trelloAttachment = await trelloService.attachFile(targetTrelloCardId, attachment);
+        } else {
+          trelloCard = await trelloService.createTrelloCard({
+            nome: campos?.nome || processed?.nome || 'Preço automático',
+            documento: campos?.documento || matchedQuote?.documento || '',
+            observacoes: `Imagem de preço gerada automaticamente (${seguradora}).`,
+            attachments: [attachment]
+          });
+          targetTrelloCardId = trelloCard?.id || '';
+          targetTrelloCardUrl = trelloCard?.url || '';
+          trelloAttachment = trelloCard?.attachments || null;
+        }
+
+        if (targetTrelloCardId && cotacaoId) {
+          quotesRepository.upsert({
+            id: cotacaoId,
+            nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
+            documento: campos?.documento || matchedQuote?.documento || '',
+            payload: {
+              ...(matchedQuote?.payload || {}),
+              formType,
+              seguradora,
+              idioma: language,
+              taxaCotacao,
+              campos
+            },
+            trelloCardId: targetTrelloCardId,
+            trelloCardUrl: targetTrelloCardUrl
+          });
+        }
       } catch (error) {
-        console.warn('[PriceService] Falha ao anexar no Trello:', error.message);
+        const message = error?.message || 'falha desconhecida';
+        throw new Error(`Imagem gerada em ${outputPath}, mas não foi possível enviar para o Trello: ${message}`);
       }
     }
 
@@ -422,6 +479,9 @@ class PriceService {
       processed,
       cotacao: matchedQuote || null,
       attachedToTrello: Boolean(trelloAttachment),
+      trelloCardId: targetTrelloCardId || null,
+      trelloCardUrl: targetTrelloCardUrl || null,
+      trelloCard,
       trelloAttachment
     };
   }
