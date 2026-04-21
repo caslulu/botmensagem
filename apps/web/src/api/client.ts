@@ -1,4 +1,24 @@
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/+$/, '');
+function resolveApiUrl(): string {
+  const configured = String(import.meta.env.VITE_API_URL || '').trim();
+  const fallback = `${window.location.protocol}//${window.location.hostname}:3000`;
+  const rawUrl = configured || fallback;
+
+  try {
+    const url = new URL(rawUrl);
+    const isLocalConfiguredHost = ['localhost', '127.0.0.1', '0.0.0.0'].includes(url.hostname);
+    const isRemoteBrowserHost = !['localhost', '127.0.0.1'].includes(window.location.hostname);
+
+    if (isLocalConfiguredHost && isRemoteBrowserHost) {
+      url.hostname = window.location.hostname;
+    }
+
+    return url.toString().replace(/\/+$/, '');
+  } catch (_) {
+    return fallback.replace(/\/+$/, '');
+  }
+}
+
+const API_URL = resolveApiUrl();
 const AUTH_SESSION_KEY = 'botmensagem.web.authSession';
 
 export const AUTH_EXPIRED_EVENT = 'botmensagem:web-auth-expired';
