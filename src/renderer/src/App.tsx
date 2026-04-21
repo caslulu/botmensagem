@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WhatsAppAutomationView, RtaView, QuotesView, PriceView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView } from './pages';
+import { WhatsAppAutomationView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView, WebAppView } from './pages';
 import AppShell from './components/layout/AppShell';
 import type { ServiceModule } from './components/layout/ServiceNav';
 import { ProfileSelection } from './components/profile/ProfileSelection';
@@ -91,6 +91,9 @@ function AppContent() {
   };
 
   const handleSelectModule = (id: string) => {
+    if (id === 'web') {
+      window.webApp?.open?.();
+    }
     selectModule(id);
   };
 
@@ -116,9 +119,7 @@ function AppContent() {
           isAdmin={selectedProfileHasAccess}
         />
       )}
-      {activeModuleId === 'rta' && <RtaView />}
-      {activeModuleId === 'cotacoes' && <QuotesView />}
-      {activeModuleId === 'price' && <PriceView />}
+      {activeModuleId === 'web' && <WebAppView />}
       {activeModuleId === 'howto' && <HowToView />}
       {activeModuleId === 'novidades' && <NewsView />}
       {activeModuleId === 'roadmap' && <RoadmapView />}

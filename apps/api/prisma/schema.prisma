@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model KanbanColumn {
+  id        String       @id @default(uuid())
+  title     String
+  position  Int          @default(0)
+  cards     KanbanCard[]
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  @@map("kanban_columns")
+}
+
+model KanbanCard {
+  id          String        @id @default(uuid())
+  columnId    String        @map("column_id")
+  column      KanbanColumn  @relation(fields: [columnId], references: [id], onDelete: Cascade)
+  title       String
+  description String        @default("")
+  payload     Json
+  position    Int           @default(0)
+  prices      QuotePrice[]
+  files       FileAsset[]
+  createdAt   DateTime      @default(now()) @map("created_at")
+  updatedAt   DateTime      @updatedAt @map("updated_at")
+
+  @@index([columnId, position])
+  @@map("kanban_cards")
+}
+
+model QuotePrice {
+  id        String      @id @default(uuid())
+  cardId    String?     @map("card_id")
+  card      KanbanCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  payload   Json
+  processed Json
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([cardId, updatedAt])
+  @@map("quote_prices")
+}
+
+model FileAsset {
+  id        String      @id @default(uuid())
+  cardId    String?     @map("card_id")
+  card      KanbanCard? @relation(fields: [cardId], references: [id], onDelete: SetNull)
+  kind      String
+  filename  String
+  mimeType  String      @map("mime_type")
+  path      String
+  createdAt DateTime    @default(now()) @map("created_at")
+  updatedAt DateTime    @updatedAt @map("updated_at")
+
+  @@index([cardId, kind])
+  @@map("file_assets")
+}

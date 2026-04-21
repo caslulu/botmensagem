@@ -19,32 +19,32 @@ const releaseNotes: ReleaseNote[] = [
   {
     title: 'Mapa atual dos módulos',
     date: 'Abr 2026',
-    summary: 'A versão atual do app concentra operação, documentação interna e gestão de perfis no mesmo menu lateral.',
+    summary: 'A versão atual separa a operação desktop dos fluxos que agora rodam na aplicação web.',
     highlights: [
-      'Fluxos visíveis hoje: mensagens, RTA, cotações, preço, roadmap, novidades, perfil e configurações',
+      'Fluxos visíveis no desktop: mensagens, app web, roadmap, novidades, perfil e configurações',
       'Seleção de perfil logo na entrada, com acesso admin apenas onde realmente é necessário',
       'Conteúdo desta tela alinhado ao comportamento atual do sistema',
     ],
     badge: 'Atual',
   },
   {
-    title: 'Cotações integradas ao Trello',
+    title: 'Kanban próprio na web',
     date: 'Abr 2026',
-    summary: 'A fila de cotações combina cards da lista do Trello com o espelho local salvo no banco do app.',
+    summary: 'A fila de cotações agora usa um quadro próprio em Postgres dentro da aplicação web.',
     highlights: [
-      'A tela lê a lista "COTAÇÕES PARA FAZER" e exibe preview dos cards em um quadro único',
-      'O mesmo painel permite criar um novo card, excluir itens e abrir automação de cotação',
-      'A automação atual roda apenas para Progressive e Liberty',
+      'O quadro começa com colunas de fila, em cotação e pronto',
+      'O mesmo painel permite criar cards no formato atual e adicionar novas colunas',
+      'A automação de cotação via Playwright permanece no desktop por enquanto',
     ],
     badge: 'Operacao',
   },
   {
     title: 'Saídas locais e sessões persistidas',
     date: 'Abr 2026',
-    summary: 'Os arquivos gerados saem em Downloads, enquanto banco, perfis e sessões ficam persistidos localmente.',
+    summary: 'Os arquivos web ficam em volumes Docker e são entregues por download no navegador.',
     highlights: [
-      'RTA gera PDF na pasta Downloads usando templates por seguradora',
-      'Preço automático gera PNG com suporte a PT, EN e ES',
+      'RTA gera PDF usando templates por seguradora',
+      'Preço gera PNG com suporte a PT, EN e ES',
       'Cada perfil reutiliza sua própria sessão do WhatsApp Web',
     ],
     badge: 'Infra',
@@ -60,13 +60,13 @@ const visuals: VisualItem[] = [
   },
   {
     title: 'Fila de cotações',
-    caption: 'Cards do Trello combinados com o banco local em um painel único.',
+    caption: 'Kanban próprio com colunas configuráveis e cards no formato operacional atual.',
     palette: 'from-emerald-500/15 via-lime-500/10 to-teal-500/10',
     accent: 'fill-emerald-500/70 stroke-emerald-500/70',
   },
   {
     title: 'RTA e preço',
-    caption: 'PDFs e imagens gerados localmente para apoiar o atendimento.',
+    caption: 'PDFs e imagens gerados pela API web e baixados pelo navegador.',
     palette: 'from-amber-500/20 via-orange-500/10 to-red-500/10',
     accent: 'fill-amber-500/70 stroke-amber-500/70',
   },
@@ -79,11 +79,11 @@ const quickStarts = [
   },
   {
     title: 'Fluxo de cotação',
-    detail: 'Use “Cotações” para sincronizar com o Trello, criar cards e abrir automações suportadas.',
+    detail: 'Use “App Web” para abrir o Kanban de cotações, criar cards e mover a fila.',
   },
   {
     title: 'Arquivos gerados',
-    detail: 'Use “RTA automático” e “Preço automático” para gerar arquivos salvos em Downloads.',
+    detail: 'Use o painel web para gerar RTA e preço; os arquivos ficam disponíveis por download.',
   },
 ];
 

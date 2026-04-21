@@ -9,8 +9,10 @@ import { registerRtaHandlers } from './rta-handlers';
 import { registerTrelloHandlers } from './trello-handlers';
 import { registerQuoteHandlers } from './quotes-handlers';
 import { registerRoadmapHandlers } from './roadmap-handlers';
+import { registerAppHandlers } from './app-handlers';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
+  registerAppHandlers(getMainWindow);
   registerAutomationHandlers();
   registerMessageHandlers();
   registerProfileHandlers();

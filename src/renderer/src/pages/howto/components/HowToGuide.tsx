@@ -7,11 +7,11 @@ const STEPS = [
   },
   {
     title: 'Entre no módulo certo',
-    detail: 'Use o menu lateral para abrir mensagens, RTA, cotações, preço, perfil ou configurações.'
+    detail: 'Use o menu lateral para mensagens, aplicativo web, perfil, ajuda ou configurações.'
   },
   {
     title: 'Finalize o arquivo ou ação',
-    detail: 'Os fluxos principais salvam arquivos em Downloads ou atualizam o Trello conforme o módulo.'
+    detail: 'O desktop segue cuidando do WhatsApp; RTA, cotações e preço ficam no painel web.'
   }
 ];
 
@@ -21,16 +21,8 @@ const MODULES = [
     detail: 'Disponível para administradores. Ajuste o limite de envios, acompanhe os logs e gerencie mensagens salvas.'
   },
   {
-    title: 'RTA',
-    detail: 'Preencha seguradora, veículo, título e proprietário para gerar o PDF final.'
-  },
-  {
-    title: 'Cotações',
-    detail: 'Sincronize a fila do Trello, crie cards novos e rode automações suportadas.'
-  },
-  {
-    title: 'Preço',
-    detail: 'Gere imagens de preço em PNG com suporte a PT, EN e ES.'
+    title: 'App Web',
+    detail: 'Abra o painel web para usar RTA, Kanban de cotações e geração de imagens de preço.'
   },
   {
     title: 'Perfil',
@@ -44,9 +36,9 @@ const MODULES = [
 
 const TIPS = [
   'Somente administradores podem iniciar disparos automáticos no WhatsApp.',
-  'Os arquivos gerados por RTA e preço são salvos na pasta Downloads.',
+  'Os arquivos gerados por RTA e preço agora são baixados pelo navegador no app web.',
   'Cada perfil reaproveita sua própria sessão do WhatsApp Web.',
-  'Se o Trello falhar, a tela de cotações ainda mostra o espelho salvo localmente.'
+  'O Kanban web substitui a dependência operacional de cards externos.'
 ];
 
 export const HowToGuide: React.FC = () => (

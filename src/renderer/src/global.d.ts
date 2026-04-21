@@ -94,6 +94,10 @@ interface FilesAPI {
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
 }
 
+interface WebAppAPI {
+  open: () => AsyncResult<IpcResult<{ url?: string }>>;
+}
+
 declare global {
   interface Window {
     automation?: AutomationAPI;
@@ -107,6 +111,7 @@ declare global {
     roadmap?: RoadmapAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
+    webApp?: WebAppAPI;
     lastGeneratedPricePath?: string;
   }
 }

@@ -35,4 +35,7 @@ src/main/config/trello-config.js
 
 # Runtime data
 data/
+apps/api/storage/
+apps/api/dist/
+apps/web/dist/
 whatsapp_session*/

@@ -14,6 +14,11 @@
     "build:linux": "electron-vite build && electron-builder --linux",
     "build:dir": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --dir",
     "publish": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --publish always",
+    "web:api:dev": "npm --prefix apps/api run dev",
+    "web:web:dev": "npm --prefix apps/web run dev",
+    "web:build": "npm --prefix apps/api run build && npm --prefix apps/web run build",
+    "web:test": "npm --prefix apps/api run test",
+    "web:docker": "docker compose up --build",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {

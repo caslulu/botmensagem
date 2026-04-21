@@ -1,0 +1,12 @@
+node_modules
+dist
+out
+coverage
+playwright-report
+test-results
+apps/api/node_modules
+apps/api/dist
+apps/api/storage
+apps/web/node_modules
+apps/web/dist
+.git

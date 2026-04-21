@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: botmensagem
+      POSTGRES_USER: botmensagem
+      POSTGRES_PASSWORD: botmensagem
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U botmensagem -d botmensagem"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: ./apps/api
+    environment:
+      DATABASE_URL: postgresql://botmensagem:botmensagem@postgres:5432/botmensagem?schema=public
+      PORT: 3000
+      WEB_ORIGIN: http://localhost:8080
+      PUBLIC_API_URL: http://localhost:3000
+      GENERATED_DIR: /app/storage/generated
+      UPLOADS_DIR: /app/storage/uploads
+      ASSETS_DIR: /app/assets
+    ports:
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - api_generated:/app/storage/generated
+      - api_uploads:/app/storage/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./apps/web
+      args:
+        VITE_API_URL: http://localhost:3000
+    ports:
+      - "127.0.0.1:8080:80"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
+  api_uploads:
+  api_generated:

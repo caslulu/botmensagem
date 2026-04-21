@@ -7,3 +7,4 @@ export { NewsView } from './news/NewsView';
 export { RoadmapView } from './roadmap/RoadmapView';
 export { ConfigView } from './settings/ConfigView';
 export { ProfileSettingsView } from './settings/ProfileSettingsView';
+export { WebAppView } from './web/WebAppView';
