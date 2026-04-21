@@ -136,7 +136,7 @@ export function PriceForm() {
         cardId: selectedQuote?.cardId || null,
         campos: { ...form }
       });
-      downloadFile(response.downloadUrl, response.filename);
+      await downloadFile(response.downloadUrl, response.filename);
       await loadQuotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar imagem.');

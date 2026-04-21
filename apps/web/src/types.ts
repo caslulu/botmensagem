@@ -39,6 +39,18 @@ export type BoardResponse = {
   columns: KanbanColumn[];
 };
 
+export type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+};
+
+export type AuthSession = {
+  expiresAt: string;
+  user: AuthUser;
+};
+
 export type QuoteOption = {
   id: string;
   cardId?: string | null;

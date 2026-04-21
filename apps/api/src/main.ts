@@ -31,7 +31,8 @@ async function bootstrap() {
       }
       callback(new Error(`Origem nao permitida pelo CORS: ${origin}`));
     },
-    credentials: false,
+    credentials: true,
+    exposedHeaders: ['Content-Disposition'],
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS']
   });
 

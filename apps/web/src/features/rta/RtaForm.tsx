@@ -107,7 +107,7 @@ export function RtaForm() {
     setError('');
     try {
       const result = await api.post<{ downloadUrl: string; filename: string }>('/rta/generate', form);
-      downloadFile(result.downloadUrl, result.filename);
+      await downloadFile(result.downloadUrl, result.filename);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar RTA.');
     } finally {

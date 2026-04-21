@@ -2,7 +2,7 @@ import { type CSSProperties, type FormEvent, useCallback, useEffect, useMemo, us
 import { closestCenter, DndContext, DragEndEvent, PointerSensor, useDraggable, useDroppable, useSensor, useSensors } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
 import { FileDown, GripVertical, Plus, Trash2, X } from 'lucide-react';
-import { api } from '../../api/client';
+import { api, downloadFile } from '../../api/client';
 import type { BoardResponse, KanbanCard, KanbanColumn } from '../../types';
 import { CardFormModal } from './CardFormModal';
 
@@ -43,9 +43,18 @@ function CardTile({ card }: { card: KanbanCard }) {
       <footer>
         <span>{card.files?.length || 0} anexos</span>
         {card.files?.[0] ? (
-          <a href={card.files[0].downloadUrl} onClick={(event) => event.stopPropagation()} title="Baixar anexo">
+          <button
+            className="inline-icon-button"
+            type="button"
+            onPointerDown={(event) => event.stopPropagation()}
+            onClick={(event) => {
+              event.stopPropagation();
+              void downloadFile(card.files?.[0]?.downloadUrl || '', card.files?.[0]?.filename);
+            }}
+            title="Baixar anexo"
+          >
             <FileDown size={15} />
-          </a>
+          </button>
         ) : null}
       </footer>
     </article>
