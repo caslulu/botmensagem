@@ -1,7 +1,8 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { IS_PUBLIC_ROUTE } from './public.decorator';
+import { ROLES_KEY } from './roles.decorator';
 import type { RequestWithUser } from './auth.types';
 
 @Injectable()
@@ -22,6 +23,11 @@ export class AuthGuard implements CanActivate {
     }
 
     request.user = await this.authService.authenticateToken(token);
+    const allowedRoles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [context.getHandler(), context.getClass()]);
+    if (allowedRoles?.length && !allowedRoles.includes(request.user.role)) {
+      throw new ForbiddenException('Acesso restrito.');
+    }
+
     return true;
   }
 

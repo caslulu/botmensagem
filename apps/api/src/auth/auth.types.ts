@@ -5,6 +5,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: string;
+  avatarUrl?: string | null;
 };
 
 export type TokenPayload = AuthUser & {

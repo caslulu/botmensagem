@@ -6,10 +6,11 @@ import { KanbanModule } from './kanban/kanban.module';
 import { PriceModule } from './price/price.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { RtaModule } from './rta/rta.module';
+import { UsersModule } from './users/users.module';
 import { VehicleModule } from './vehicle/vehicle.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, FilesModule, KanbanModule, RtaModule, PriceModule, VehicleModule],
+  imports: [PrismaModule, AuthModule, UsersModule, FilesModule, KanbanModule, RtaModule, PriceModule, VehicleModule],
   controllers: [HealthController]
 })
 export class AppModule {}

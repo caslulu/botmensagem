@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react';
-import { CarFront, Columns3, FileText, Image, LogOut, RefreshCcw } from 'lucide-react';
+import { CarFront, Columns3, FileText, Image, LogOut, RefreshCcw, ShieldCheck, UserRound } from 'lucide-react';
 import { api, AUTH_EXPIRED_EVENT, clearStoredSession, getStoredSession, storeSession } from './api/client';
+import { AdminView } from './features/admin/AdminView';
 import { LoginForm } from './features/auth/LoginForm';
 import { KanbanBoard } from './features/kanban/KanbanBoard';
 import { PriceForm } from './features/price/PriceForm';
+import { ProfileView } from './features/profile/ProfileView';
 import { RtaForm } from './features/rta/RtaForm';
 import type { AuthSession, AuthUser } from './types';
 
-type View = 'kanban' | 'rta' | 'price';
+type View = 'kanban' | 'rta' | 'price' | 'profile' | 'admin';
 
 const NAV = [
   { id: 'kanban' as const, label: 'Cotações', icon: Columns3 },
   { id: 'rta' as const, label: 'RTA', icon: FileText },
-  { id: 'price' as const, label: 'Preço', icon: Image }
+  { id: 'price' as const, label: 'Preço', icon: Image },
+  { id: 'profile' as const, label: 'Perfil', icon: UserRound }
 ];
 
 export function App() {
@@ -21,7 +24,8 @@ export function App() {
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredSession()?.user || null);
   const [checkingSession, setCheckingSession] = useState(Boolean(getStoredSession()));
   const [sessionNotice, setSessionNotice] = useState('');
-  const active = NAV.find((item) => item.id === view) || NAV[0];
+  const navItems = authUser?.role === 'admin' ? [...NAV, { id: 'admin' as const, label: 'Admin', icon: ShieldCheck }] : NAV;
+  const active = navItems.find((item) => item.id === view) || navItems[0];
 
   useEffect(() => {
     const stored = getStoredSession();
@@ -66,6 +70,16 @@ export function App() {
     setAuthUser(session.user);
   };
 
+  const updateAuthenticatedUser = (user: AuthUser) => {
+    const stored = getStoredSession();
+    const session: AuthSession = {
+      expiresAt: stored?.expiresAt || new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
+      user
+    };
+    storeSession(session);
+    setAuthUser(user);
+  };
+
   const logout = () => {
     void api.post('/auth/logout').catch(() => undefined);
     clearStoredSession();
@@ -98,7 +112,7 @@ export function App() {
           <CarFront size={24} />
         </div>
         <nav className="nav-stack" aria-label="Módulos web">
-          {NAV.map((item) => {
+          {navItems.map((item) => {
             const Icon = item.icon;
             return (
               <button
@@ -123,7 +137,10 @@ export function App() {
             <h1>{active.label}</h1>
           </div>
           <div className="top-actions">
-            <span className="status-chip">{authUser.name}</span>
+            <span className="status-chip user-chip">
+              {authUser.avatarUrl ? <img src={authUser.avatarUrl} alt="" /> : null}
+              {authUser.name}
+            </span>
             {view === 'kanban' ? (
               <button className="icon-command" type="button" onClick={() => setBoardRefreshKey((value) => value + 1)} title="Atualizar quadro">
                 <RefreshCcw size={18} />
@@ -139,6 +156,8 @@ export function App() {
           {view === 'kanban' ? <KanbanBoard refreshKey={boardRefreshKey} /> : null}
           {view === 'rta' ? <RtaForm /> : null}
           {view === 'price' ? <PriceForm /> : null}
+          {view === 'profile' ? <ProfileView user={authUser} onUserChange={updateAuthenticatedUser} /> : null}
+          {view === 'admin' && authUser.role === 'admin' ? <AdminView /> : null}
         </main>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { publicApiUrl } from '../common/paths';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './auth.dto';
 import { AuthUser } from './auth.types';
@@ -11,7 +12,8 @@ const USER_SELECT = {
   name: true,
   role: true,
   isActive: true,
-  passwordHash: true
+  passwordHash: true,
+  avatarUpdatedAt: true
 };
 
 @Injectable()
@@ -64,12 +66,15 @@ export class AuthService {
     return this.toAuthUser(user);
   }
 
-  private toAuthUser(user: { id: string; email: string; name: string; role: string }): AuthUser {
+  private toAuthUser(user: { id: string; email: string; name: string; role: string; avatarUpdatedAt?: Date | null }): AuthUser {
     return {
       id: user.id,
       email: user.email,
       name: user.name,
-      role: user.role
+      role: user.role,
+      avatarUrl: user.avatarUpdatedAt
+        ? `${publicApiUrl()}/users/${encodeURIComponent(user.id)}/avatar?v=${encodeURIComponent(user.avatarUpdatedAt.toISOString())}`
+        : null
     };
   }
 }
