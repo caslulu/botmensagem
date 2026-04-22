@@ -4,6 +4,7 @@ export type FileAsset = {
   filename: string;
   mimeType: string;
   downloadUrl: string;
+  previewUrl: string;
   createdAt: string;
 };
 

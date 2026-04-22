@@ -34,3 +34,7 @@ export function publicApiUrl(): string {
 export function downloadUrl(fileId: string): string {
   return `${publicApiUrl()}/files/${encodeURIComponent(fileId)}/download`;
 }
+
+export function previewUrl(fileId: string): string {
+  return `${publicApiUrl()}/files/${encodeURIComponent(fileId)}/preview`;
+}

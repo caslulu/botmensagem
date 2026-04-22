@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
-import { api } from '../../api/client';
+import { Download, Eye, FileText, ImageIcon, Plus, Save, Trash2, X } from 'lucide-react';
+import { api, downloadFile } from '../../api/client';
 import { Field, FormSection, SelectInput, TextArea, TextInput } from '../../components/Field';
-import type { KanbanCard, KanbanColumn } from '../../types';
+import type { FileAsset, KanbanCard, KanbanColumn } from '../../types';
 
 type Vehicle = {
   ano: string;
@@ -52,51 +52,142 @@ type Props = {
   open: boolean;
   columns: KanbanColumn[];
   initialColumnId?: string;
+  card?: KanbanCard | null;
   onClose: () => void;
-  onCreated: () => void;
+  onSaved: () => void;
+  onCreatePrice?: (card: KanbanCard) => void;
 };
 
 const states = ['AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA', 'IL', 'MA', 'NJ', 'NY', 'OH', 'PA', 'TX', 'WA', 'IT'];
 
 const initialVehicle: Vehicle = { ano: '', marca: '', modelo: '', vin: '', placa: '', financiado: '', tempo_com_veiculo: '' };
 const initialDriver: Driver = { nome: '', data_nascimento: '', genero: '', estado_civil: '', parentesco: '', documento: '', documento_estado: '' };
-const initialForm: CardPayload = {
-  nome: '',
-  documento: '',
-  documento_estado: '',
-  endereco_rua: '',
-  endereco_apt: '',
-  endereco_cidade: '',
-  endereco_estado: '',
-  endereco_zipcode: '',
-  data_nascimento: '',
-  tempo_de_seguro: '',
-  tempo_no_endereco: '',
-  estado_civil: '',
-  genero: '',
-  nome_conjuge: '',
-  documento_conjuge: '',
-  documento_estado_conjuge: '',
-  data_nascimento_conjuge: '',
-  email: '',
-  observacoes: '',
-  veiculos: [{ ...initialVehicle }],
-  pessoas: []
-};
 
-export function CardFormModal({ open, columns, initialColumnId, onClose, onCreated }: Props) {
-  const [form, setForm] = useState<CardPayload>(initialForm);
+function createInitialForm(): CardPayload {
+  return {
+    nome: '',
+    documento: '',
+    documento_estado: '',
+    endereco_rua: '',
+    endereco_apt: '',
+    endereco_cidade: '',
+    endereco_estado: '',
+    endereco_zipcode: '',
+    data_nascimento: '',
+    tempo_de_seguro: '',
+    tempo_no_endereco: '',
+    estado_civil: '',
+    genero: '',
+    nome_conjuge: '',
+    documento_conjuge: '',
+    documento_estado_conjuge: '',
+    data_nascimento_conjuge: '',
+    email: '',
+    observacoes: '',
+    veiculos: [{ ...initialVehicle }],
+    pessoas: []
+  };
+}
+
+function readString(value: unknown): string {
+  if (value === undefined || value === null) return '';
+  return String(value);
+}
+
+function parseList<T>(input: unknown): Partial<T>[] {
+  if (Array.isArray(input)) return input as Partial<T>[];
+  if (typeof input !== 'string' || !input.trim()) return [];
+
+  try {
+    const parsed = JSON.parse(input);
+    return Array.isArray(parsed) ? (parsed as Partial<T>[]) : [];
+  } catch (_) {
+    return [];
+  }
+}
+
+function normalizeVehicle(vehicle: Partial<Vehicle>): Vehicle {
+  return {
+    ano: readString(vehicle.ano),
+    marca: readString(vehicle.marca),
+    modelo: readString(vehicle.modelo),
+    vin: readString(vehicle.vin),
+    placa: readString(vehicle.placa),
+    financiado: readString(vehicle.financiado),
+    tempo_com_veiculo: readString(vehicle.tempo_com_veiculo)
+  };
+}
+
+function normalizeDriver(driver: Partial<Driver>): Driver {
+  return {
+    nome: readString(driver.nome),
+    data_nascimento: readString(driver.data_nascimento),
+    genero: readString(driver.genero),
+    estado_civil: readString(driver.estado_civil),
+    parentesco: readString(driver.parentesco),
+    documento: readString(driver.documento),
+    documento_estado: readString(driver.documento_estado)
+  };
+}
+
+function formFromCard(card: KanbanCard): CardPayload {
+  const payload = card.payload || {};
+  const veiculos = parseList<Vehicle>(payload.veiculos).map(normalizeVehicle);
+  const pessoas = parseList<Driver>(payload.pessoas).map(normalizeDriver);
+
+  return {
+    nome: readString(payload.nome || card.title),
+    documento: readString(payload.documento),
+    documento_estado: readString(payload.documento_estado),
+    endereco_rua: readString(payload.endereco_rua),
+    endereco_apt: readString(payload.endereco_apt),
+    endereco_cidade: readString(payload.endereco_cidade),
+    endereco_estado: readString(payload.endereco_estado),
+    endereco_zipcode: readString(payload.endereco_zipcode),
+    data_nascimento: readString(payload.data_nascimento),
+    tempo_de_seguro: readString(payload.tempo_de_seguro),
+    tempo_no_endereco: readString(payload.tempo_no_endereco),
+    estado_civil: readString(payload.estado_civil),
+    genero: readString(payload.genero),
+    nome_conjuge: readString(payload.nome_conjuge),
+    documento_conjuge: readString(payload.documento_conjuge),
+    documento_estado_conjuge: readString(payload.documento_estado_conjuge),
+    data_nascimento_conjuge: readString(payload.data_nascimento_conjuge),
+    email: readString(payload.email),
+    observacoes: readString(payload.observacoes),
+    veiculos: veiculos.length ? veiculos : [{ ...initialVehicle }],
+    pessoas
+  };
+}
+
+function isImageFile(file: FileAsset): boolean {
+  return file.mimeType.startsWith('image/');
+}
+
+function filePreviewUrl(file: FileAsset): string {
+  return file.previewUrl || file.downloadUrl;
+}
+
+export function CardFormModal({ open, columns, initialColumnId, card, onClose, onSaved, onCreatePrice }: Props) {
+  const [form, setForm] = useState<CardPayload>(createInitialForm);
   const [columnId, setColumnId] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
+  const [previewFile, setPreviewFile] = useState<FileAsset | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const isEditing = Boolean(card);
 
   useEffect(() => {
     if (open) {
-      setColumnId(initialColumnId || columns[0]?.id || '');
+      setForm(card ? formFromCard(card) : createInitialForm());
+      setColumnId(card?.columnId || initialColumnId || columns[0]?.id || '');
+      setAttachments([]);
+      setPreviewFile(null);
+      setConfirmDelete(false);
       setError('');
     }
-  }, [columns, initialColumnId, open]);
+  }, [card, columns, initialColumnId, open]);
 
   if (!open) return null;
 
@@ -147,38 +238,66 @@ export function CardFormModal({ open, columns, initialColumnId, onClose, onCreat
     setLoading(true);
     setError('');
     try {
-      const card = await api.post<KanbanCard>('/kanban/cards', {
-        columnId: columnId || columns[0]?.id,
-        payload: form
-      });
+      const savedCard = card
+        ? await api.patch<KanbanCard>(`/kanban/cards/${card.id}`, { payload: form })
+        : await api.post<KanbanCard>('/kanban/cards', {
+          columnId: columnId || columns[0]?.id,
+          payload: form
+        });
+
+      if (card && columnId && columnId !== card.columnId) {
+        const targetColumn = columns.find((column) => column.id === columnId);
+        const targetPosition = targetColumn?.cards.filter((item) => item.id !== card.id).length ?? 0;
+        await api.patch(`/kanban/cards/${card.id}/move`, { columnId, position: targetPosition });
+      }
 
       for (const file of attachments) {
         const payload = new FormData();
         payload.append('file', file);
-        await api.upload(`/kanban/cards/${card.id}/attachments`, payload);
+        await api.upload(`/kanban/cards/${savedCard.id}/attachments`, payload);
       }
 
-      setForm(initialForm);
+      setForm(createInitialForm());
       setAttachments([]);
       setColumnId(initialColumnId || '');
-      onCreated();
+      onSaved();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar card.');
+      setError(err instanceof Error ? err.message : isEditing ? 'Erro ao salvar card.' : 'Erro ao criar card.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!card || loading) return;
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    try {
+      await api.delete(`/kanban/cards/${card.id}`);
+      onSaved();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao excluir card.');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={onClose}>
+    <div className="modal-backdrop" onMouseDown={() => !loading && onClose()}>
       <form className="modal-sheet" onSubmit={handleSubmit} onMouseDown={(event) => event.stopPropagation()}>
         <header className="modal-header">
           <div>
-            <p className="eyebrow">Nova cotacao</p>
-            <h2>Criar card no Kanban</h2>
+            <p className="eyebrow">{isEditing ? 'Detalhes da cotacao' : 'Nova cotacao'}</p>
+            <h2>{isEditing ? form.nome || card?.title || 'Editar card' : 'Criar card no Kanban'}</h2>
           </div>
-          <button type="button" className="icon-command" onClick={onClose} title="Fechar">
+          <button type="button" className="icon-command" onClick={onClose} title="Fechar" disabled={loading}>
             <X size={18} />
           </button>
         </header>
@@ -312,9 +431,53 @@ export function CardFormModal({ open, columns, initialColumnId, onClose, onCreat
             </div>
           </FormSection>
 
-          <FormSection title="Observacoes e anexos">
+          {isEditing ? (
+            <FormSection title="Anexos do card">
+              <div className="attachment-gallery">
+                {card?.files?.length ? card.files.map((file) => {
+                  const image = isImageFile(file);
+                  return (
+                    <article className="attachment-tile" key={file.id}>
+                      <button
+                        type="button"
+                        className="attachment-preview-button"
+                        onClick={() => image ? setPreviewFile(file) : void downloadFile(file.downloadUrl, file.filename)}
+                      >
+                        <span className="attachment-thumb">
+                          {image ? <img src={filePreviewUrl(file)} alt={file.filename} loading="lazy" /> : <FileText size={28} />}
+                        </span>
+                        <span className="attachment-name">{file.filename}</span>
+                      </button>
+                      <div className="attachment-actions">
+                        {image ? (
+                          <button type="button" className="inline-icon-button" onClick={() => setPreviewFile(file)} title="Ver imagem">
+                            <Eye size={15} />
+                          </button>
+                        ) : null}
+                        <button
+                          type="button"
+                          className="inline-icon-button"
+                          onClick={() => void downloadFile(file.downloadUrl, file.filename)}
+                          title="Baixar anexo"
+                        >
+                          <Download size={15} />
+                        </button>
+                      </div>
+                    </article>
+                  );
+                }) : (
+                  <div className="attachment-empty">
+                    <ImageIcon size={20} />
+                    Nenhum anexo neste card.
+                  </div>
+                )}
+              </div>
+            </FormSection>
+          ) : null}
+
+          <FormSection title={isEditing ? 'Observacoes e novos anexos' : 'Observacoes e anexos'}>
             <Field label="Observacoes" wide><TextArea rows={4} value={form.observacoes} onChange={(event) => updateField('observacoes', event.target.value)} /></Field>
-            <Field label="Anexos" wide>
+            <Field label={isEditing ? 'Adicionar anexos' : 'Anexos'} wide>
               <input className="control" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => setAttachments(Array.from(event.target.files || []))} />
             </Field>
           </FormSection>
@@ -322,9 +485,52 @@ export function CardFormModal({ open, columns, initialColumnId, onClose, onCreat
 
         <footer className="modal-footer">
           {error ? <span className="form-error">{error}</span> : null}
-          <button type="button" className="secondary-button" onClick={onClose}>Cancelar</button>
-          <button type="submit" className="primary-button" disabled={loading}>{loading ? 'Criando...' : 'Criar card'}</button>
+          {isEditing ? (
+            <button type="button" className={`danger-button ${confirmDelete ? 'is-confirming' : ''}`} onClick={handleDelete} disabled={loading}>
+              <Trash2 size={16} /> {confirmDelete ? 'Confirmar exclusao' : 'Excluir card'}
+            </button>
+          ) : null}
+          {isEditing && card && onCreatePrice ? (
+            <button type="button" className="secondary-button" onClick={() => onCreatePrice(card)} disabled={loading}>
+              <ImageIcon size={16} /> Gerar preco
+            </button>
+          ) : null}
+          <button type="button" className="secondary-button" onClick={onClose} disabled={loading}>Cancelar</button>
+          <button type="submit" className="primary-button" disabled={loading}>
+            {isEditing ? <Save size={16} /> : null}
+            {loading ? (isEditing ? 'Salvando...' : 'Criando...') : (isEditing ? 'Salvar alteracoes' : 'Criar card')}
+          </button>
         </footer>
+
+        {previewFile ? (
+          <div
+            className="image-preview-backdrop"
+            onMouseDown={(event) => {
+              event.stopPropagation();
+              setPreviewFile(null);
+            }}
+          >
+            <section className="image-preview-sheet" onMouseDown={(event) => event.stopPropagation()}>
+              <header>
+                <strong>{previewFile.filename}</strong>
+                <div>
+                  <button
+                    type="button"
+                    className="icon-command"
+                    onClick={() => void downloadFile(previewFile.downloadUrl, previewFile.filename)}
+                    title="Baixar imagem"
+                  >
+                    <Download size={17} />
+                  </button>
+                  <button type="button" className="icon-command" onClick={() => setPreviewFile(null)} title="Fechar imagem">
+                    <X size={17} />
+                  </button>
+                </div>
+              </header>
+              <img src={filePreviewUrl(previewFile)} alt={previewFile.filename} />
+            </section>
+          </div>
+        ) : null}
       </form>
     </div>
   );

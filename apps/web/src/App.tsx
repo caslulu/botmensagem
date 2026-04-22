@@ -7,7 +7,7 @@ import { KanbanBoard } from './features/kanban/KanbanBoard';
 import { PriceForm } from './features/price/PriceForm';
 import { ProfileView } from './features/profile/ProfileView';
 import { RtaForm } from './features/rta/RtaForm';
-import type { AuthSession, AuthUser } from './types';
+import type { AuthSession, AuthUser, KanbanCard } from './types';
 
 type View = 'kanban' | 'rta' | 'price' | 'profile' | 'admin';
 
@@ -21,6 +21,7 @@ const NAV = [
 export function App() {
   const [view, setView] = useState<View>('kanban');
   const [boardRefreshKey, setBoardRefreshKey] = useState(0);
+  const [priceSelection, setPriceSelection] = useState<{ cardId: string; version: number } | null>(null);
   const [authUser, setAuthUser] = useState<AuthUser | null>(() => getStoredSession()?.user || null);
   const [checkingSession, setCheckingSession] = useState(Boolean(getStoredSession()));
   const [sessionNotice, setSessionNotice] = useState('');
@@ -88,6 +89,15 @@ export function App() {
     setSessionNotice('');
   };
 
+  const openPriceForCard = (card: KanbanCard) => {
+    setPriceSelection({ cardId: card.id, version: Date.now() });
+    setView('price');
+  };
+
+  const handlePriceGenerated = (cardId: string) => {
+    if (cardId) setBoardRefreshKey((value) => value + 1);
+  };
+
   if (checkingSession) {
     return (
       <main className="login-screen">
@@ -118,7 +128,10 @@ export function App() {
               <button
                 key={item.id}
                 className={`nav-button ${view === item.id ? 'is-active' : ''}`}
-                onClick={() => setView(item.id)}
+                onClick={() => {
+                  if (item.id === 'price') setPriceSelection(null);
+                  setView(item.id);
+                }}
                 type="button"
                 title={item.label}
               >
@@ -153,9 +166,15 @@ export function App() {
         </header>
 
         <main className="workspace-main">
-          {view === 'kanban' ? <KanbanBoard refreshKey={boardRefreshKey} /> : null}
+          {view === 'kanban' ? <KanbanBoard refreshKey={boardRefreshKey} onCreatePrice={openPriceForCard} /> : null}
           {view === 'rta' ? <RtaForm /> : null}
-          {view === 'price' ? <PriceForm /> : null}
+          {view === 'price' ? (
+            <PriceForm
+              selectedCardId={priceSelection?.cardId || null}
+              selectionVersion={priceSelection?.version || 0}
+              onGenerated={handlePriceGenerated}
+            />
+          ) : null}
           {view === 'profile' ? <ProfileView user={authUser} onUserChange={updateAuthenticatedUser} /> : null}
           {view === 'admin' && authUser.role === 'admin' ? <AdminView /> : null}
         </main>

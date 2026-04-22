@@ -3,7 +3,7 @@ import path from 'node:path';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { FileAsset } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
-import { downloadUrl, ensureDir, sanitizeFileName, storagePath } from '../common/paths';
+import { downloadUrl, ensureDir, previewUrl, sanitizeFileName, storagePath } from '../common/paths';
 import { PrismaService } from '../prisma/prisma.service';
 
 type CreateFileAssetInput = {
@@ -63,10 +63,30 @@ export class FilesService {
     return record;
   }
 
-  withDownloadUrl<T extends FileAsset>(file: T): T & { downloadUrl: string } {
+  async deleteForCard(cardId: string) {
+    const records = await this.prisma.fileAsset.findMany({ where: { cardId } });
+    if (!records.length) return;
+
+    await this.prisma.fileAsset.deleteMany({ where: { cardId } });
+
+    await Promise.all(
+      records.map(async (record) => {
+        try {
+          await fs.promises.unlink(record.path);
+        } catch (error) {
+          if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            throw error;
+          }
+        }
+      })
+    );
+  }
+
+  withDownloadUrl<T extends FileAsset>(file: T): T & { downloadUrl: string; previewUrl: string } {
     return {
       ...file,
-      downloadUrl: downloadUrl(file.id)
+      downloadUrl: downloadUrl(file.id),
+      previewUrl: previewUrl(file.id)
     };
   }
 }

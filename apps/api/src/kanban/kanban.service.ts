@@ -181,7 +181,12 @@ export class KanbanService {
   }
 
   async deleteCard(id: string) {
+    const card = await this.prisma.kanbanCard.findUnique({ where: { id } });
+    if (!card) throw new NotFoundException('Card nao encontrado.');
+
+    await this.filesService.deleteForCard(id);
     await this.prisma.kanbanCard.delete({ where: { id } });
+    await this.normalizeCardPositions(card.columnId);
     return { deleted: true };
   }
 
@@ -209,6 +214,13 @@ export class KanbanService {
     const columns = await this.prisma.kanbanColumn.findMany({ orderBy: { position: 'asc' } });
     await this.prisma.$transaction(
       columns.map((column, position) => this.prisma.kanbanColumn.update({ where: { id: column.id }, data: { position } }))
+    );
+  }
+
+  private async normalizeCardPositions(columnId: string) {
+    const cards = await this.prisma.kanbanCard.findMany({ where: { columnId }, orderBy: { position: 'asc' } });
+    await this.prisma.$transaction(
+      cards.map((card, position) => this.prisma.kanbanCard.update({ where: { id: card.id }, data: { position } }))
     );
   }
 }

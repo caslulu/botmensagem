@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { assetsRoot, sanitizeFileName } from '../common/paths';
 import { formatWithComma, parseCurrency } from '../common/number';
@@ -114,9 +114,14 @@ export class PriceService {
   }
 
   async saveQuote(dto: SaveQuoteDto) {
+    const cardId = dto.cardId?.trim() || null;
+    if (cardId) {
+      await this.ensureCardExists(cardId);
+    }
+
     const record = await this.prisma.quotePrice.create({
       data: {
-        cardId: dto.cardId || null,
+        cardId,
         payload: dto.payload as Prisma.InputJsonObject,
         processed: (dto.processed || {}) as Prisma.InputJsonObject
       }
@@ -126,6 +131,11 @@ export class PriceService {
   }
 
   async generate(dto: GeneratePriceDto) {
+    const cardId = dto.cardId?.trim() || null;
+    if (cardId) {
+      await this.ensureCardExists(cardId);
+    }
+
     const language = this.normalizeLanguage(dto.idioma);
     const templatePath = this.pickTemplate(dto.formType, language);
     let processed: Record<string, unknown>;
@@ -146,14 +156,14 @@ export class PriceService {
       filename: fileName,
       mimeType: 'image/png',
       absolutePath: outputPath,
-      cardId: dto.cardId || null
+      cardId
     });
 
     let quotePrice = null;
-    if (dto.cardId) {
+    if (cardId) {
       quotePrice = await this.prisma.quotePrice.create({
         data: {
-          cardId: dto.cardId,
+          cardId,
           payload: {
             formType: dto.formType,
             seguradora: dto.seguradora,
@@ -170,9 +180,17 @@ export class PriceService {
       fileId: file.id,
       filename: file.filename,
       downloadUrl: file.downloadUrl,
+      attachedCardId: cardId,
       processed,
       quotePrice
     };
+  }
+
+  private async ensureCardExists(cardId: string) {
+    const card = await this.prisma.kanbanCard.findUnique({ where: { id: cardId }, select: { id: true } });
+    if (!card) {
+      throw new NotFoundException('Cotacao selecionada nao encontrada.');
+    }
   }
 
   private normalizeLanguage(lang: string | undefined): 'pt' | 'en' | 'es' {

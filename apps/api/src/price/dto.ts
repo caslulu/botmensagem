@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsIn, IsNumber, IsObject, IsOptional, IsString, ValidateIf } from 'class-validator';
+import { IsIn, IsNumber, IsObject, IsOptional, IsString, IsUUID, ValidateIf } from 'class-validator';
 
 export class GeneratePriceDto {
   @IsIn(['quitado', 'financiado'])
@@ -20,6 +20,8 @@ export class GeneratePriceDto {
 
   @IsOptional()
   @IsString()
+  @ValidateIf((_, value) => value !== '')
+  @IsUUID()
   cardId?: string;
 
   @IsObject()
@@ -29,6 +31,8 @@ export class GeneratePriceDto {
 export class SaveQuoteDto {
   @IsOptional()
   @IsString()
+  @ValidateIf((_, value) => value !== '')
+  @IsUUID()
   cardId?: string;
 
   @IsObject()

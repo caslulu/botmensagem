@@ -8,6 +8,7 @@ import { CardFormModal } from './CardFormModal';
 
 type Props = {
   refreshKey: number;
+  onCreatePrice: (card: KanbanCard) => void;
 };
 
 const cardDndId = (id: string) => `card:${id}`;
@@ -20,7 +21,7 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return next;
 }
 
-function CardTile({ card }: { card: KanbanCard }) {
+function CardTile({ card, onOpen }: { card: KanbanCard; onOpen: (card: KanbanCard) => void }) {
   const draggable = useDraggable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
   const droppable = useDroppable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
   const setRefs = (node: HTMLElement | null) => {
@@ -34,7 +35,23 @@ function CardTile({ card }: { card: KanbanCard }) {
   const latest = card.latestPrice?.processed || {};
 
   return (
-    <article ref={setRefs} className={`kanban-card ${droppable.isOver ? 'is-over' : ''}`} style={style} {...draggable.listeners} {...draggable.attributes}>
+    <article
+      ref={setRefs}
+      className={`kanban-card ${droppable.isOver ? 'is-over' : ''}`}
+      style={style}
+      {...draggable.listeners}
+      {...draggable.attributes}
+      role="button"
+      tabIndex={0}
+      onClick={() => onOpen(card)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen(card);
+        }
+      }}
+      title="Abrir card"
+    >
       <header>
         <strong>{card.title}</strong>
         <span>{latest.valor_total_completo || latest.valor_total_basico || 'Pendente'}</span>
@@ -65,12 +82,14 @@ function ColumnLane({
   column,
   onRename,
   onDelete,
-  onCreateCard
+  onCreateCard,
+  onOpenCard
 }: {
   column: KanbanColumn;
   onRename: (column: KanbanColumn, title: string) => void;
   onDelete: (column: KanbanColumn) => void;
   onCreateCard: (column: KanbanColumn) => void;
+  onOpenCard: (card: KanbanCard) => void;
 }) {
   const droppable = useDroppable({ id: columnDndId(column.id), data: { type: 'column', columnId: column.id } });
   const draggable = useDraggable({ id: columnDndId(column.id), data: { type: 'column', columnId: column.id } });
@@ -116,7 +135,7 @@ function ColumnLane({
         <button type="button" onClick={() => onDelete(column)} title="Excluir coluna vazia"><Trash2 size={15} /></button>
       </div>
       <div className="kanban-card-list">
-        {column.cards.map((card) => <CardTile key={card.id} card={card} />)}
+        {column.cards.map((card) => <CardTile key={card.id} card={card} onOpen={onOpenCard} />)}
         {!column.cards.length ? <div className="empty-lane">Arraste cards para ca</div> : null}
       </div>
       <button className="column-add-card" type="button" onClick={() => onCreateCard(column)}>
@@ -191,12 +210,13 @@ function ColumnFormModal({
   );
 }
 
-export function KanbanBoard({ refreshKey }: Props) {
+export function KanbanBoard({ refreshKey, onCreatePrice }: Props) {
   const [board, setBoard] = useState<BoardResponse>({ columns: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showCardModal, setShowCardModal] = useState(false);
   const [selectedCardColumnId, setSelectedCardColumnId] = useState('');
+  const [selectedCardId, setSelectedCardId] = useState('');
   const [showColumnModal, setShowColumnModal] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
   const [creatingColumn, setCreatingColumn] = useState(false);
@@ -232,6 +252,15 @@ export function KanbanBoard({ refreshKey }: Props) {
     board.columns.forEach((column, index) => map.set(columnDndId(column.id), { column, index }));
     return map;
   }, [board.columns]);
+
+  const selectedCard = useMemo(() => {
+    if (!selectedCardId) return null;
+    for (const column of board.columns) {
+      const card = column.cards.find((item) => item.id === selectedCardId);
+      if (card) return card;
+    }
+    return null;
+  }, [board.columns, selectedCardId]);
 
   const handleDragEnd = async (event: DragEndEvent) => {
     if (!event.over) return;
@@ -320,13 +349,26 @@ export function KanbanBoard({ refreshKey }: Props) {
   };
 
   const openCardModal = (column: KanbanColumn) => {
+    setSelectedCardId('');
     setSelectedCardColumnId(column.id);
+    setShowCardModal(true);
+  };
+
+  const openExistingCard = (card: KanbanCard) => {
+    setSelectedCardId(card.id);
+    setSelectedCardColumnId(card.columnId);
     setShowCardModal(true);
   };
 
   const closeCardModal = () => {
     setShowCardModal(false);
     setSelectedCardColumnId('');
+    setSelectedCardId('');
+  };
+
+  const createPriceForCard = (card: KanbanCard) => {
+    closeCardModal();
+    onCreatePrice(card);
   };
 
   return (
@@ -351,6 +393,7 @@ export function KanbanBoard({ refreshKey }: Props) {
               onRename={renameColumn}
               onDelete={deleteColumn}
               onCreateCard={openCardModal}
+              onOpenCard={openExistingCard}
             />
           ))}
         </div>
@@ -370,8 +413,10 @@ export function KanbanBoard({ refreshKey }: Props) {
         open={showCardModal}
         columns={board.columns}
         initialColumnId={selectedCardColumnId}
+        card={selectedCard}
         onClose={closeCardModal}
-        onCreated={loadBoard}
+        onSaved={loadBoard}
+        onCreatePrice={createPriceForCard}
       />
     </div>
   );

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Save } from 'lucide-react';
 import { api, downloadFile } from '../../api/client';
 import { Field, FormSection, SelectInput, TextInput } from '../../components/Field';
@@ -16,6 +16,19 @@ type PriceFormData = {
   entrada_completo: string;
   mensal_completo: string;
   valor_total_completo: string;
+};
+
+type Props = {
+  selectedCardId?: string | null;
+  selectionVersion?: number;
+  onGenerated?: (cardId: string) => void;
+};
+
+type GeneratePriceResponse = {
+  downloadUrl: string;
+  filename: string;
+  processed: Record<string, any>;
+  attachedCardId?: string | null;
 };
 
 const initialForm: PriceFormData = {
@@ -45,38 +58,43 @@ function payloadFields(payload: Record<string, any>): Record<string, any> {
   return candidates.find((item) => item && typeof item === 'object') || {};
 }
 
-export function PriceForm() {
+function normalizeLanguage(value: string, fallback: PriceFormData['idioma']): PriceFormData['idioma'] {
+  const normalized = value.toLowerCase();
+  return normalized === 'en' || normalized === 'es' || normalized === 'pt' ? normalized : fallback;
+}
+
+export function PriceForm({ selectedCardId, selectionVersion = 0, onGenerated }: Props) {
   const [form, setForm] = useState<PriceFormData>(initialForm);
   const [quotes, setQuotes] = useState<QuoteOption[]>([]);
   const [selectedId, setSelectedId] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
+  const appliedSelectionRef = useRef('');
 
-  const loadQuotes = async () => {
+  const loadQuotes = useCallback(async () => {
     const response = await api.get<{ quotes: QuoteOption[] }>('/quotes');
     setQuotes(response.quotes);
-  };
+    return response.quotes;
+  }, []);
 
   useEffect(() => {
     void loadQuotes().catch(() => setQuotes([]));
-  }, []);
+  }, [loadQuotes]);
 
   const update = <K extends keyof PriceFormData>(name: K, value: PriceFormData[K]) => setForm((prev) => ({ ...prev, [name]: value }));
 
-  const selectQuote = (id: string) => {
-    setSelectedId(id);
-    const quote = quotes.find((item) => item.id === id);
-    if (!quote) return;
-
+  const applyQuote = useCallback((quote: QuoteOption) => {
     const latestPayload = quote.latestPrice?.payload || {};
     const source = Object.keys(latestPayload).length ? latestPayload : quote.payload || {};
     const fields = payloadFields(source);
+    setSelectedId(quote.id);
     setForm((prev) => ({
       ...prev,
       nome: readString(fields.nome, source.nome, quote.title, prev.nome),
       formType: readString(source.formType, fields.formType) === 'financiado' ? 'financiado' : prev.formType,
       seguradora: readString(source.seguradora, fields.seguradora, prev.seguradora),
-      idioma: (readString(source.idioma, fields.idioma, prev.idioma).toLowerCase() || 'pt') as PriceFormData['idioma'],
+      idioma: normalizeLanguage(readString(source.idioma, fields.idioma, prev.idioma), prev.idioma),
       taxaCotacao: Number(readString(source.taxaCotacao, fields.taxaCotacao, prev.taxaCotacao)) || prev.taxaCotacao,
       entrada_basico: readString(fields.entrada_basico, source.entrada_basico, prev.entrada_basico),
       mensal_basico: readString(fields.mensal_basico, source.mensal_basico, prev.mensal_basico),
@@ -85,6 +103,38 @@ export function PriceForm() {
       mensal_completo: readString(fields.mensal_completo, source.mensal_completo, prev.mensal_completo),
       valor_total_completo: readString(fields.valor_total_completo, source.valor_total_completo, prev.valor_total_completo)
     }));
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCardId) return;
+    const selectionKey = `${selectedCardId}:${selectionVersion}`;
+    if (appliedSelectionRef.current === selectionKey || !quotes.length) return;
+
+    const quote = quotes.find((item) => item.cardId === selectedCardId || item.id === selectedCardId);
+    appliedSelectionRef.current = selectionKey;
+    if (!quote) {
+      setSelectedId('');
+      setNotice('');
+      setError('Cotacao selecionada no Kanban nao encontrada.');
+      return;
+    }
+
+    applyQuote(quote);
+    setError('');
+    setNotice(`Cotacao vinculada: ${quote.title}.`);
+  }, [applyQuote, quotes, selectedCardId, selectionVersion]);
+
+  const selectQuote = (id: string) => {
+    setError('');
+    setNotice('');
+    setSelectedId(id);
+    const quote = quotes.find((item) => item.id === id);
+    if (!quote) return;
+
+    applyQuote(quote);
+    if (quote.cardId) {
+      setNotice(`Cotacao vinculada: ${quote.title}.`);
+    }
   };
 
   const validate = () => {
@@ -111,6 +161,7 @@ export function PriceForm() {
         }
       });
       await loadQuotes();
+      setNotice(selectedQuote?.cardId ? 'Dados de preco salvos na cotacao vinculada.' : 'Cotacao manual salva.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao salvar cotacao.');
     } finally {
@@ -127,8 +178,9 @@ export function PriceForm() {
 
     setLoading(true);
     setError('');
+    setNotice('');
     try {
-      const response = await api.post<{ downloadUrl: string; filename: string; processed: Record<string, any> }>('/price/generate', {
+      const response = await api.post<GeneratePriceResponse>('/price/generate', {
         formType: form.formType,
         seguradora: form.seguradora,
         idioma: form.idioma,
@@ -137,6 +189,13 @@ export function PriceForm() {
         campos: { ...form }
       });
       await downloadFile(response.downloadUrl, response.filename);
+      const attachedCardId = response.attachedCardId || selectedQuote?.cardId || '';
+      if (attachedCardId) {
+        setNotice('Imagem baixada e anexada na cotacao selecionada.');
+        onGenerated?.(attachedCardId);
+      } else {
+        setNotice('Imagem baixada.');
+      }
       await loadQuotes();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao gerar imagem.');
@@ -151,7 +210,7 @@ export function PriceForm() {
         <div>
           <p className="eyebrow">Arte comercial</p>
           <h2>Gerar imagem de preco</h2>
-          <p>Selecione um card do Kanban ou preencha manualmente; a imagem final fica disponivel por download.</p>
+          <p>Selecione um card do Kanban para anexar a arte na cotacao, ou use o modo manual para baixar sem vinculo.</p>
         </div>
         <div className="command-row">
           <button className="secondary-button" type="button" onClick={saveQuote} disabled={loading}><Save size={16} /> Salvar</button>
@@ -204,6 +263,7 @@ export function PriceForm() {
 
       <div className="result-line">
         {error ? <span className="form-error">{error}</span> : null}
+        {!error && notice ? <span className="status-chip">{notice}</span> : null}
       </div>
     </form>
   );
