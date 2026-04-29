@@ -21,7 +21,7 @@ Aplicação de operação para seguros com dois ambientes: o desktop em Electron
 - **Perfis**: o app inicia com seed de perfis padrão e aceita até 10 perfis. Cada perfil possui sessão própria do WhatsApp.
 - **Mensagens**: a interface permite manter até 5 mensagens salvas por perfil, com uma mensagem selecionada para envio.
 - **WhatsApp**: a automação reutiliza a sessão do perfil, acessa chats arquivados e respeita o limite de envio configurado no perfil. O valor padrão é `200`.
-- **App Web**: RTA, Kanban de cotações e preço rodam em React + NestJS + Postgres, com downloads servidos pelo navegador.
+- **App Web**: RTA, Kanban de cotações e preço rodam em React + Go + Postgres, com downloads servidos pelo navegador.
 - **Kanban**: o quadro de cotações é próprio da aplicação, começa com `Cotações para fazer`, `Em cotação` e `Pronto`, e permite novas colunas.
 
 ## Arquitetura
@@ -31,7 +31,7 @@ Aplicação de operação para seguros com dois ambientes: o desktop em Electron
 - `src/main/`: processo principal do Electron, IPC, banco local, Playwright e automação do WhatsApp.
 - `src/preload/`: bridges seguras expostas no `window.*`.
 - `src/renderer/`: interface React 19 com Tailwind CSS.
-- `apps/api/`: API NestJS com Prisma/Postgres, geração de RTA, geração de preço, Kanban e downloads.
+- `apps/api/`: API Go com Postgres, geração de RTA, geração de preço, Kanban e downloads.
 - `apps/web/`: aplicação React + Vite para RTA, Kanban de cotações e preço.
 
 ### Áreas relevantes do backend
@@ -63,9 +63,9 @@ As tabelas principais são:
 
 - Node.js 18+
 - npm 9+
+- Docker para subir a API Go conteinerizada
 - Navegadores do Playwright instalados quando necessário
 - Chrome instalado, se você quiser usar o Chrome local; caso contrário o Playwright pode usar Chromium
-- Docker, se quiser subir a aplicação web conteinerizada
 
 ## Configuração Local
 
@@ -84,7 +84,6 @@ npm run dev
 ### Aplicação web
 
 ```bash
-npm --prefix apps/api install
 npm --prefix apps/web install
 npm run web:docker
 ```
@@ -96,6 +95,8 @@ Depois acesse:
 
 Os serviços Docker expõem portas somente em `127.0.0.1` por padrão.
 
+Em banco novo, crie ou atualize o primeiro admin subindo a API com `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos. O binário Go faz um upsert desse usuário na inicialização.
+
 Se precisar depurar Playwright:
 
 ```bash
@@ -105,6 +106,7 @@ PWDEBUG=1 npm run dev
 Observações:
 
 - `npm test` ainda não possui suite configurada e falha de propósito.
+- A API web agora é compilada pelo Dockerfile Go em `apps/api/`; não há mais `npm install` dentro de `apps/api`.
 - O app abre o DevTools automaticamente em ambiente de desenvolvimento.
 
 ## Build e Distribuição
@@ -147,7 +149,7 @@ scripts/
 ## Limitações e Observações
 
 - A automação de cotação via Playwright permanece no desktop por enquanto.
-- A web v1 não possui login interno; use proxy, VPN ou rede local confiável se for expor fora da máquina.
+- A web possui login interno por cookie HTTP-only; se expor fora da máquina, configure `AUTH_SECRET`, `WEB_ORIGIN` e transporte seguro.
 - O Postgres web começa limpo e não importa automaticamente dados antigos do SQLite.
 - O menu lateral usado pelo renderer está definido em `src/renderer/src/app/modules.ts`.
 

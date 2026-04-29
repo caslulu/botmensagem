@@ -19,10 +19,11 @@ services:
     build:
       context: ./apps/api
     environment:
-      DATABASE_URL: postgresql://botmensagem:botmensagem@postgres:5432/botmensagem?schema=public
+      DATABASE_URL: postgresql://botmensagem:botmensagem@postgres:5432/botmensagem?sslmode=disable
       PORT: 3000
       WEB_ORIGIN: http://localhost:8080
       PUBLIC_API_URL: http://localhost:3000
+      AUTH_SECRET: botmensagem-local-compose-auth-secret-change-before-production
       GENERATED_DIR: /app/storage/generated
       UPLOADS_DIR: /app/storage/uploads
       ASSETS_DIR: /app/assets
