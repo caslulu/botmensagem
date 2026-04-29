@@ -47,6 +47,7 @@ export function App() {
         if (!activeRequest) return;
         clearStoredSession();
         setAuthUser(null);
+        setSessionNotice('Nao foi possivel validar sua sessao. Entre novamente.');
       })
       .finally(() => {
         if (activeRequest) setCheckingSession(false);

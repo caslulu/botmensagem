@@ -24,6 +24,7 @@ function resolveApiUrl(): string {
 
 const API_URL = resolveApiUrl();
 const AUTH_SESSION_KEY = 'botmensagem.web.authSession';
+const REQUEST_TIMEOUT_MS = 15000;
 
 export const AUTH_EXPIRED_EVENT = 'botmensagem:web-auth-expired';
 
@@ -75,9 +76,20 @@ function filenameFromDisposition(disposition: string | null): string {
 }
 
 export async function downloadFile(downloadUrl: string, filename?: string) {
-  const response = await fetch(downloadUrl, {
-    credentials: 'include'
-  });
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  let response: Response;
+
+  try {
+    response = await fetch(downloadUrl, {
+      credentials: 'include',
+      signal: controller.signal
+    });
+  } catch (_) {
+    throw new Error('Nao foi possivel baixar o arquivo. Tente novamente.');
+  } finally {
+    window.clearTimeout(timeout);
+  }
 
   if (response.status === 401) {
     clearStoredSession();
@@ -103,10 +115,13 @@ export async function downloadFile(downloadUrl: string, filename?: string) {
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let response: Response;
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...init,
+      signal: controller.signal,
       credentials: 'include',
       headers: {
         ...(init?.body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
@@ -115,6 +130,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     });
   } catch (_) {
     throw new Error(`Nao foi possivel conectar a API em ${API_URL}. Confirme se o container api esta rodando e tente novamente.`);
+  } finally {
+    window.clearTimeout(timeout);
   }
 
   if (!response.ok) {
