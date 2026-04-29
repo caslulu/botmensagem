@@ -21,6 +21,15 @@ function moveItem<T>(items: T[], fromIndex: number, toIndex: number): T[] {
   return next;
 }
 
+function normalizeBoard(board: BoardResponse): BoardResponse {
+  return {
+    columns: (board.columns || []).map((column) => ({
+      ...column,
+      cards: column.cards || []
+    }))
+  };
+}
+
 function CardTile({ card, onOpen }: { card: KanbanCard; onOpen: (card: KanbanCard) => void }) {
   const draggable = useDraggable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
   const droppable = useDroppable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
@@ -129,14 +138,14 @@ function ColumnLane({
           onChange={(event) => setTitle(event.target.value)}
           onBlur={() => title.trim() && title !== column.title && onRename(column, title)}
         />
-        <span>{column.cards.length}</span>
+        <span>{(column.cards || []).length}</span>
       </header>
       <div className="column-tools">
         <button type="button" onClick={() => onDelete(column)} title="Excluir coluna vazia"><Trash2 size={15} /></button>
       </div>
       <div className="kanban-card-list">
-        {column.cards.map((card) => <CardTile key={card.id} card={card} onOpen={onOpenCard} />)}
-        {!column.cards.length ? <div className="empty-lane">Arraste cards para ca</div> : null}
+        {(column.cards || []).map((card) => <CardTile key={card.id} card={card} onOpen={onOpenCard} />)}
+        {!(column.cards || []).length ? <div className="empty-lane">Arraste cards para ca</div> : null}
       </div>
       <button className="column-add-card" type="button" onClick={() => onCreateCard(column)}>
         <Plus size={16} /> Card
@@ -227,7 +236,7 @@ export function KanbanBoard({ refreshKey, onCreatePrice }: Props) {
     setLoading(true);
     setError('');
     try {
-      setBoard(await api.get<BoardResponse>('/kanban'));
+      setBoard(normalizeBoard(await api.get<BoardResponse>('/kanban')));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar Kanban.');
     } finally {
@@ -242,7 +251,7 @@ export function KanbanBoard({ refreshKey, onCreatePrice }: Props) {
   const cardById = useMemo(() => {
     const map = new Map<string, { card: KanbanCard; column: KanbanColumn; cardIndex: number; columnIndex: number }>();
     board.columns.forEach((column, columnIndex) => {
-      column.cards.forEach((card, cardIndex) => map.set(cardDndId(card.id), { card, column, cardIndex, columnIndex }));
+      (column.cards || []).forEach((card, cardIndex) => map.set(cardDndId(card.id), { card, column, cardIndex, columnIndex }));
     });
     return map;
   }, [board.columns]);
@@ -256,7 +265,7 @@ export function KanbanBoard({ refreshKey, onCreatePrice }: Props) {
   const selectedCard = useMemo(() => {
     if (!selectedCardId) return null;
     for (const column of board.columns) {
-      const card = column.cards.find((item) => item.id === selectedCardId);
+      const card = (column.cards || []).find((item) => item.id === selectedCardId);
       if (card) return card;
     }
     return null;
@@ -299,7 +308,7 @@ export function KanbanBoard({ refreshKey, onCreatePrice }: Props) {
     const targetColumn = overCard?.column || columnById.get(overId)?.column;
     if (!targetColumn) return;
 
-    const position = overCard ? overCard.cardIndex : targetColumn.cards.length;
+    const position = overCard ? overCard.cardIndex : (targetColumn.cards || []).length;
     try {
       await api.patch(`/kanban/cards/${activeCard.card.id}/move`, { columnId: targetColumn.id, position });
       await loadBoard();

@@ -247,7 +247,7 @@ export function CardFormModal({ open, columns, initialColumnId, card, onClose, o
 
       if (card && columnId && columnId !== card.columnId) {
         const targetColumn = columns.find((column) => column.id === columnId);
-        const targetPosition = targetColumn?.cards.filter((item) => item.id !== card.id).length ?? 0;
+        const targetPosition = targetColumn?.cards?.filter((item) => item.id !== card.id).length ?? 0;
         await api.patch(`/kanban/cards/${card.id}/move`, { columnId, position: targetPosition });
       }
 

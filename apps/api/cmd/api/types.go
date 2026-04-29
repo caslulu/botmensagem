@@ -80,7 +80,7 @@ type kanbanColumn struct {
 	ID          string       `json:"id"`
 	Title       string       `json:"title"`
 	Position    int          `json:"position"`
-	Cards       []kanbanCard `json:"cards,omitempty"`
+	Cards       []kanbanCard `json:"cards"`
 	CreatedAt   string       `json:"createdAt"`
 	UpdatedAt   string       `json:"updatedAt"`
 	createdTime time.Time    `json:"-"`

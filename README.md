@@ -95,6 +95,22 @@ Depois acesse:
 
 Os serviços Docker expõem portas somente em `127.0.0.1` por padrão.
 
+### Deploy em OCI
+
+Na VM da OCI, use o compose próprio de produção simples. Ele expõe apenas o container web e encaminha `/api` internamente para a API, evitando que o navegador tente acessar `localhost:3000`.
+
+```bash
+cat > .env <<'EOF'
+AUTH_SECRET=troque-por-uma-chave-longa-e-secreta
+WEB_PORT=80
+AUTH_COOKIE_SECURE=false
+EOF
+
+docker compose -f docker-compose.oci.yml up -d --build
+```
+
+Depois acesse `http://IP_PUBLICO_DA_OCI`. Se colocar HTTPS na frente, altere `AUTH_COOKIE_SECURE=true`.
+
 Em banco novo, crie ou atualize o primeiro admin subindo a API com `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos. O binário Go faz um upsert desse usuário na inicialização.
 
 Se precisar depurar Playwright:

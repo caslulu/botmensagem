@@ -1,7 +1,11 @@
 function resolveApiUrl(): string {
   const configured = String(import.meta.env.VITE_API_URL || '').trim();
-  const fallback = `${window.location.protocol}//${window.location.hostname}:3000`;
+  const fallback = '/api';
   const rawUrl = configured || fallback;
+
+  if (rawUrl.startsWith('/')) {
+    return rawUrl.replace(/\/+$/, '');
+  }
 
   try {
     const url = new URL(rawUrl);
