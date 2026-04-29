@@ -36,6 +36,14 @@ export function App() {
     }
 
     let activeRequest = true;
+    const sessionCheckTimeout = window.setTimeout(() => {
+      if (!activeRequest) return;
+      clearStoredSession();
+      setAuthUser(null);
+      setSessionNotice('Nao foi possivel validar sua sessao. Entre novamente.');
+      setCheckingSession(false);
+    }, 16000);
+
     api.get<{ user: AuthUser }>('/auth/me')
       .then((response) => {
         if (!activeRequest) return;
@@ -50,11 +58,15 @@ export function App() {
         setSessionNotice('Nao foi possivel validar sua sessao. Entre novamente.');
       })
       .finally(() => {
-        if (activeRequest) setCheckingSession(false);
+        if (activeRequest) {
+          window.clearTimeout(sessionCheckTimeout);
+          setCheckingSession(false);
+        }
       });
 
     return () => {
       activeRequest = false;
+      window.clearTimeout(sessionCheckTimeout);
     };
   }, []);
 
