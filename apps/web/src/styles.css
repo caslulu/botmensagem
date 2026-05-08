@@ -504,6 +504,26 @@ h2 {
   overflow-wrap: anywhere;
 }
 
+.kanban-card-labels {
+  margin-bottom: 9px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.kanban-card-label {
+  display: inline-flex;
+  align-items: center;
+  min-height: 21px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(36, 84, 166, 0.2);
+  color: var(--blue);
+  background: #eef6ff;
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
 .kanban-card footer {
   color: var(--blue);
   font-size: 0.8rem;

@@ -44,6 +44,7 @@ type CardPayload = {
   data_nascimento_conjuge: string;
   email: string;
   observacoes: string;
+  labels: string[];
   veiculos: Vehicle[];
   pessoas: Driver[];
 };
@@ -84,6 +85,7 @@ function createInitialForm(): CardPayload {
     data_nascimento_conjuge: '',
     email: '',
     observacoes: '',
+    labels: [],
     veiculos: [{ ...initialVehicle }],
     pessoas: []
   };
@@ -104,6 +106,13 @@ function parseList<T>(input: unknown): Partial<T>[] {
   } catch (_) {
     return [];
   }
+}
+
+function parseLabels(input: unknown): string[] {
+  return parseList<string>(input)
+    .map((value) => readString(value).trim())
+    .filter(Boolean)
+    .filter((value, index, list) => list.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index);
 }
 
 function normalizeVehicle(vehicle: Partial<Vehicle>): Vehicle {
@@ -155,6 +164,7 @@ function formFromCard(card: KanbanCard): CardPayload {
     data_nascimento_conjuge: readString(payload.data_nascimento_conjuge),
     email: readString(payload.email),
     observacoes: readString(payload.observacoes),
+    labels: parseLabels(payload.labels),
     veiculos: veiculos.length ? veiculos : [{ ...initialVehicle }],
     pessoas
   };
@@ -192,6 +202,14 @@ export function CardFormModal({ open, columns, initialColumnId, card, onClose, o
   if (!open) return null;
 
   const updateField = (name: keyof CardPayload, value: string) => setForm((prev) => ({ ...prev, [name]: value }));
+  const updateLabelsText = (value: string) => {
+    const labels = value
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean)
+      .filter((item, index, list) => list.findIndex((entry) => entry.toLowerCase() === item.toLowerCase()) === index);
+    setForm((prev) => ({ ...prev, labels }));
+  };
 
   const updateVehicle = async (index: number, field: keyof Vehicle, value: string) => {
     const normalized = field === 'vin' ? value.replace(/[^A-Za-z0-9]/g, '').toUpperCase() : value;
@@ -477,6 +495,9 @@ export function CardFormModal({ open, columns, initialColumnId, card, onClose, o
 
           <FormSection title={isEditing ? 'Observacoes e novos anexos' : 'Observacoes e anexos'}>
             <Field label="Observacoes" wide><TextArea rows={4} value={form.observacoes} onChange={(event) => updateField('observacoes', event.target.value)} /></Field>
+            <Field label="Labels (separe por virgula)" wide>
+              <TextInput value={form.labels.join(', ')} onChange={(event) => updateLabelsText(event.target.value)} placeholder="Ex: Prioridade alta, Follow-up" />
+            </Field>
             <Field label={isEditing ? 'Adicionar anexos' : 'Anexos'} wide>
               <input className="control" type="file" multiple accept="image/png,image/jpeg,image/webp,application/pdf" onChange={(event) => setAttachments(Array.from(event.target.files || []))} />
             </Field>

@@ -30,6 +30,15 @@ function normalizeBoard(board: BoardResponse): BoardResponse {
   };
 }
 
+function cardLabels(card: KanbanCard): string[] {
+  const raw = card.payload?.labels;
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((value) => String(value || '').trim())
+    .filter(Boolean)
+    .filter((value, index, list) => list.findIndex((item) => item.toLowerCase() === value.toLowerCase()) === index);
+}
+
 function CardTile({ card, onOpen }: { card: KanbanCard; onOpen: (card: KanbanCard) => void }) {
   const draggable = useDraggable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
   const droppable = useDroppable({ id: cardDndId(card.id), data: { type: 'card', cardId: card.id } });
@@ -42,6 +51,7 @@ function CardTile({ card, onOpen }: { card: KanbanCard; onOpen: (card: KanbanCar
     opacity: draggable.isDragging ? 0.45 : 1
   };
   const latest = card.latestPrice?.processed || {};
+  const labels = cardLabels(card);
 
   return (
     <article
@@ -66,6 +76,11 @@ function CardTile({ card, onOpen }: { card: KanbanCard; onOpen: (card: KanbanCar
         <span>{latest.valor_total_completo || latest.valor_total_basico || 'Pendente'}</span>
       </header>
       <p>{card.description.split('\n').slice(0, 3).join(' | ')}</p>
+      {labels.length ? (
+        <div className="kanban-card-labels" aria-label="Labels do card">
+          {labels.map((label) => <span key={label} className="kanban-card-label">{label}</span>)}
+        </div>
+      ) : null}
       <footer>
         <span>{card.files?.length || 0} anexos</span>
         {card.files?.[0] ? (

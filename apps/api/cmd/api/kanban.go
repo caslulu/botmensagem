@@ -283,7 +283,7 @@ func (a *App) handleDeleteColumn(w http.ResponseWriter, r *http.Request, id stri
 	return nil
 }
 
-func (a *App) handleCreateCard(w http.ResponseWriter, r *http.Request) error {
+func (a *App) handleCreateCard(w http.ResponseWriter, r *http.Request, actor AuthUser) error {
 	var input cardInput
 	if err := decodeJSONLoose(r, &input); err != nil {
 		return err
@@ -310,12 +310,13 @@ func (a *App) handleCreateCard(w http.ResponseWriter, r *http.Request) error {
 	if !max.Valid {
 		position = 0
 	}
-	payload, _ := json.Marshal(input.Payload)
+	payloadMap := withCreatorLabel(input.Payload, actor.Name)
+	payload, _ := json.Marshal(payloadMap)
 	card, err := scanCard(a.db.QueryRowContext(r.Context(), `
 		INSERT INTO kanban_cards (id, column_id, title, description, payload, position, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
 		RETURNING id, column_id, title, description, payload, position, created_at, updated_at
-	`, uuid.NewString(), columnID, titleFromPayload(input.Payload, input.Title), buildCardDescription(input.Payload), payload, position))
+	`, uuid.NewString(), columnID, titleFromPayload(payloadMap, input.Title), buildCardDescription(payloadMap), payload, position))
 	if err != nil {
 		return err
 	}
@@ -628,6 +629,58 @@ func titleFromPayload(payload map[string]any, explicitTitle string) string {
 		return "Sem nome"
 	}
 	return title
+}
+
+func withCreatorLabel(payload map[string]any, creatorName string) map[string]any {
+	base := map[string]any{}
+	for key, value := range payload {
+		base[key] = value
+	}
+	labels := labelsFromPayload(payload)
+	creator := strings.TrimSpace(creatorName)
+	if creator != "" {
+		exists := false
+		for _, label := range labels {
+			if strings.EqualFold(label, creator) {
+				exists = true
+				break
+			}
+		}
+		if !exists {
+			labels = append(labels, creator)
+		}
+	}
+	base["labels"] = labels
+	return base
+}
+
+func labelsFromPayload(payload map[string]any) []string {
+	raw, ok := payload["labels"]
+	if !ok {
+		return []string{}
+	}
+	values, ok := raw.([]any)
+	if !ok {
+		return []string{}
+	}
+	labels := make([]string, 0, len(values))
+	for _, value := range values {
+		label := strings.TrimSpace(readString(value))
+		if label == "" {
+			continue
+		}
+		duplicated := false
+		for _, existing := range labels {
+			if strings.EqualFold(existing, label) {
+				duplicated = true
+				break
+			}
+		}
+		if !duplicated {
+			labels = append(labels, label)
+		}
+	}
+	return labels
 }
 
 func firstNonEmpty(values ...string) string {

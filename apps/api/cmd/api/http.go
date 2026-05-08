@@ -160,7 +160,7 @@ func (a *App) route(w http.ResponseWriter, r *http.Request) error {
 	case len(parts) == 3 && parts[0] == "kanban" && parts[1] == "columns" && r.Method == http.MethodDelete:
 		return a.handleDeleteColumn(w, r, parts[2])
 	case len(parts) == 2 && parts[0] == "kanban" && parts[1] == "cards" && r.Method == http.MethodPost:
-		return a.handleCreateCard(w, r)
+		return a.handleCreateCard(w, r, user)
 	case len(parts) == 3 && parts[0] == "kanban" && parts[1] == "cards" && r.Method == http.MethodPatch:
 		return a.handleUpdateCard(w, r, parts[2])
 	case len(parts) == 4 && parts[0] == "kanban" && parts[1] == "cards" && parts[3] == "move" && r.Method == http.MethodPatch:
