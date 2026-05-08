@@ -13,11 +13,30 @@ type UpdateProfileInput = {
   imagePath?: string;
 };
 
+type AuthUser = {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  avatarUrl?: string | null;
+};
+
+type DesktopSession = {
+  authenticated?: boolean;
+  expiresAt: string;
+  user: AuthUser;
+  profile?: Profile;
+};
+
 interface ProfileContextValue {
   profiles: Profile[];
   selectedProfileId: string | null;
   setSelectedProfileId: (id: string | null) => void;
   reloadProfiles: () => Promise<void>;
+  login: (credentials: { email: string; password: string }) => Promise<{ success: boolean; error?: string }>;
+  logout: () => Promise<void>;
+  authUser: AuthUser | null;
+  checkingSession: boolean;
   createProfile: (input: CreateProfileInput) => Promise<{ success: boolean; error?: string }>;
   updateProfile: (id: string, updates: UpdateProfileInput) => Promise<{ success: boolean; error?: string }>;
   deleteProfile: (id: string) => Promise<{ success: boolean; error?: string }>;
@@ -28,6 +47,21 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
 async function fetchProfiles(): Promise<Profile[]> {
+  if (window.desktopAuth?.getSession) {
+    try {
+      const result = await window.desktopAuth.getSession();
+      const session = result.success ? result.session : null;
+      const profile = session?.profile;
+      if (session?.authenticated !== false && profile?.id) {
+        return [profile];
+      }
+      return [];
+    } catch (err) {
+      console.error('[ProfileProvider] Error fetching web session:', err);
+      return [];
+    }
+  }
+
   if (window.profile?.getProfiles) {
     try {
       const result = await window.profile.getProfiles();
@@ -44,6 +78,8 @@ async function fetchProfiles(): Promise<Profile[]> {
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+  const [authUser, setAuthUser] = useState<AuthUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | undefined>(undefined);
 
@@ -53,6 +89,9 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
     try {
       const list = await fetchProfiles();
       setProfiles(list);
+      if (list.length === 1) {
+        setSelectedProfileId(list[0].id);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Falha ao carregar perfis');
       setProfiles([]);
@@ -60,6 +99,48 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     }
   }, []);
+
+  const applySession = useCallback((session: Partial<DesktopSession> | null | undefined) => {
+    const profile = session?.profile;
+    if (!session?.user || !profile?.id) {
+      setAuthUser(null);
+      setProfiles([]);
+      setSelectedProfileId(null);
+      return;
+    }
+
+    setAuthUser(session.user);
+    setProfiles([profile]);
+    setSelectedProfileId(profile.id);
+  }, []);
+
+  const login = useCallback(
+    async (credentials: { email: string; password: string }) => {
+      if (!window.desktopAuth?.login) {
+        return { success: false, error: 'API de login web não disponível' };
+      }
+
+      try {
+        const result = await window.desktopAuth.login(credentials);
+        if (!result?.success) {
+          return { success: false, error: result?.error || 'Não foi possível entrar.' };
+        }
+        applySession(result.success ? result.session : null);
+        return { success: true };
+      } catch (err) {
+        return { success: false, error: err instanceof Error ? err.message : 'Falha ao entrar.' };
+      }
+    },
+    [applySession]
+  );
+
+  const logout = useCallback(async () => {
+    try {
+      await window.desktopAuth?.logout?.();
+    } finally {
+      applySession(null);
+    }
+  }, [applySession]);
 
   const createProfile = useCallback(async (input: CreateProfileInput) => {
     if (!window.profile?.create) {
@@ -107,8 +188,35 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    reloadProfiles();
-  }, [reloadProfiles]);
+    let active = true;
+
+    async function restoreSession() {
+      setCheckingSession(true);
+      setError(undefined);
+      try {
+        const result = await window.desktopAuth?.getSession?.();
+        if (!active) return;
+        if (result?.success && result.session?.authenticated !== false) {
+          applySession(result.success ? result.session : null);
+        } else {
+          applySession(null);
+        }
+      } catch (err) {
+        if (!active) return;
+        setError(err instanceof Error ? err.message : 'Falha ao validar sessão web');
+        applySession(null);
+      } finally {
+        if (active) {
+          setCheckingSession(false);
+        }
+      }
+    }
+
+    restoreSession();
+    return () => {
+      active = false;
+    };
+  }, [applySession]);
 
   const value = useMemo<ProfileContextValue>(
     () => ({
@@ -116,13 +224,17 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
       selectedProfileId,
       setSelectedProfileId,
       reloadProfiles,
+      login,
+      logout,
+      authUser,
+      checkingSession,
       createProfile,
       updateProfile,
       deleteProfile,
       loading,
       error
     }),
-    [profiles, selectedProfileId, reloadProfiles, createProfile, updateProfile, deleteProfile, loading, error]
+    [profiles, selectedProfileId, reloadProfiles, login, logout, authUser, checkingSession, createProfile, updateProfile, deleteProfile, loading, error]
   );
 
   return <ProfileContext.Provider value={value}>{children}</ProfileContext.Provider>;

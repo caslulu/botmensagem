@@ -34,6 +34,28 @@ interface ProfileAPI {
   update: (profileId: string, updates: any) => AsyncResult<IpcResult<{ updated?: boolean }> | any>;
 }
 
+interface AuthUser {
+  id: string;
+  email: string;
+  name: string;
+  role: string;
+  avatarUrl?: string | null;
+}
+
+interface DesktopAuthSession {
+  authenticated?: boolean;
+  expiresAt?: string;
+  user?: AuthUser;
+  profile?: Profile;
+}
+
+interface DesktopAuthAPI {
+  login: (credentials: { email: string; password: string }) => AsyncResult<IpcResult<{ session?: DesktopAuthSession }>>;
+  getSession: () => AsyncResult<IpcResult<{ session?: DesktopAuthSession }>>;
+  logout: () => AsyncResult<IpcResult>;
+  validateAdmin: (credentials: { email: string; password: string }) => AsyncResult<IpcResult<{ session?: DesktopAuthSession }>>;
+}
+
 interface ServicesAPI {
   list: () => AsyncResult<any>;
 }
@@ -112,6 +134,7 @@ declare global {
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
     webApp?: WebAppAPI;
+    desktopAuth?: DesktopAuthAPI;
     lastGeneratedPricePath?: string;
   }
 }

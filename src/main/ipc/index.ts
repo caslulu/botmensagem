@@ -10,9 +10,11 @@ import { registerTrelloHandlers } from './trello-handlers';
 import { registerQuoteHandlers } from './quotes-handlers';
 import { registerRoadmapHandlers } from './roadmap-handlers';
 import { registerAppHandlers } from './app-handlers';
+import { registerAuthHandlers } from './auth-handlers';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   registerAppHandlers(getMainWindow);
+  registerAuthHandlers();
   registerAutomationHandlers();
   registerMessageHandlers();
   registerProfileHandlers();

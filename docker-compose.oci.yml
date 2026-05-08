@@ -26,6 +26,8 @@ services:
       GENERATED_DIR: /app/storage/generated
       UPLOADS_DIR: /app/storage/uploads
       ASSETS_DIR: /app/assets
+    ports:
+      - "${API_PORT:-3000}:3000"
     volumes:
       - api_generated:/app/storage/generated
       - api_uploads:/app/storage/uploads

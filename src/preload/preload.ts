@@ -11,6 +11,7 @@ import { registerQuotesBridge } from './bridges/quotes';
 import { registerFilesBridge } from './bridges/files';
 import { registerRoadmapBridge } from './bridges/roadmap';
 import { registerWebAppBridge } from './bridges/web-app';
+import { registerAuthBridge } from './bridges/auth';
 
 type BridgeRegistrar = (deps: {
   contextBridge: typeof contextBridge;
@@ -29,7 +30,8 @@ const bridges: BridgeRegistrar[] = [
   registerQuotesBridge,
   registerFilesBridge,
   registerRoadmapBridge,
-  registerWebAppBridge
+  registerWebAppBridge,
+  registerAuthBridge
 ];
 
 bridges.forEach((registerBridge) => {
