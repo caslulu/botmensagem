@@ -14,11 +14,9 @@
     "build:linux": "electron-vite build && electron-builder --linux",
     "build:dir": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --dir",
     "publish": "node scripts/ensure-win-native-deps.js && electron-vite build && electron-builder --win --x64 --publish always",
-    "web:api:dev": "docker compose up --build api",
-    "web:web:dev": "npm --prefix apps/web run dev",
-    "web:build": "docker compose build api && npm --prefix apps/web run build",
-    "web:test": "docker run --rm -v \"$PWD/apps/api:/src\" -w /src golang:1.25-bookworm sh -lc 'export PATH=/usr/local/go/bin:$PATH GOROOT=/usr/local/go; go test ./...'",
-    "web:docker": "docker compose up --build",
+    "evolution:up": "docker compose -f docker-compose.evolution.yml --env-file .env.evolution up -d --build",
+    "evolution:down": "docker compose -f docker-compose.evolution.yml --env-file .env.evolution down",
+    "evolution:logs": "docker compose -f docker-compose.evolution.yml --env-file .env.evolution logs -f evolution-api",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "build": {
@@ -35,15 +33,13 @@
       "assets/**/*",
       "node_modules/**/*",
       "package.json",
-      ".env",
-      "trello.env"
+      ".env"
     ],
     "asarUnpack": [
       "node_modules/@napi-rs/canvas/**",
       "node_modules/@napi-rs/canvas-darwin-x64/**",
       "node_modules/@napi-rs/canvas-darwin-arm64/**",
       "node_modules/@napi-rs/canvas-win32-x64-msvc/**",
-      "node_modules/sql.js/**",
       "node_modules/pdf-lib/**",
       "node_modules/playwright/**",
       "src/main/price/assets/**",
@@ -129,8 +125,7 @@
     "pdf-lib": "^1.17.1",
     "playwright": "^1.56.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "sql.js": "^1.13.0"
+    "react-dom": "^19.2.0"
   },
   "optionalDependencies": {
     "@napi-rs/canvas-darwin-arm64": "^0.1.51",

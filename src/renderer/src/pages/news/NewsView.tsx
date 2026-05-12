@@ -19,29 +19,29 @@ const releaseNotes: ReleaseNote[] = [
   {
     title: 'Mapa atual dos módulos',
     date: 'Abr 2026',
-    summary: 'A versão atual separa a operação desktop dos fluxos que agora rodam na aplicação web.',
+    summary: 'A versão atual concentra novamente toda a operação no desktop.',
     highlights: [
-      'Fluxos visíveis no desktop: mensagens, app web, roadmap, novidades, perfil e configurações',
+      'Fluxos visíveis no desktop: mensagens, cotações, kanban, RTA, preço, roadmap, novidades, perfil e configurações',
       'Seleção de perfil logo na entrada, com acesso admin apenas onde realmente é necessário',
       'Conteúdo desta tela alinhado ao comportamento atual do sistema',
     ],
     badge: 'Atual',
   },
   {
-    title: 'Kanban próprio na web',
+    title: 'Kanban próprio no desktop',
     date: 'Abr 2026',
-    summary: 'A fila de cotações agora usa um quadro próprio em Postgres dentro da aplicação web.',
+    summary: 'A fila de cotações usa um quadro próprio persistido localmente no aplicativo.',
     highlights: [
       'O quadro começa com colunas de fila, em cotação e pronto',
       'O mesmo painel permite criar cards no formato atual e adicionar novas colunas',
-      'A automação de cotação via Playwright permanece no desktop por enquanto',
+      'A automação de cotação via Playwright permanece integrada ao mesmo fluxo',
     ],
     badge: 'Operacao',
   },
   {
-    title: 'Saídas locais e sessões persistidas',
+    title: 'Saídas locais integradas',
     date: 'Abr 2026',
-    summary: 'Os arquivos web ficam em volumes Docker e são entregues por download no navegador.',
+    summary: 'RTA e preço são gerados localmente e ficam disponíveis direto no ambiente desktop.',
     highlights: [
       'RTA gera PDF usando templates por seguradora',
       'Preço gera PNG com suporte a PT, EN e ES',
@@ -66,7 +66,7 @@ const visuals: VisualItem[] = [
   },
   {
     title: 'RTA e preço',
-    caption: 'PDFs e imagens gerados pela API web e baixados pelo navegador.',
+    caption: 'PDFs e imagens gerados localmente com integração ao fluxo de cotações.',
     palette: 'from-amber-500/20 via-orange-500/10 to-red-500/10',
     accent: 'fill-amber-500/70 stroke-amber-500/70',
   },
@@ -79,11 +79,11 @@ const quickStarts = [
   },
   {
     title: 'Fluxo de cotação',
-    detail: 'Use “App Web” para abrir o Kanban de cotações, criar cards e mover a fila.',
+    detail: 'Use o módulo Kanban para criar cards, mover a fila e iniciar a automação.',
   },
   {
     title: 'Arquivos gerados',
-    detail: 'Use o painel web para gerar RTA e preço; os arquivos ficam disponíveis por download.',
+    detail: 'Use os módulos RTA e Preço no desktop; os arquivos ficam disponíveis localmente.',
   },
 ];
 

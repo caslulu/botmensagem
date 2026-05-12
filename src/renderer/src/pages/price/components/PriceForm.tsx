@@ -15,14 +15,6 @@ interface PriceFormData {
   valor_total_completo: string;
 }
 
-type QueueQuoteOption = {
-  id: string;
-  label: string;
-  nome: string;
-  payload: Record<string, any>;
-  localQuoteId?: string;
-};
-
 const initialForm: PriceFormData = {
   formType: 'quitado',
   seguradora: 'Allstate',
@@ -38,96 +30,11 @@ const initialForm: PriceFormData = {
   valor_total_completo: ''
 };
 
-function readString(...values: unknown[]): string {
-  for (const value of values) {
-    if (typeof value === 'string' && value.trim()) return value.trim();
-    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
-  }
-  return '';
-}
-
-function getPayloadFields(payload: Record<string, any>): Record<string, any> {
-  const candidates = [payload.campos, payload.fields, payload.data, payload.processed];
-  for (const entry of candidates) {
-    if (entry && typeof entry === 'object') {
-      return entry;
-    }
-  }
-  return {};
-}
-
-function parseListResponse(response: any): any[] {
-  if (Array.isArray(response)) return response;
-  if (response && typeof response === 'object' && 'success' in response) {
-    return response.success && Array.isArray(response.quotes) ? response.quotes : [];
-  }
-  return response && Array.isArray(response?.quotes) ? response.quotes : [];
-}
-
-function normalizeLocalQuote(item: any): QueueQuoteOption {
-  const payload = item?.payload && typeof item.payload === 'object' ? item.payload : {};
-  const fields = getPayloadFields(payload);
-  const nome = readString(item?.nome, payload.nome, fields.nome) || 'Sem nome';
-
-  return {
-    id: `local:${item?.id}`,
-    label: `${nome} - Local`,
-    nome,
-    payload,
-    localQuoteId: readString(item?.id)
-  };
-}
-
 export const PriceForm: React.FC = () => {
   const [form, setForm] = useState<PriceFormData>(initialForm);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [quotes, setQuotes] = useState<QueueQuoteOption[]>([]);
-  const [selectedQuoteId, setSelectedQuoteId] = useState('');
-
-  const loadQuotes = async () => {
-    try {
-      const localResponse = await window.price?.listQuotes?.();
-      const localQuotes = parseListResponse(localResponse).map(normalizeLocalQuote);
-      setQuotes(localQuotes);
-    } catch (e) {
-      console.error('Erro ao carregar cotações', e);
-    }
-  };
-
-  React.useEffect(() => {
-    void loadQuotes();
-  }, []);
-
-  const handleQuoteSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const quoteId = e.target.value;
-    setSelectedQuoteId(quoteId);
-    if (!quoteId) return;
-
-    const quote = quotes.find((q) => q.id === quoteId);
-    if (!quote) return;
-
-    const data = quote.payload || {};
-    const fields = getPayloadFields(data);
-    const taxValue = readString(data.taxaCotacao, fields.taxaCotacao);
-
-    setForm((prev) => ({
-      ...prev,
-      nome: readString(data.nome, fields.nome, quote.nome, prev.nome),
-      formType: readString(data.formType, fields.formType) === 'financiado' ? 'financiado' : prev.formType,
-      seguradora: readString(data.seguradora, fields.seguradora, prev.seguradora),
-      idioma: readString(data.idioma, fields.idioma, prev.idioma),
-      taxaCotacao: taxValue ? Number(taxValue) : prev.taxaCotacao,
-      taxaType: ['320', '400', '500'].includes(taxValue) ? (taxValue as any) : taxValue ? 'custom' : prev.taxaType,
-      entrada_basico: readString(data.entrada_basico, fields.entrada_basico, prev.entrada_basico),
-      mensal_basico: readString(data.mensal_basico, fields.mensal_basico, prev.mensal_basico),
-      valor_total_basico: readString(data.valor_total_basico, fields.valor_total_basico, prev.valor_total_basico),
-      entrada_completo: readString(data.entrada_completo, fields.entrada_completo, prev.entrada_completo),
-      mensal_completo: readString(data.mensal_completo, fields.mensal_completo, prev.mensal_completo),
-      valor_total_completo: readString(data.valor_total_completo, fields.valor_total_completo, prev.valor_total_completo)
-    }));
-  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -145,37 +52,6 @@ export const PriceForm: React.FC = () => {
 
   const handleCustomTaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, taxaCotacao: Number(e.target.value) }));
-  };
-
-  const handleSaveQuote = async () => {
-    if (!form.nome) {
-      setError('Nome do cliente é obrigatório para salvar.');
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-    try {
-      const selectedQuote = quotes.find((q) => q.id === selectedQuoteId);
-      const payload = {
-        id: selectedQuote?.localQuoteId || Date.now().toString(),
-        nome: form.nome,
-        payload: {
-          ...form
-        }
-      };
-      const res = await window.price?.upsertQuote?.(payload);
-      if (res && typeof res === 'object' && 'success' in res && res.success) {
-        setResult('Cotação salva com sucesso!');
-        await loadQuotes();
-      } else {
-        setError((res as any)?.error || 'Erro ao salvar cotação.');
-      }
-    } catch (e: any) {
-      setError(e?.message || 'Erro ao salvar cotação.');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -196,14 +72,12 @@ export const PriceForm: React.FC = () => {
     }
 
     try {
-      const selectedQuote = quotes.find((q) => q.id === selectedQuoteId);
       const payload = {
         formType: form.formType,
         seguradora: form.seguradora,
         idioma: form.idioma,
         taxaCotacao: form.taxaCotacao,
         apenasPrever: false,
-        cotacaoId: selectedQuote?.localQuoteId || null,
         campos: {
           nome: form.nome,
           entrada_basico: form.entrada_basico,
@@ -220,7 +94,6 @@ export const PriceForm: React.FC = () => {
         const generatedPath = res.result?.outputPath || res.output?.outputPath;
         setResult(`Imagem gerada: ${generatedPath || 'Arquivo salvo.'}`);
         if (generatedPath) window.lastGeneratedPricePath = generatedPath;
-        await loadQuotes();
       } else {
         setError((res as any)?.error || 'Erro ao gerar imagem.');
       }
@@ -251,16 +124,6 @@ export const PriceForm: React.FC = () => {
         </div>
 
         <div className="rta-grid rta-grid-auto gap-4">
-          <div className="input-group">
-            <label>Cotações locais</label>
-            <select className="input-control" onChange={handleQuoteSelect} value={selectedQuoteId}>
-              <option value="">Selecione uma cotação...</option>
-              {quotes.map((q) => (
-                <option key={q.id} value={q.id}>{q.label}</option>
-              ))}
-            </select>
-          </div>
-
           <div className="input-group">
             <label>Tipo</label>
             <div className="flex gap-4">
@@ -369,7 +232,6 @@ export const PriceForm: React.FC = () => {
 
       <div className="flex gap-4 mt-6 items-center flex-wrap">
         <button type="submit" className="btn-primary" disabled={loading}>{loading ? 'Gerando…' : 'Gerar Imagem'}</button>
-        <button type="button" className="btn-secondary" onClick={handleSaveQuote} disabled={loading}>Salvar Cotação</button>
         {result ? (
           <div className="flex items-center gap-4">
             <div className="text-emerald-400 font-semibold text-sm">{result}</div>

@@ -109,7 +109,7 @@ export const MessageManager: React.FC<MessageManagerProps> = ({ profileId }) => 
       {loading && <div className="text-sm text-slate-400">Carregando mensagens…</div>}
       {error && <div className="rounded-3xl border border-rose-200 bg-rose-50/90 px-4 py-3 text-sm text-rose-700 dark:border-rose-500/20 dark:bg-rose-500/10 dark:text-rose-200">{error}</div>}
       {!loading && !error && messages.length === 0 && (
-        <div className="surface-subtle text-sm text-slate-500 dark:text-slate-400">Nenhuma mensagem salva.</div>
+        <div className="surface-subtle text-sm text-slate-500 dark:text-slate-400">Nenhuma mensagem salva para este usuário.</div>
       )}
       <div className="custom-scrollbar max-h-[30rem] space-y-3 overflow-y-auto pr-1">
         {messages.map((msg) => (

@@ -47,32 +47,22 @@ interface ProfileContextValue {
 const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
 async function fetchProfiles(): Promise<Profile[]> {
-  if (window.desktopAuth?.getSession) {
-    try {
-      const result = await window.desktopAuth.getSession();
-      const session = result.success ? result.session : null;
-      const profile = session?.profile;
-      if (session?.authenticated !== false && profile?.id) {
-        return [profile];
-      }
-      return [];
-    } catch (err) {
-      console.error('[ProfileProvider] Error fetching web session:', err);
-      return [];
-    }
+  if (!window.desktopAuth?.getSession) {
+    console.warn('[ProfileProvider] window.desktopAuth.getSession not available');
+    return [];
   }
-
-  if (window.profile?.getProfiles) {
-    try {
-      const result = await window.profile.getProfiles();
-      return Array.isArray(result) ? result : [];
-    } catch (err) {
-      console.error('[ProfileProvider] Error fetching profiles:', err);
-      return [];
+  try {
+    const result = await window.desktopAuth.getSession();
+    const session = result.success ? result.session : null;
+    const profile = session?.profile;
+    if (session?.authenticated !== false && profile?.id) {
+      return [profile];
     }
+    return [];
+  } catch (err) {
+    console.error('[ProfileProvider] Error fetching web session:', err);
+    return [];
   }
-  console.warn('[ProfileProvider] window.profile.getProfiles not available');
-  return [];
 }
 
 export function ProfileProvider({ children }: { children: React.ReactNode }) {
@@ -143,48 +133,40 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   }, [applySession]);
 
   const createProfile = useCallback(async (input: CreateProfileInput) => {
-    if (!window.profile?.create) {
-      return { success: false, error: 'API de perfil não disponível' };
-    }
-    try {
-      const result = await window.profile.create(input);
-      if (!result?.success) {
-        return { success: false, error: result?.error || 'Não foi possível criar o perfil.' };
-      }
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Falha ao criar perfil.' };
-    }
+    void input;
+    return { success: false, error: 'Perfis locais foram desativados. Use criação de login cloud em Configurações.' };
   }, []);
 
   const updateProfile = useCallback(async (id: string, updates: UpdateProfileInput) => {
-    if (!window.profile?.update) {
-      return { success: false, error: 'API de perfil não disponível' };
+    if (!authUser?.id) {
+      return { success: false, error: 'Sessão inválida.' };
     }
+
+    if (id !== authUser.id) {
+      return { success: false, error: 'Edição de outros perfis foi desativada no desktop.' };
+    }
+
     try {
-      const result = await window.profile.update(id, updates);
+      const result = await window.desktopWebApi?.request({
+        method: 'PATCH',
+        path: '/profile',
+        body: {
+          name: updates.name
+        }
+      });
       if (!result?.success) {
         return { success: false, error: result?.error || 'Falha ao atualizar perfil.' };
       }
+      await reloadProfiles();
       return { success: true };
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : 'Falha ao atualizar perfil.' };
     }
-  }, []);
+  }, [authUser?.id, reloadProfiles]);
 
   const deleteProfile = useCallback(async (id: string) => {
-    if (!window.profile?.delete) {
-      return { success: false, error: 'API de perfil não disponível' };
-    }
-    try {
-      const result = await window.profile.delete(id);
-      if (!result?.success) {
-        return { success: false, error: result?.error || 'Falha ao deletar perfil.' };
-      }
-      return { success: true };
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : 'Falha ao deletar perfil.' };
-    }
+    void id;
+    return { success: false, error: 'Exclusão de perfis locais foi desativada. Gerencie usuários no cloud.' };
   }, []);
 
   useEffect(() => {

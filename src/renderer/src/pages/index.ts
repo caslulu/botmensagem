@@ -1,10 +1,6 @@
 export { WhatsAppAutomationView } from './whatsapp/WhatsAppAutomationView';
 export { RtaView } from './rta/RtaView';
-export { QuotesView } from './quotes/QuotesView';
 export { PriceView } from './price/PriceView';
 export { HowToView } from './howto/HowToView';
-export { NewsView } from './news/NewsView';
-export { RoadmapView } from './roadmap/RoadmapView';
 export { ConfigView } from './settings/ConfigView';
-export { ProfileSettingsView } from './settings/ProfileSettingsView';
-export { WebAppView } from './web/WebAppView';
+export { DesktopKanbanView } from './kanban/DesktopKanbanView';

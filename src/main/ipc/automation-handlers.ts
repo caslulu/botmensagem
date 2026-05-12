@@ -1,24 +1,44 @@
 import { ipcMain } from 'electron';
 import automation from '../automation';
-import * as profilesService from '../domains/profiles/profiles-service';
+import * as webAuth from '../domains/auth/web-auth-service';
+import messagesService from '../domains/messages/messages-service';
 
 export function registerAutomationHandlers(): void {
   ipcMain.handle('automation:profiles', async () => {
-    const profiles = ((profilesService.list() || []) as Array<any>).filter(Boolean);
-    return profiles;
+    const session = await webAuth.getSession();
+    if (!session?.authenticated || !session?.profile) {
+      return [];
+    }
+    return [session.profile];
   });
 
   ipcMain.handle('automation:start', async (_event, profileId: string) => {
-    const profile = profilesService.get(profileId);
-    if (!profile) {
-      throw new Error(`Perfil desconhecido: ${profileId}`);
+    const session = await webAuth.getSession();
+    if (!session?.authenticated || !session?.user) {
+      throw new Error('Sessão inválida. Faça login novamente.');
     }
 
-    if (!profile.isAdmin) {
+    if (String(profileId || '').trim() !== session.user.id) {
+      throw new Error('Perfil inválido para o usuário autenticado.');
+    }
+
+    if (session.user.role !== 'admin') {
       throw new Error('Somente contas administradoras podem enviar mensagens automáticas.');
     }
 
-    return automation.start(profile);
+    const selectedMessage = await messagesService.getSelected(session.user.id);
+    if (!selectedMessage?.text?.trim()) {
+      throw new Error('Nenhuma mensagem ativa encontrada para este usuário.');
+    }
+
+    return automation.start({
+      id: session.user.id,
+      name: session.user.name,
+      isAdmin: true,
+      thumbnail: session.user.avatarUrl || null,
+      message: selectedMessage.text,
+      imagePath: selectedMessage.imagePath || null
+    });
   });
 
   ipcMain.handle('automation:stop', async () => automation.stop());

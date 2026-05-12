@@ -1,78 +1,69 @@
 # Insurance Helper
 
-Aplicação de operação para seguros com dois ambientes: o desktop em Electron continua cuidando do WhatsApp, perfis e apoio operacional; a nova aplicação web cuida de RTA, Kanban de cotações e geração de imagens de preço.
+Aplicação 100% desktop para operação de seguros.
 
-## Estado Atual do Produto
+## Estado Atual
 
-### Módulos visíveis na interface
+A interface principal voltou para o desktop com estes módulos:
 
-| Modulo | O que faz hoje | Observacoes |
-| --- | --- | --- |
-| `Enviar mensagem automática` | Dispara a mensagem selecionada para grupos arquivados do WhatsApp Web com logs em tempo real. | Somente perfis administradores podem iniciar o envio. |
-| `App Web` | Abre o painel web local para RTA, Kanban de cotações e preço. | URL padrão: `http://localhost:8080`, configurável por `WEB_APP_URL`. |
-| `Como usar` | Guia rápido de operação dentro do app. | Documentação interna. |
-| `Novidades` | Painel de referência sobre o estado atual da aplicação. | Documentação interna. |
-| `Roadmap` | Quadro kanban persistido em banco local. | Pode operar com seed inicial quando o banco esta vazio. |
-| `Perfil` | Permite editar nome e avatar do perfil selecionado. | O ID do perfil e fixo. |
-| `Configurações` | Mostra preferências gerais e, para admins, gerenciamento de todos os perfis. | Admins podem editar e excluir perfis não administradores. |
-
-### Fluxos importantes
-
-- **Perfis**: o app inicia com seed de perfis padrão e aceita até 10 perfis. Cada perfil possui sessão própria do WhatsApp.
-- **Mensagens**: a interface permite manter até 5 mensagens salvas por perfil, com uma mensagem selecionada para envio.
-- **WhatsApp**: a automação reutiliza a sessão do perfil, acessa chats arquivados e respeita o limite de envio configurado no perfil. O valor padrão é `200`.
-- **App Web**: RTA, Kanban de cotações e preço rodam em React + Go + Postgres, com downloads servidos pelo navegador.
-- **Kanban**: o quadro de cotações é próprio da aplicação, começa com `Cotações para fazer`, `Em cotação` e `Pronto`, e permite novas colunas.
+- `Mensagens` (automação de WhatsApp)
+- `Cotação`
+- `Kanban`
+- `RTA`
+- `Preço`
+- `Perfil` e `Configurações`
 
 ## Arquitetura
 
-### Camadas principais
-
-- `src/main/`: processo principal do Electron, IPC, banco local, Playwright e automação do WhatsApp.
+- `src/main/`: processo principal do Electron, IPC, automações e banco local.
 - `src/preload/`: bridges seguras expostas no `window.*`.
-- `src/renderer/`: interface React 19 com Tailwind CSS.
-- `apps/api/`: API Go com Postgres, geração de RTA, geração de preço, Kanban e downloads.
-- `apps/web/`: aplicação React + Vite para RTA, Kanban de cotações e preço.
+- `src/renderer/`: interface React.
+- `src/main/infra/db/`: persistência SQLite local.
 
-### Áreas relevantes do backend
+### Kanban e Login (Cloud)
 
-- `src/main/automation/`: automação do WhatsApp Web e automação de cotações com Playwright.
-- `src/main/trello/`, `src/main/price/`, `src/main/rta/`: código legado mantido no desktop, sem navegação principal.
-- `src/main/infra/db/`: schema SQLite e repositorios.
-- `src/main/ipc/`: handlers que ligam renderer e main.
+- O login do desktop usa autenticação cloud (`desktopAuth`) e sessão por cookie.
+- O Kanban do desktop usa a API cloud (`desktopWebApi`) para ler/escrever no banco cloud.
+- O desktop continua sendo a interface principal para operar os módulos.
 
-### Persistência local
+Integrações do fluxo:
 
-- Banco SQLite: `userData/messages.db`
-- Sessões por perfil: `userData/sessions/<profileId>`
-- Avatares copiados para user data: `userData/profiles/`
-- Saídas web geradas:
-  - Volume Docker `api_generated`
-  - Downloads via endpoint `/files/:id/download`
+- Card do Kanban pode iniciar automação de cotação.
+- Resultados de preço/cotação refletem no card.
+- RTA e Preço são gerados no desktop.
 
-As tabelas principais são:
+## Banco da parte web
 
-- `profiles`
-- `profile_settings`
-- `profile_sessions`
-- `messages`
-- `quotes`
-- `roadmap_items`
+Somente a estrutura de banco da antiga parte web foi mantida como referência em:
 
-## Requisitos
+- `apps/api/prisma/`
 
-- Node.js 18+
-- npm 9+
-- Docker para subir a API Go conteinerizada
-- Navegadores do Playwright instalados quando necessário
-- Chrome instalado, se você quiser usar o Chrome local; caso contrário o Playwright pode usar Chromium
+A aplicação web em si não faz mais parte do fluxo operacional do desktop.
 
-## Configuração Local
+## Evolution API
 
-### Diretórios opcionais
+Uso local via Docker Compose:
 
-- `USER_DATA_DIR`: troca a pasta base usada para banco e arquivos locais
-- `SESSIONS_ROOT`: troca a raiz das sessões do WhatsApp
+```bash
+cp .env.evolution.example .env.evolution
+npm run evolution:up
+```
+
+Stack local atual:
+
+- `evolution-api`
+- `principal-postgres` (banco principal do cliente)
+
+Não existe mais container da aplicação web base e o Redis foi removido deste stack.
+
+Se você já tiver um banco principal existente fora do compose, basta apontar
+`DATABASE_CONNECTION_URI` para esse banco e remover o serviço `principal-postgres`
+do compose (mantendo somente `evolution-api`).
+
+Comandos úteis:
+
+- `npm run evolution:logs`
+- `npm run evolution:down`
 
 ## Desenvolvimento
 
@@ -81,94 +72,9 @@ npm install
 npm run dev
 ```
 
-### Aplicação web
+## Build
 
-```bash
-npm --prefix apps/web install
-npm run web:docker
-```
-
-Depois acesse:
-
-- Web: `http://localhost:8080`
-- API: `http://localhost:3000/health`
-
-Os serviços Docker expõem portas somente em `127.0.0.1` por padrão.
-
-### Deploy em OCI
-
-Na VM da OCI, use o compose próprio de produção simples. Ele expõe apenas o container web e encaminha `/api` internamente para a API, evitando que o navegador tente acessar `localhost:3000`.
-
-```bash
-cat > .env <<'EOF'
-AUTH_SECRET=troque-por-uma-chave-longa-e-secreta
-WEB_PORT=80
-AUTH_COOKIE_SECURE=false
-EOF
-
-docker compose -f docker-compose.oci.yml up -d --build
-```
-
-Depois acesse `http://IP_PUBLICO_DA_OCI`. Se colocar HTTPS na frente, altere `AUTH_COOKIE_SECURE=true`.
-
-Em banco novo, crie ou atualize o primeiro admin subindo a API com `ADMIN_EMAIL` e `ADMIN_PASSWORD` definidos. O binário Go faz um upsert desse usuário na inicialização.
-
-Se precisar depurar Playwright:
-
-```bash
-PWDEBUG=1 npm run dev
-```
-
-Observações:
-
-- `npm test` ainda não possui suite configurada e falha de propósito.
-- A API web agora é compilada pelo Dockerfile Go em `apps/api/`; não há mais `npm install` dentro de `apps/api`.
-- O app abre o DevTools automaticamente em ambiente de desenvolvimento.
-
-## Build e Distribuição
-
-### Comandos disponíveis
-
-| Comando | Uso |
-| --- | --- |
-| `npm run build` | Gera build para a plataforma atual e executa o `electron-builder`. |
-| `npm run build:win` | Build Windows x64 com preparação dos binários nativos. |
-| `npm run build:mac` | Build universal para macOS. |
-| `npm run build:linux` | Build Linux. |
-| `npm run build:dir` | Build Windows x64 descompactado para testes. |
-| `npm run publish` | Build Windows x64 e publicação via GitHub Releases. |
-
-As saídas ficam em `dist/`.
-
-### Atualização automática
-
-Em produção, o app usa `electron-updater` apontando para releases do GitHub configuradas no `package.json`.
-
-## Estrutura Resumida
-
-```text
-src/
-  main/
-    automation/
-    infra/db/
-    ipc/
-  preload/
-  renderer/
-apps/
-  api/
-  web/
-assets/
-build/
-scripts/
-```
-
-## Limitações e Observações
-
-- A automação de cotação via Playwright permanece no desktop por enquanto.
-- A web possui login interno por cookie HTTP-only; se expor fora da máquina, configure `AUTH_SECRET`, `WEB_ORIGIN` e transporte seguro.
-- O Postgres web começa limpo e não importa automaticamente dados antigos do SQLite.
-- O menu lateral usado pelo renderer está definido em `src/renderer/src/app/modules.ts`.
-
-## Licença
-
-ISC. Veja `LICENSE.txt`.
+- `npm run build`
+- `npm run build:win`
+- `npm run build:mac`
+- `npm run build:linux`

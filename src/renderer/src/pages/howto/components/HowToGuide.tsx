@@ -7,11 +7,11 @@ const STEPS = [
   },
   {
     title: 'Entre no módulo certo',
-    detail: 'Use o menu lateral para mensagens, aplicativo web, perfil, ajuda ou configurações.'
+    detail: 'Use o menu lateral para mensagens, cotações, kanban, RTA, preço, perfil, ajuda ou configurações.'
   },
   {
     title: 'Finalize o arquivo ou ação',
-    detail: 'O desktop segue cuidando do WhatsApp; RTA, cotações e preço ficam no painel web.'
+    detail: 'Todo o fluxo acontece no desktop, incluindo geração de RTA, preço e gestão das cotações.'
   }
 ];
 
@@ -21,8 +21,12 @@ const MODULES = [
     detail: 'Disponível para administradores. Ajuste o limite de envios, acompanhe os logs e gerencie mensagens salvas.'
   },
   {
-    title: 'App Web',
-    detail: 'Abra o painel web para usar RTA, Kanban de cotações e geração de imagens de preço.'
+    title: 'Kanban',
+    detail: 'Organize cards em colunas locais, mova etapas e inicie automações de cotação direto do card.'
+  },
+  {
+    title: 'RTA e Preço',
+    detail: 'Gere PDFs de RTA e imagens de preço sem sair do app, com integração às cotações.'
   },
   {
     title: 'Perfil',
@@ -36,9 +40,9 @@ const MODULES = [
 
 const TIPS = [
   'Somente administradores podem iniciar disparos automáticos no WhatsApp.',
-  'Os arquivos gerados por RTA e preço agora são baixados pelo navegador no app web.',
+  'RTA, preço, cotações e kanban agora são 100% desktop.',
   'Cada perfil reaproveita sua própria sessão do WhatsApp Web.',
-  'O Kanban web substitui a dependência operacional de cards externos.'
+  'O Kanban local integra automação de cotação e dados de preço no mesmo fluxo.'
 ];
 
 export const HowToGuide: React.FC = () => (

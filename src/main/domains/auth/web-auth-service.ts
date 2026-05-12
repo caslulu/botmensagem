@@ -1,7 +1,6 @@
 import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
-import { createProfile, findProfileById, updateProfile } from '../../profiles';
 
 type AuthUser = {
   id: string;
@@ -14,6 +13,13 @@ type AuthUser = {
 type AuthSession = {
   expiresAt: string;
   user: AuthUser;
+};
+
+type SessionProfile = {
+  id: string;
+  name: string;
+  thumbnail?: string;
+  isAdmin: boolean;
 };
 
 type StoredDesktopSession = AuthSession & {
@@ -151,29 +157,38 @@ async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<
   throw new Error(`Nao foi possivel conectar na API web. Testei: ${failures.join(' | ')}. Verifique se a aplicacao web/API esta rodando ou configure DESKTOP_API_URL.`);
 }
 
-function syncLocalProfile(user: AuthUser) {
-  const existing = findProfileById(user.id);
-  const isAdmin = user.role === 'admin';
-
-  if (existing) {
-    return updateProfile(user.id, {
-      name: user.name,
-      is_admin: isAdmin
-    } as any);
+export async function requestWebApi<T>(pathName: string, init: RequestInit = {}): Promise<T> {
+  const session = loadStoredSession();
+  if (!session) {
+    throw new Error('Login necessario.');
   }
 
-  return createProfile({
+  const headers = {
+    Cookie: session.cookie,
+    ...(init.headers || {})
+  };
+
+  const { payload } = await apiRequest<T>(pathName, {
+    ...init,
+    headers
+  });
+  return payload;
+}
+
+function mapUserToSessionProfile(user: AuthUser): SessionProfile {
+  return {
     id: user.id,
     name: user.name,
-    is_admin: isAdmin
-  } as any);
+    thumbnail: user.avatarUrl || undefined,
+    isAdmin: user.role === 'admin'
+  };
 }
 
 function toDesktopSession(session: StoredDesktopSession) {
   return {
     expiresAt: session.expiresAt,
     user: session.user,
-    profile: syncLocalProfile(session.user)
+    profile: mapUserToSessionProfile(session.user)
   };
 }
 

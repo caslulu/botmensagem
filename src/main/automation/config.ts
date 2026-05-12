@@ -21,7 +21,12 @@ export const config = {
   BROWSER_VIEWPORT: { width: 1280, height: 800 },
   BROWSER_SLOW_MO: 50,
 
-  WHATSAPP_URL: 'https://web.whatsapp.com'
+  WHATSAPP_URL: 'https://web.whatsapp.com',
+
+  EVOLUTION_API_BASE_URL: process.env.EVOLUTION_API_BASE_URL || 'http://127.0.0.1:8080',
+  EVOLUTION_API_KEY: process.env.EVOLUTION_API_KEY || process.env.AUTHENTICATION_API_KEY || '',
+  EVOLUTION_CONNECT_TIMEOUT_MS: Number(process.env.EVOLUTION_CONNECT_TIMEOUT_MS || 180000),
+  EVOLUTION_POLL_INTERVAL_MS: Number(process.env.EVOLUTION_POLL_INTERVAL_MS || 5000)
 } as const;
 
 export type AutomationConfig = typeof config;

@@ -1,4 +1,4 @@
-const { ipcMain, app, shell } = require('electron');
+const { ipcMain, app } = require('electron');
 
 function registerAppHandlers(getMainWindow) {
   ipcMain.handle('app:recover-focus', async () => {
@@ -22,16 +22,6 @@ function registerAppHandlers(getMainWindow) {
       return { ok: true };
     } catch (e) {
       return { ok: false, error: e.message };
-    }
-  });
-
-  ipcMain.handle('app:open-web-app', async () => {
-    const url = process.env.WEB_APP_URL || 'http://localhost:8080';
-    try {
-      await shell.openExternal(url);
-      return { success: true, url };
-    } catch (e) {
-      return { success: false, url, error: e.message };
     }
   });
 }

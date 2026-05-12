@@ -18,8 +18,6 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
   const [status, setStatus] = useState('Aguardando');
   const [startLoading, setStartLoading] = useState(false);
   const [stopLoading, setStopLoading] = useState(false);
-  const [sendLimit, setSendLimit] = useState<number>(200);
-  const [limitLoading, setLimitLoading] = useState(false);
   const logRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -35,40 +33,35 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
   }, []);
 
   useEffect(() => {
+    if (!window.automation?.onStatus) return;
+    const handler = (payload: any) => {
+      if (payload?.status) {
+        setStatus(String(payload.status));
+      }
+      if (payload && typeof payload.startDisabled === 'boolean') {
+        setAutomationRunning(Boolean(payload.startDisabled));
+      }
+      if (payload?.needsLogin) {
+        setLogs((prev) => [
+          ...prev,
+          {
+            timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }),
+            message: 'PAUSA OPERACIONAL: Evolution API pronto. Faça login (QR/pairing) agora.'
+          }
+        ]);
+      }
+    };
+    window.automation.onStatus(handler);
+    return () => {
+      // API atual não expõe unsubscribe seletivo.
+    };
+  }, []);
+
+  useEffect(() => {
     if (logRef.current) {
       logRef.current.scrollTop = logRef.current.scrollHeight;
     }
   }, [logs]);
-
-  useEffect(() => {
-    if (profileId) {
-      loadSettings(profileId);
-    }
-  }, [profileId]);
-
-  const loadSettings = async (id: string) => {
-    try {
-      const settings = await window.profile?.getSettings(id);
-      if (settings?.send_limit) {
-        setSendLimit(settings.send_limit);
-      }
-    } catch (error) {
-      console.error('Erro ao carregar settings', error);
-    }
-  };
-
-  const handleSaveLimit = async () => {
-    if (!profileId) return;
-    setLimitLoading(true);
-    try {
-      await window.profile?.updateSendLimit(profileId, sendLimit);
-      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: `Configuração salva: ${sendLimit} grupos` }]);
-    } catch (error: any) {
-      setLogs((prev) => [...prev, { timestamp: new Date().toLocaleTimeString('pt-BR', { hour12: false }), message: `Erro ao salvar configuração: ${error.message}` }]);
-    } finally {
-      setLimitLoading(false);
-    }
-  };
 
   const handleStart = async () => {
     if (!profileId || !isAdmin || !window.automation) return;
@@ -113,10 +106,10 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
               WhatsApp automático
             </p>
             <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
-              Controle os envios do operador ativo
+              Controle os envios da conta logada
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
-              Ajuste o limite, acompanhe logs em tempo real e mantenha uma única mensagem ativa por perfil.
+              Acompanhe logs em tempo real e mantenha uma única mensagem ativa por usuário.
             </p>
           </div>
 
@@ -144,31 +137,9 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Controle da automação</p>
               <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">{status}</h3>
               <p className="text-sm leading-6 text-slate-500 dark:text-slate-400">
-                Inicie ou interrompa o fluxo manualmente e ajuste o alcance máximo antes de disparar.
+                Inicie ou interrompa o fluxo manualmente. Os envios serão feitos para todos os grupos arquivados.
               </p>
             </header>
-
-            <div className="surface-subtle">
-              <label className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Limite de envios (grupos)</label>
-              <div className="flex flex-col gap-3 sm:flex-row">
-                <input
-                  type="number"
-                  value={sendLimit}
-                  onChange={(event) => setSendLimit(Number(event.target.value))}
-                  className="input-control"
-                  min="1"
-                  max="1000"
-                />
-                <button
-                  onClick={handleSaveLimit}
-                  disabled={limitLoading || !profileId}
-                  className="btn-secondary whitespace-nowrap"
-                  type="button"
-                >
-                  {limitLoading ? 'Salvando…' : 'Salvar limite'}
-                </button>
-              </div>
-            </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
               <button
@@ -193,7 +164,7 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
               <p className="text-sm font-semibold text-slate-900 dark:text-white">Regras importantes</p>
               <ul className="mt-3 space-y-3 text-sm text-slate-500 dark:text-slate-400">
                 <li>Somente administradores podem iniciar a automação.</li>
-                <li>O limite de grupos fica salvo por operador.</li>
+                <li>Os envios consideram apenas grupos arquivados.</li>
                 <li>Os logs ajudam a entender falhas e confirmar execução.</li>
               </ul>
             </div>
@@ -217,7 +188,7 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400 dark:text-slate-500">Biblioteca do operador</p>
             <h3 className="mt-2 text-2xl font-semibold text-slate-900 dark:text-white">Mensagens salvas</h3>
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              Escolha a mensagem ativa, crie novas variações e mantenha o repertório organizado por perfil.
+              Escolha a mensagem ativa e mantenha o repertório organizado por usuário.
             </p>
           </header>
           <MessageManager profileId={profileId} />

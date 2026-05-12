@@ -2,10 +2,8 @@ const { autoUpdater } = require('electron-updater');
 const { app, dialog } = require('electron');
 const log = require('electron-log');
 const automationModule = require('./automation');
-const quoteAutomationModule = require('./automation/quotes');
 
 const automation = automationModule.default || automationModule;
-const quoteAutomation = quoteAutomationModule.default || quoteAutomationModule;
 
 // Configurar logs
 autoUpdater.logger = log;
@@ -37,14 +35,6 @@ async function prepareAppForInstall() {
       tasks.push(
         automation.shutdown().catch((error) => {
           log.error('Erro ao encerrar automação principal antes do update:', error);
-        })
-      );
-    }
-
-    if (quoteAutomation && typeof quoteAutomation.shutdown === 'function') {
-      tasks.push(
-        quoteAutomation.shutdown().catch((error) => {
-          log.error('Erro ao encerrar automações de cotação antes do update:', error);
         })
       );
     }

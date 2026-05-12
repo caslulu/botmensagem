@@ -16,6 +16,5 @@ export interface AutomationRunResult {
 
 export type ValidatedAutomationProfile = AutomationProfile & {
   message: string;
-  sessionDir: string;
   sendLimit: number;
 };

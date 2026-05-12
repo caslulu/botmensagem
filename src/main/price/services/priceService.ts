@@ -2,7 +2,6 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 import { parseCurrency, formatWithComma } from '../utils/number';
-import quotesRepository from '../repositories/quotesRepository';
 
 type CanvasModule = typeof import('@napi-rs/canvas');
 type CanvasInstance = any;
@@ -27,7 +26,6 @@ type GenerateOptions = {
   taxaCotacao?: number | string;
   apenasPrever?: boolean;
   campos: Record<string, any>;
-  cotacaoId?: string;
 };
 
 function ensureFolder(dirPath: string): void {
@@ -178,14 +176,6 @@ class PriceService {
     } catch (err) {
       console.warn('[PriceService] Falha ao registrar fonte:', (err as Error).message);
     }
-  }
-
-  getQuotes() {
-    return quotesRepository.list();
-  }
-
-  upsertQuote(quote: any) {
-    return quotesRepository.upsert(quote);
   }
 
   private _normalizeLanguage(lang: string | undefined): 'pt' | 'en' | 'es' {
@@ -342,7 +332,7 @@ class PriceService {
   }
 
   async generate(options: GenerateOptions) {
-    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos, cotacaoId } = options;
+    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos } = options;
 
     if (!formType || !['quitado', 'financiado'].includes(formType)) {
       throw new Error('Tipo de formulário inválido.');
@@ -391,23 +381,7 @@ class PriceService {
 
     const { outputPath, fileName } = await this._renderImage(templatePath, overlayEntries, formType, language);
 
-    const quotes = this.getQuotes();
-    const matchedQuote = cotacaoId ? quotes.find((item: any) => item.id === cotacaoId) : null;
-    if (!apenasPrever && cotacaoId) {
-      quotesRepository.upsert({
-        id: cotacaoId,
-        nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
-        documento: campos?.documento || matchedQuote?.documento || '',
-        payload: {
-          ...(matchedQuote?.payload || {}),
-          formType,
-          seguradora,
-          idioma: language,
-          taxaCotacao,
-          campos
-        }
-      });
-    }
+    void apenasPrever;
 
     return {
       success: true,
@@ -415,8 +389,7 @@ class PriceService {
       fileName,
       formType,
       language,
-      processed,
-      cotacao: matchedQuote || null
+      processed
     };
   }
 }

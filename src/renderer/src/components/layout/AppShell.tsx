@@ -167,7 +167,7 @@ const AppShell: React.FC<AppShellProps> = ({
                     </button>
 
                     <button type="button" className="btn-primary px-4" onClick={onResetProfile}>
-                      <span>Trocar perfil</span>
+                      <span>Sair</span>
                     </button>
                   </div>
                 </div>

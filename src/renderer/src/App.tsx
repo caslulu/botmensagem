@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WhatsAppAutomationView, HowToView, NewsView, RoadmapView, ConfigView, ProfileSettingsView, WebAppView } from './pages';
+import { WhatsAppAutomationView, HowToView, ConfigView, DesktopKanbanView, RtaView, PriceView } from './pages';
 import AppShell from './components/layout/AppShell';
 import type { ServiceModule } from './components/layout/ServiceNav';
 import { AdminPasswordModal } from './components/profile/AdminPasswordModal';
@@ -7,12 +7,6 @@ import { DesktopLogin } from './components/auth/DesktopLogin';
 import { DEFAULT_MODULES } from './app/modules';
 import { ThemeProvider, ProfileProvider, useTheme, useProfileContext } from './app/providers';
 import { useAdminGate } from './app/hooks/useAdminGate';
-
-declare global {
-  interface Window {
-    profile?: any;
-  }
-}
 
 function AppContent() {
   const {
@@ -45,9 +39,6 @@ function AppContent() {
   };
 
   const handleSelectModule = (id: string) => {
-    if (id === 'web') {
-      window.webApp?.open?.();
-    }
     selectModule(id);
   };
 
@@ -82,11 +73,10 @@ function AppContent() {
           isAdmin={selectedProfileHasAccess}
         />
       )}
-      {activeModuleId === 'web' && <WebAppView />}
+      {activeModuleId === 'kanban' && <DesktopKanbanView />}
+      {activeModuleId === 'rta' && <RtaView />}
+      {activeModuleId === 'preco' && <PriceView />}
       {activeModuleId === 'howto' && <HowToView />}
-      {activeModuleId === 'novidades' && <NewsView />}
-      {activeModuleId === 'roadmap' && <RoadmapView />}
-      {activeModuleId === 'perfil' && <ProfileSettingsView />}
       {activeModuleId === 'config' && <ConfigView />}
     </AppShell>
   ) : (

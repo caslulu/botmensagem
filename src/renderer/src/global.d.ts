@@ -26,15 +26,6 @@ interface MessagesAPI {
   select: (messageId: string) => AsyncResult<IpcResult<{ selected?: boolean }> | any>;
 }
 
-interface ProfileAPI {
-  getProfiles: () => AsyncResult<Profile[]>;
-  create: (profile: any) => AsyncResult<IpcResult>;
-  getSettings: (profileId: string) => AsyncResult<IpcResult<{ send_limit?: number }> | any>;
-  updateSendLimit: (profileId: string, sendLimit: number) => AsyncResult<IpcResult<{ updated?: boolean }> | any>;
-  update: (profileId: string, updates: any) => AsyncResult<IpcResult<{ updated?: boolean }> | any>;
-  delete: (profileId: string) => AsyncResult<IpcResult<{ success?: boolean }> | any>;
-}
-
 interface AuthUser {
   id: string;
   email: string;
@@ -70,36 +61,7 @@ interface RtaAPI {
 }
 
 interface PriceAPI {
-  listQuotes: () => AsyncResult<IpcResult<{ quotes?: any[] }> | any>;
-  getQuote: (id: string) => AsyncResult<IpcResult<{ quote?: any }> | any>;
-  deleteQuote: (id: string) => AsyncResult<IpcResult<{ deleted?: boolean }> | any>;
-  upsertQuote: (entry: any) => AsyncResult<IpcResult<{ quote?: any }> | any>;
   generate: (payload: any) => AsyncResult<IpcResult<{ result?: any }> | any>;
-}
-
-interface QuotesAPI {
-  runAutomation: (payload: any) => AsyncResult<IpcResult<{ result?: any }> | any>;
-}
-
-type RoadmapStatus = 'todo' | 'doing' | 'done';
-
-interface RoadmapItem {
-  id: string;
-  title: string;
-  description: string;
-  eta: string;
-  label: string;
-  risk?: string;
-  status: RoadmapStatus;
-  position: number;
-}
-
-interface RoadmapAPI {
-  list: () => AsyncResult<IpcResult<{ items?: RoadmapItem[] }> | any>;
-  create: (payload: Partial<RoadmapItem>) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
-  updateStatus: (payload: { id: string; status: RoadmapStatus }) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
-  update: (payload: Partial<RoadmapItem> & { id: string }) => AsyncResult<IpcResult<{ item?: RoadmapItem }> | any>;
-  delete: (payload: { id: string }) => AsyncResult<IpcResult<{ deleted?: boolean }> | any>;
 }
 
 interface FileSystemAPI {
@@ -117,12 +79,9 @@ declare global {
   interface Window {
     automation?: AutomationAPI;
     messages?: MessagesAPI;
-    profile?: ProfileAPI;
     services?: ServicesAPI;
     rta?: RtaAPI;
     price?: PriceAPI;
-    quotes?: QuotesAPI;
-    roadmap?: RoadmapAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
     desktopAuth?: DesktopAuthAPI;

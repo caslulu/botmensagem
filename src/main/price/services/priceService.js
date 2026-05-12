@@ -62,7 +62,6 @@ const { app } = require('electron');
 const PathResolverModule = require('../../automation/utils/path-resolver');
 const PathResolver = PathResolverModule.default || PathResolverModule;
 const { parseCurrency, formatWithComma } = require('../utils/number');
-const quotesRepository = require('../repositories/quotesRepository');
 
 function ensureFolder(dirPath) {
   if (!fs.existsSync(dirPath)) {
@@ -164,14 +163,6 @@ class PriceService {
     } catch (err) {
       console.warn('[PriceService] Falha ao registrar fonte:', err.message);
     }
-  }
-
-  getQuotes() {
-    return quotesRepository.list();
-  }
-
-  upsertQuote(quote) {
-    return quotesRepository.upsert(quote);
   }
 
   _normalizeLanguage(lang) {
@@ -338,8 +329,7 @@ class PriceService {
       idioma,
       taxaCotacao,
       apenasPrever,
-      campos,
-      cotacaoId
+      campos
     } = options;
 
     if (!formType || !['quitado', 'financiado'].includes(formType)) {
@@ -397,23 +387,7 @@ class PriceService {
 
     const { outputPath, fileName } = await this._renderImage(templatePath, overlayEntries, formType, language);
 
-    const quotes = this.getQuotes();
-    const matchedQuote = cotacaoId ? quotes.find((item) => item.id === cotacaoId) : null;
-    if (!apenasPrever && cotacaoId) {
-      quotesRepository.upsert({
-        id: cotacaoId,
-        nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
-        documento: campos?.documento || matchedQuote?.documento || '',
-        payload: {
-          ...(matchedQuote?.payload || {}),
-          formType,
-          seguradora,
-          idioma: language,
-          taxaCotacao,
-          campos
-        }
-      });
-    }
+    void apenasPrever;
 
     return {
       success: true,
@@ -421,8 +395,7 @@ class PriceService {
       fileName,
       formType,
       language,
-      processed,
-      cotacao: matchedQuote || null
+      processed
     };
   }
 }

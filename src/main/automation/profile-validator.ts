@@ -1,5 +1,5 @@
-import PathResolver from './utils/path-resolver';
 import type { AutomationProfile, ValidatedAutomationProfile } from './types';
+import PathResolver from './utils/path-resolver';
 
 class ProfileValidator {
   static validate(profile: Partial<AutomationProfile> & { id: string; name: string }): ValidatedAutomationProfile {
@@ -28,15 +28,10 @@ class ProfileValidator {
       throw new Error(`Mensagem do perfil ${profile.name} não pode ser vazia.`);
     }
 
-    const resolvedSessionDir =
-      PathResolver.resolve(profile.sessionDir ?? null) ||
-      PathResolver.getProfileSessionDir(profile.id);
-
     return {
       ...profile,
       imagePath: preparedImagePath,
       message: trimmedMessage,
-      sessionDir: resolvedSessionDir,
       sendLimit: profile.sendLimit || 200
     } as ValidatedAutomationProfile;
   }
