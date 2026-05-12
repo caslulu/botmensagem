@@ -4,8 +4,6 @@ import { app } from 'electron';
 import { parseCurrency, formatWithComma } from '../utils/number';
 import quotesRepository from '../repositories/quotesRepository';
 
-const trelloServiceModule = require('../../trello/services/trelloService'); // eslint-disable-line @typescript-eslint/no-var-requires
-
 type CanvasModule = typeof import('@napi-rs/canvas');
 type CanvasInstance = any;
 type CanvasRenderingContext2D = any;
@@ -30,38 +28,7 @@ type GenerateOptions = {
   apenasPrever?: boolean;
   campos: Record<string, any>;
   cotacaoId?: string;
-  trelloCardId?: string;
-  trelloCardUrl?: string;
 };
-
-type TrelloAttachmentInput = {
-  path: string;
-  name: string;
-};
-
-type TrelloServiceInstance = {
-  attachFile: (cardId: string, attachment: TrelloAttachmentInput) => Promise<any>;
-  createTrelloCard: (data: Record<string, unknown>) => Promise<any>;
-};
-
-function resolveTrelloService(): TrelloServiceInstance {
-  const candidates = [
-    trelloServiceModule,
-    trelloServiceModule?.default,
-    trelloServiceModule?.default?.default
-  ];
-  const service = candidates.find((candidate) => {
-    return candidate
-      && typeof candidate.attachFile === 'function'
-      && typeof candidate.createTrelloCard === 'function';
-  });
-
-  if (!service) {
-    throw new Error('Serviço do Trello indisponível para anexar a imagem.');
-  }
-
-  return service;
-}
 
 function ensureFolder(dirPath: string): void {
   if (!fs.existsSync(dirPath)) {
@@ -375,7 +342,7 @@ class PriceService {
   }
 
   async generate(options: GenerateOptions) {
-    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos, cotacaoId, trelloCardId } = options;
+    const { formType, seguradora, idioma, taxaCotacao, apenasPrever, campos, cotacaoId } = options;
 
     if (!formType || !['quitado', 'financiado'].includes(formType)) {
       throw new Error('Tipo de formulário inválido.');
@@ -426,54 +393,20 @@ class PriceService {
 
     const quotes = this.getQuotes();
     const matchedQuote = cotacaoId ? quotes.find((item: any) => item.id === cotacaoId) : null;
-    let targetTrelloCardId = matchedQuote?.trelloCardId || trelloCardId || '';
-    let targetTrelloCardUrl = matchedQuote?.trelloCardUrl || options.trelloCardUrl || '';
-
-    let trelloAttachment: any = null;
-    let trelloCard: any = null;
-    if (!apenasPrever) {
-      try {
-        const trelloService = resolveTrelloService();
-        const attachment = {
-          path: outputPath,
-          name: path.basename(outputPath)
-        };
-
-        if (targetTrelloCardId) {
-          trelloAttachment = await trelloService.attachFile(targetTrelloCardId, attachment);
-        } else {
-          trelloCard = await trelloService.createTrelloCard({
-            nome: campos?.nome || processed?.nome || 'Preço automático',
-            documento: campos?.documento || matchedQuote?.documento || '',
-            observacoes: `Imagem de preço gerada automaticamente (${seguradora}).`,
-            attachments: [attachment]
-          });
-          targetTrelloCardId = trelloCard?.id || '';
-          targetTrelloCardUrl = trelloCard?.url || '';
-          trelloAttachment = trelloCard?.attachments || null;
+    if (!apenasPrever && cotacaoId) {
+      quotesRepository.upsert({
+        id: cotacaoId,
+        nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
+        documento: campos?.documento || matchedQuote?.documento || '',
+        payload: {
+          ...(matchedQuote?.payload || {}),
+          formType,
+          seguradora,
+          idioma: language,
+          taxaCotacao,
+          campos
         }
-
-        if (targetTrelloCardId && cotacaoId) {
-          quotesRepository.upsert({
-            id: cotacaoId,
-            nome: campos?.nome || matchedQuote?.nome || processed?.nome || 'Sem nome',
-            documento: campos?.documento || matchedQuote?.documento || '',
-            payload: {
-              ...(matchedQuote?.payload || {}),
-              formType,
-              seguradora,
-              idioma: language,
-              taxaCotacao,
-              campos
-            },
-            trelloCardId: targetTrelloCardId,
-            trelloCardUrl: targetTrelloCardUrl
-          });
-        }
-      } catch (error) {
-        const message = (error as Error).message || 'falha desconhecida';
-        throw new Error(`Imagem gerada em ${outputPath}, mas não foi possível enviar para o Trello: ${message}`);
-      }
+      });
     }
 
     return {
@@ -483,12 +416,7 @@ class PriceService {
       formType,
       language,
       processed,
-      cotacao: matchedQuote || null,
-      attachedToTrello: Boolean(trelloAttachment),
-      trelloCardId: targetTrelloCardId || null,
-      trelloCardUrl: targetTrelloCardUrl || null,
-      trelloCard,
-      trelloAttachment
+      cotacao: matchedQuote || null
     };
   }
 }

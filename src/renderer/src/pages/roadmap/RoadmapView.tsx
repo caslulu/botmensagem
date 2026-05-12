@@ -324,7 +324,7 @@ export const RoadmapView: React.FC = () => {
         <div className="flex items-center justify-between gap-3 flex-wrap">
           <div>
             <h3 className="text-sm font-semibold text-slate-900 dark:text-white">Adicionar item ao kanban</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Abrir modal no estilo Trello para criar um card.</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Abrir modal para criar um card no quadro nativo.</p>
           </div>
           <button className="btn-primary" onClick={() => { setEditingItem(null); setNewItem(getInitialNewItem()); setShowCreateModal(true); }}>Novo card</button>
         </div>

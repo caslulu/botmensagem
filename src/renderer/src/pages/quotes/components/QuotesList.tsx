@@ -1,29 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import '../quotes-board.css';
-import { TrelloForm } from '../../trello/components/TrelloForm';
 
 type RawQuote = {
   id: string;
   nome?: string;
   documento?: string;
   payload?: Record<string, unknown>;
-  trelloCardId?: string;
-  trelloCardUrl?: string;
   createdAt?: string;
   updatedAt?: string;
 };
 
-type TrelloQueueCard = {
-  id: string;
-  name?: string;
-  desc?: string;
-  shortUrl?: string;
-  dateLastActivity?: string;
-  attachmentCount?: number;
-  coverUrl?: string;
-};
+type QuotePayload = Record<string, unknown>;
 
-type LocalQuote = {
+type QuoteItem = {
   id: string;
   nome: string;
   documento: string;
@@ -37,24 +26,10 @@ type LocalQuote = {
   taxaCotacao: string;
   data: string;
   updatedAt: string;
-  trelloCardId: string;
-  trelloCardUrl: string;
   hasPriceData: boolean;
   summary: string;
+  payload: QuotePayload;
 };
-
-type QuoteBoardItem = LocalQuote & {
-  localQuoteId: string;
-  source: 'trello-local' | 'trello' | 'local';
-  coverUrl: string;
-  attachmentCount: number;
-  description: string;
-  canRunAutomation: boolean;
-};
-
-type QuotePayload = Record<string, unknown>;
-
-const DEFAULT_QUEUE_LABEL = 'Fila configurada do Trello';
 
 const AUTOMATION_INSURERS = [
   { value: 'progressive', label: 'Progressive' },
@@ -63,12 +38,8 @@ const AUTOMATION_INSURERS = [
 
 function readString(...values: unknown[]): string {
   for (const value of values) {
-    if (typeof value === 'string' && value.trim()) {
-      return value.trim();
-    }
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      return String(value);
-    }
+    if (typeof value === 'string' && value.trim()) return value.trim();
+    if (typeof value === 'number' && Number.isFinite(value)) return String(value);
   }
   return '';
 }
@@ -77,11 +48,7 @@ function formatDate(dateValue?: string): string {
   if (!dateValue) return '';
   const parsed = new Date(dateValue);
   if (Number.isNaN(parsed.getTime())) return '';
-  return parsed.toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
+  return parsed.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
 function getPayloadFields(payload: QuotePayload): QuotePayload {
@@ -94,8 +61,11 @@ function getPayloadFields(payload: QuotePayload): QuotePayload {
   return {};
 }
 
-function hasTrelloLink(item: { trelloCardId?: string; trelloCardUrl?: string }): boolean {
-  return Boolean(readString(item.trelloCardId) && readString(item.trelloCardUrl));
+function buildSummary(item: { valorCompleto: string; valorBasico: string; valor: string }): string {
+  if (item.valorCompleto) return `Plano completo em ${item.valorCompleto}`;
+  if (item.valorBasico) return `Plano básico em ${item.valorBasico}`;
+  if (item.valor) return `Valor informado em ${item.valor}`;
+  return 'Cotação aguardando preenchimento da imagem.';
 }
 
 function normalizeAutomationInsurer(insurer: string): string {
@@ -104,165 +74,17 @@ function normalizeAutomationInsurer(insurer: string): string {
   return 'progressive';
 }
 
-function buildSummary(item: {
-  valorCompleto: string;
-  valorBasico: string;
-  valor: string;
-}): string {
-  if (item.valorCompleto) {
-    return `Plano completo em ${item.valorCompleto}`;
-  }
-  if (item.valorBasico) {
-    return `Plano básico em ${item.valorBasico}`;
-  }
-  if (item.valor) {
-    return `Valor informado em ${item.valor}`;
-  }
-  return 'Cotação aguardando preenchimento da imagem.';
-}
-
-function parseDescriptionLine(description: string, label: string): string {
-  if (!description) return '';
-  const match = description.match(new RegExp(`^${label}:\\s*(.+)$`, 'im'));
-  return match?.[1]?.trim() || '';
-}
-
-function parseIndentedLine(block: string, label: string): string {
-  if (!block) return '';
-  const match = block.match(new RegExp(`^\\s*${label}:\\s*(.+)$`, 'im'));
-  return match?.[1]?.trim() || '';
-}
-
-function parseAddressParts(address: string) {
-  const parts = address
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean);
-  const cityStateZip = parts[parts.length - 1] || '';
-  const cityStateMatch = cityStateZip.match(/^(.+?)\s+-\s+([A-Z]{2})(?:,\s*(.+))?$/i);
-  const fallbackZip = cityStateZip.match(/\b\d{5}(?:-\d{4})?\b/)?.[0] || '';
-
-  return {
-    endereco_rua: parts[0] || '',
-    endereco_apt: parts.find((part) => /^apt\s+/i.test(part))?.replace(/^apt\s+/i, '') || '',
-    endereco_cidade: cityStateMatch?.[1]?.trim() || '',
-    endereco_estado: cityStateMatch?.[2]?.trim().toUpperCase() || '',
-    endereco_zipcode: cityStateMatch?.[3]?.trim() || fallbackZip
-  };
-}
-
-function parseVehicleLabel(vehicleLabel: string): { ano: string; marca: string; modelo: string } {
-  const parts = vehicleLabel.split(/\s+/).filter(Boolean);
-  const hasYear = /^\d{4}$/.test(parts[0] || '');
-
-  if (!hasYear) {
-    return { ano: '', marca: '', modelo: vehicleLabel === '-' ? '' : vehicleLabel };
-  }
-
-  return {
-    ano: parts[0] || '',
-    marca: parts[1] || '',
-    modelo: parts.slice(2).join(' ')
-  };
-}
-
-function parseVehiclesFromDescription(description: string) {
-  const blocks = description.match(/🚗 Veículo \d+:[\s\S]*?(?=\n🚗 Veículo \d+:|\nDRIVERS ADICIONAIS:|\nINFORMAÇÕES DO CÔNJUGE:|\nOBSERVAÇÕES:|$)/g) || [];
-
-  return blocks
-    .map((block) => {
-      const vehicleLabel = parseIndentedLine(block, 'Veículo');
-      const parsedVehicle = parseVehicleLabel(vehicleLabel);
-
-      return {
-        ...parsedVehicle,
-        vin: parseIndentedLine(block, 'VIN'),
-        placa: parseIndentedLine(block, 'Placa'),
-        financiado: parseIndentedLine(block, 'Estado'),
-        tempo_com_veiculo: parseIndentedLine(block, 'Tempo com veículo')
-      };
-    })
-    .filter((vehicle) => vehicle.vin || vehicle.placa || vehicle.modelo);
-}
-
-function parseDriversFromDescription(description: string) {
-  const blocks = description.match(/👤 Driver \d+:[\s\S]*?(?=\n👤 Driver \d+:|\nINFORMAÇÕES DO CÔNJUGE:|\nOBSERVAÇÕES:|$)/g) || [];
-
-  return blocks
-    .map((block) => {
-      const documentLine = parseIndentedLine(block, 'Documento');
-      const documentMatch = documentLine.match(/^(.+?)(?:\s+\(([A-Z]{2})\))?$/i);
-
-      return {
-        nome: parseIndentedLine(block, 'Nome'),
-        documento: documentMatch?.[1]?.trim() || documentLine,
-        documento_estado: documentMatch?.[2]?.trim().toUpperCase() || '',
-        data_nascimento: parseIndentedLine(block, 'Data de Nascimento'),
-        parentesco: parseIndentedLine(block, 'Parentesco'),
-        genero: parseIndentedLine(block, 'Gênero')
-      };
-    })
-    .filter((driver) => driver.nome);
-}
-
-function buildPayloadFromTrelloCard(item: QuoteBoardItem): Record<string, unknown> {
-  const address = parseDescriptionLine(item.description, 'Endereço');
-  const spouseSection = item.description.match(/INFORMAÇÕES DO CÔNJUGE:\n([\s\S]*?)(?=\nOBSERVAÇÕES:|$)/i)?.[1] || '';
-  const observations = item.description.match(/OBSERVAÇÕES:\n([\s\S]*?)$/i)?.[1]?.trim() || '';
-
-  return {
-    nome: item.nome,
-    documento: item.documento || parseDescriptionLine(item.description, 'Documento'),
-    documento_estado: parseDescriptionLine(item.description, 'Estado do Documento'),
-    estado_civil: parseDescriptionLine(item.description, 'Estado Civil'),
-    genero: parseDescriptionLine(item.description, 'Gênero'),
-    endereco: address,
-    ...parseAddressParts(address),
-    data_nascimento: parseDescriptionLine(item.description, 'Data de Nascimento'),
-    tempo_de_seguro: parseDescriptionLine(item.description, 'Tempo de Seguro'),
-    tempo_no_endereco: parseDescriptionLine(item.description, 'Tempo no Endereço'),
-    email: parseDescriptionLine(item.description, 'Email'),
-    nome_conjuge: parseDescriptionLine(spouseSection, 'Nome'),
-    data_nascimento_conjuge: parseDescriptionLine(spouseSection, 'Data de Nascimento'),
-    documento_conjuge: parseDescriptionLine(spouseSection, 'Documento'),
-    documento_estado_conjuge: parseDescriptionLine(spouseSection, 'Estado do Documento'),
-    veiculos: parseVehiclesFromDescription(item.description),
-    pessoas: parseDriversFromDescription(item.description),
-    observacoes: observations,
-    trelloImported: true,
-    trelloDescription: item.description
-  };
-}
-
-function mapLocalQuote(item: RawQuote): LocalQuote {
+function mapLocalQuote(item: RawQuote): QuoteItem {
   const payload = (item.payload || {}) as QuotePayload;
   const fields = getPayloadFields(payload);
   const processed = payload.processed && typeof payload.processed === 'object'
     ? (payload.processed as QuotePayload)
     : {};
 
-  const seguradora = readString(
-    payload.seguradora,
-    payload.insurance_company,
-    payload.insurer,
-    fields.seguradora,
-    fields.insurance_company,
-    fields.insurer
-  );
+  const seguradora = readString(payload.seguradora, payload.insurance_company, payload.insurer, fields.seguradora, fields.insurance_company, fields.insurer);
   const valorBasico = readString(payload.valor_total_basico, fields.valor_total_basico, processed.valor_total_basico);
-  const valorCompleto = readString(
-    payload.valor_total_completo,
-    fields.valor_total_completo,
-    processed.valor_total_completo
-  );
-  const mensal = readString(
-    payload.mensal_completo,
-    fields.mensal_completo,
-    payload.mensal_basico,
-    fields.mensal_basico,
-    processed.mensal_completo,
-    processed.mensal_basico
-  );
+  const valorCompleto = readString(payload.valor_total_completo, fields.valor_total_completo, processed.valor_total_completo);
+  const mensal = readString(payload.mensal_completo, fields.mensal_completo, payload.mensal_basico, fields.mensal_basico, processed.mensal_completo, processed.mensal_basico);
   const idioma = readString(payload.idioma, fields.idioma).toUpperCase() || 'PT';
   const taxaCotacao = readString(payload.taxaCotacao, fields.taxaCotacao) || '320';
   const formType = readString(payload.formType, fields.formType) === 'financiado' ? 'financiado' : 'quitado';
@@ -270,7 +92,7 @@ function mapLocalQuote(item: RawQuote): LocalQuote {
   const documento = readString(item.documento, payload.documento, fields.documento);
   const valor = valorCompleto || valorBasico;
 
-  const localQuote: LocalQuote = {
+  const quote: QuoteItem = {
     id: item.id,
     nome,
     documento,
@@ -284,72 +106,13 @@ function mapLocalQuote(item: RawQuote): LocalQuote {
     taxaCotacao,
     data: formatDate(item.createdAt),
     updatedAt: formatDate(item.updatedAt),
-    trelloCardId: readString(item.trelloCardId),
-    trelloCardUrl: readString(item.trelloCardUrl),
     hasPriceData: Boolean(valor || mensal),
-    summary: ''
+    summary: '',
+    payload
   };
 
-  localQuote.summary = buildSummary(localQuote);
-  return localQuote;
-}
-
-function mapLocalOnlyQuote(item: LocalQuote): QuoteBoardItem {
-  return {
-    ...item,
-    localQuoteId: item.id,
-    source: 'local',
-    coverUrl: '',
-    attachmentCount: 0,
-    description: '',
-    canRunAutomation: true
-  };
-}
-
-function mergeTrelloCard(card: TrelloQueueCard, localQuote?: LocalQuote): QuoteBoardItem {
-  const trelloName = readString(card.name);
-  const trelloDescription = readString(card.desc);
-  const descriptionDocument = parseDescriptionLine(trelloDescription, 'Documento');
-  const local = localQuote || null;
-
-  const mergedBase: LocalQuote = local || {
-    id: card.id,
-    nome: trelloName || 'Card sem nome',
-    documento: descriptionDocument,
-    seguradora: 'Seguradora pendente',
-    valor: '',
-    valorBasico: '',
-    valorCompleto: '',
-    mensal: '',
-    idioma: 'PT',
-    formType: 'quitado',
-    taxaCotacao: '320',
-    data: formatDate(card.dateLastActivity),
-    updatedAt: formatDate(card.dateLastActivity),
-    trelloCardId: card.id,
-    trelloCardUrl: readString(card.shortUrl),
-    hasPriceData: false,
-    summary: ''
-  };
-
-  const merged: QuoteBoardItem = {
-    ...mergedBase,
-    nome: trelloName || mergedBase.nome,
-    documento: mergedBase.documento || descriptionDocument,
-    data: mergedBase.data || formatDate(card.dateLastActivity),
-    updatedAt: formatDate(card.dateLastActivity) || mergedBase.updatedAt,
-    trelloCardId: card.id,
-    trelloCardUrl: readString(card.shortUrl) || mergedBase.trelloCardUrl,
-    summary: buildSummary(mergedBase),
-    localQuoteId: local?.id || '',
-    source: local ? 'trello-local' : 'trello',
-    coverUrl: readString(card.coverUrl),
-    attachmentCount: Number(card.attachmentCount || 0),
-    description: trelloDescription,
-    canRunAutomation: Boolean(local?.id)
-  };
-
-  return merged;
+  quote.summary = buildSummary(quote);
+  return quote;
 }
 
 function getInitials(name: string): string {
@@ -370,126 +133,49 @@ function getCardTone(name: string): string {
   return palette[total % palette.length];
 }
 
-function getCardSourceLabel(source: QuoteBoardItem['source']): string {
-  if (source === 'trello-local') return 'Trello + App';
-  if (source === 'trello') return 'Só no Trello';
-  return 'Só no app';
-}
-
-function getPreviewStyle(coverUrl: string, fallbackName: string): React.CSSProperties | undefined {
-  if (coverUrl) {
-    return {
-      backgroundImage: `linear-gradient(180deg, rgba(8,12,5,0.1), rgba(8,12,5,0.85)), url("${coverUrl}")`
-    };
-  }
-
-  const hue = Array.from(fallbackName).reduce((sum, char) => sum + char.charCodeAt(0), 0) % 360;
-  return {
-    backgroundImage: `linear-gradient(135deg, hsla(${hue}, 80%, 58%, 0.25), rgba(7, 13, 9, 0.08) 55%, rgba(7, 13, 9, 0.85))`
-  };
-}
-
 export const QuotesList: React.FC = () => {
-  const [quotes, setQuotes] = useState<QuoteBoardItem[]>([]);
+  const [quotes, setQuotes] = useState<QuoteItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [syncWarning, setSyncWarning] = useState<string | null>(null);
-  const [selected, setSelected] = useState<QuoteBoardItem | null>(null);
+  const [selected, setSelected] = useState<QuoteItem | null>(null);
   const [runLoading, setRunLoading] = useState(false);
-  const [importLoading, setImportLoading] = useState(false);
-  const [runError, setRunError] = useState<string | null>(null);
   const [selectedInsurer, setSelectedInsurer] = useState<string>('progressive');
-  const [boardLabel, setBoardLabel] = useState<string>(DEFAULT_QUEUE_LABEL);
-  const [showCreateForm, setShowCreateForm] = useState(false);
+
+  const [showCreate, setShowCreate] = useState(false);
+  const [newNome, setNewNome] = useState('');
+  const [newDocumento, setNewDocumento] = useState('');
 
   const fetchQuotes = async () => {
     setLoading(true);
     setError(null);
-    setRunError(null);
-    setSyncWarning(null);
-
     try {
-      const [localResult, trelloResult] = await Promise.allSettled([
-        window.price?.listQuotes(),
-        window.trello?.getListCards?.({})
-      ]);
-
-      const localResponse = localResult.status === 'fulfilled' ? localResult.value : null;
-      const localList = Array.isArray(localResponse)
+      const localResponse = await window.price?.listQuotes?.();
+      const localList: RawQuote[] = Array.isArray(localResponse)
         ? localResponse
         : localResponse && typeof localResponse === 'object' && 'success' in localResponse
           ? (localResponse.success && Array.isArray((localResponse as { quotes?: RawQuote[] }).quotes)
-              ? (localResponse as { quotes?: RawQuote[] }).quotes
+              ? ((localResponse as { quotes?: RawQuote[] }).quotes || [])
               : [])
           : (localResponse && Array.isArray((localResponse as { quotes?: RawQuote[] }).quotes)
-              ? (localResponse as { quotes?: RawQuote[] }).quotes
+              ? ((localResponse as { quotes?: RawQuote[] }).quotes || [])
               : []);
 
-      const mappedLocals = localList.map((item) => mapLocalQuote(item as RawQuote));
-      const localByTrelloId = new Map<string, LocalQuote>();
-      mappedLocals.forEach((quote) => {
-        if (hasTrelloLink(quote)) {
-          localByTrelloId.set(quote.trelloCardId, quote);
-        }
-        localByTrelloId.set(quote.id, quote);
-      });
-
-      let mergedQuotes: QuoteBoardItem[] = mappedLocals.map(mapLocalOnlyQuote);
-
-      if (trelloResult.status === 'fulfilled') {
-        const trelloResponse = trelloResult.value;
-        const success = Boolean(trelloResponse && typeof trelloResponse === 'object' && 'success' in trelloResponse ? trelloResponse.success : true);
-        const trelloCards = success && trelloResponse && typeof trelloResponse === 'object' && Array.isArray((trelloResponse as { cards?: TrelloQueueCard[] }).cards)
-          ? (trelloResponse as { cards?: TrelloQueueCard[] }).cards || []
-          : [];
-        const listName = trelloResponse && typeof trelloResponse === 'object' && 'listName' in trelloResponse
-          ? readString((trelloResponse as { listName?: string }).listName)
-          : '';
-
-        if (listName) {
-          setBoardLabel(listName);
-        }
-
-        if (!success) {
-          setSyncWarning((trelloResponse as { error?: string })?.error || 'Não foi possível sincronizar a lista do Trello.');
-        }
-
-        if (trelloCards.length) {
-          const usedLocals = new Set<string>();
-          mergedQuotes = trelloCards.map((card) => {
-            const local = localByTrelloId.get(card.id);
-            if (local) {
-              usedLocals.add(local.id);
-            }
-            return mergeTrelloCard(card, local);
-          });
-
-          const localOnly = mappedLocals
-            .filter((quote) => !usedLocals.has(quote.id) && !hasTrelloLink(quote))
-            .map(mapLocalOnlyQuote);
-
-          mergedQuotes = [...mergedQuotes, ...localOnly];
-        }
-      } else {
-        setSyncWarning('A lista do Trello não respondeu. Mostrando apenas o banco local.');
-      }
-
-      setQuotes(mergedQuotes);
+      const mapped = localList.map(mapLocalQuote);
+      setQuotes(mapped);
       setSelected((prev) => {
-        if (!mergedQuotes.length) return null;
-        if (!prev) return mergedQuotes[0];
-        return mergedQuotes.find((quote) => quote.id === prev.id) || mergedQuotes[0];
+        if (!mapped.length) return null;
+        if (!prev) return mapped[0];
+        return mapped.find((quote) => quote.id === prev.id) || mapped[0];
       });
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Erro ao carregar cotações.';
-      setError(message);
+      setError(e instanceof Error ? e.message : 'Erro ao carregar cotações.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchQuotes();
+    void fetchQuotes();
   }, []);
 
   useEffect(() => {
@@ -497,69 +183,33 @@ export const QuotesList: React.FC = () => {
     setSelectedInsurer(normalizeAutomationInsurer(selected.seguradora));
   }, [selected]);
 
-  useEffect(() => {
-    if (!showCreateForm) return undefined;
+  const totalWithPrice = useMemo(() => quotes.filter((item) => item.hasPriceData).length, [quotes]);
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [showCreateForm]);
-
-  const handleDelete = async (item: QuoteBoardItem) => {
+  const handleDelete = async (item: QuoteItem) => {
     setLoading(true);
     setError(null);
-
     try {
-      if (hasTrelloLink(item) && window.trello?.deleteCard) {
-        const trelloResponse = await window.trello.deleteCard(item.trelloCardId);
-        const trelloDeleted = trelloResponse && typeof trelloResponse === 'object'
-          ? ('deleted' in trelloResponse ? Boolean((trelloResponse as { deleted?: boolean }).deleted) : ('success' in trelloResponse ? Boolean((trelloResponse as { success?: boolean }).success) : true))
-          : true;
-
-        if (!trelloDeleted) {
-          throw new Error((trelloResponse as { error?: string })?.error || 'Erro ao excluir card no Trello.');
-        }
+      const response = await window.price?.deleteQuote?.(item.id);
+      const ok = response && typeof response === 'object'
+        ? ('deleted' in response ? Boolean((response as { deleted?: boolean }).deleted) : ('success' in response ? Boolean((response as { success?: boolean }).success) : true))
+        : true;
+      if (!ok) {
+        throw new Error((response as { error?: string })?.error || 'Erro ao excluir cotação.');
       }
-
-      if (item.localQuoteId && window.price?.deleteQuote) {
-        const localResponse = await window.price.deleteQuote(item.localQuoteId);
-        const localDeleted = localResponse && typeof localResponse === 'object'
-          ? ('deleted' in localResponse ? Boolean((localResponse as { deleted?: boolean }).deleted) : ('success' in localResponse ? Boolean((localResponse as { success?: boolean }).success) : true))
-          : true;
-
-        if (!localDeleted) {
-          throw new Error((localResponse as { error?: string })?.error || 'Erro ao excluir cotação local.');
-        }
-      }
-
       await fetchQuotes();
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Erro ao excluir cotação.';
-      setError(message);
+      setError(e instanceof Error ? e.message : 'Erro ao excluir cotação.');
       setLoading(false);
     }
   };
 
-  const handleRunAutomation = async (item: QuoteBoardItem) => {
+  const handleRunAutomation = async (item: QuoteItem) => {
     setRunLoading(true);
-    setRunError(null);
     setError(null);
-
     try {
-      if (!item.canRunAutomation || !item.localQuoteId) {
-        throw new Error('Esse card ainda não tem espelho local no app para iniciar a automação.');
-      }
-      if (!window.quotes?.runAutomation) {
-        throw new Error('API de automação não disponível.');
-      }
-
-      const insurer = String(selectedInsurer || 'progressive').toLowerCase();
-      const res = await window.quotes.runAutomation({
-        quoteId: item.localQuoteId,
-        insurer,
+      const res = await window.quotes?.runAutomation?.({
+        quoteId: item.id,
+        insurer: String(selectedInsurer || 'progressive').toLowerCase(),
         headless: false
       });
 
@@ -567,48 +217,44 @@ export const QuotesList: React.FC = () => {
         throw new Error((res as { error?: string }).error || 'Erro ao iniciar automação.');
       }
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Erro ao iniciar automação.';
-      setRunError(message);
-      setError(message);
+      setError(e instanceof Error ? e.message : 'Erro ao iniciar automação.');
     } finally {
       setRunLoading(false);
     }
   };
 
-  const handleImportFromTrello = async (item: QuoteBoardItem) => {
-    if (!window.price?.upsertQuote) {
-      setError('API para salvar cotação local não disponível.');
-      return;
-    }
+  const handleCreate = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const nome = newNome.trim();
+    if (!nome) return;
 
-    setImportLoading(true);
+    setLoading(true);
     setError(null);
-
     try {
-      const payload = buildPayloadFromTrelloCard(item);
-      const response = await window.price.upsertQuote({
-        id: item.trelloCardId || item.id,
-        nome: item.nome,
-        documento: readString(payload.documento),
-        payload,
-        trelloCardId: item.trelloCardId,
-        trelloCardUrl: item.trelloCardUrl
-      });
-
-      const saved = response && typeof response === 'object' && 'success' in response
-        ? Boolean(response.success)
-        : true;
-
-      if (!saved) {
-        throw new Error((response as { error?: string })?.error || 'Erro ao adicionar card ao app.');
+      const id = `${Date.now()}`;
+      const payload = {
+        id,
+        nome,
+        documento: newDocumento.trim(),
+        payload: {
+          nome,
+          documento: newDocumento.trim(),
+          formType: 'quitado',
+          taxaCotacao: '320'
+        }
+      };
+      const res = await window.price?.upsertQuote?.(payload);
+      if (res && typeof res === 'object' && 'success' in res && !res.success) {
+        throw new Error((res as { error?: string }).error || 'Erro ao criar cotação.');
       }
-
+      setShowCreate(false);
+      setNewNome('');
+      setNewDocumento('');
       await fetchQuotes();
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Erro ao adicionar card ao app.';
-      setError(message);
+      setError(e instanceof Error ? e.message : 'Erro ao criar cotação.');
     } finally {
-      setImportLoading(false);
+      setLoading(false);
     }
   };
 
@@ -619,10 +265,8 @@ export const QuotesList: React.FC = () => {
         <div className="quotes-board-header">
           <div>
             <p className="quotes-board-kicker">Módulo de cotações</p>
-            <h2 className="quotes-board-title">Cotações</h2>
-            <p className="quotes-board-intro">
-              Fila sincronizada com <strong>{boardLabel}</strong> e espelho local do app.
-            </p>
+            <h2 className="quotes-board-title">Cotações locais</h2>
+            <p className="quotes-board-intro">Base nativa da aplicação, sem integração externa.</p>
           </div>
           <button className="quotes-board-refresh" onClick={fetchQuotes} disabled={loading}>
             {loading ? 'Atualizando...' : 'Atualizar'}
@@ -631,24 +275,22 @@ export const QuotesList: React.FC = () => {
 
         <div className="quotes-board-meta">
           <span>{quotes.length} card{quotes.length === 1 ? '' : 's'}</span>
-          <span>Origem: Trello configurado</span>
+          <span>{totalWithPrice} com preço gerado</span>
         </div>
 
         {error ? <div className="quotes-board-alert quotes-board-alert--error">{error}</div> : null}
-        {syncWarning ? <div className="quotes-board-alert quotes-board-alert--warning">{syncWarning}</div> : null}
 
         {!loading && !quotes.length ? (
           <div className="quotes-board-empty">
             <span className="quotes-board-empty__icon">+</span>
-            <p>Nenhum card encontrado nessa fila.</p>
-            <span>Quando entrar uma cotação nova no Trello ou no app, ela aparece aqui.</span>
+            <p>Nenhuma cotação local encontrada.</p>
+            <span>Crie uma nova cotação para iniciar o fluxo.</span>
           </div>
         ) : null}
 
         <div className="quotes-board-list">
           {quotes.map((quote) => {
             const isSelected = selected?.id === quote.id;
-
             return (
               <button
                 key={quote.id}
@@ -665,43 +307,27 @@ export const QuotesList: React.FC = () => {
                   <div className="quotes-board-card__price">{quote.valor || 'Pendente'}</div>
                 </div>
 
-                <div
-                  className={`quotes-board-card__preview bg-gradient-to-br ${getCardTone(quote.nome)} ${quote.coverUrl ? 'has-cover' : ''}`}
-                  style={getPreviewStyle(quote.coverUrl, quote.nome)}
-                >
+                <div className={`quotes-board-card__preview bg-gradient-to-br ${getCardTone(quote.nome)}`}>
                   <div className="quotes-board-card__preview-chip">{quote.formType === 'financiado' ? 'Full' : 'Basic + Full'}</div>
                   <div className="quotes-board-card__preview-grid">
-                    <div>
-                      <span>Idioma</span>
-                      <strong>{quote.idioma}</strong>
-                    </div>
-                    <div>
-                      <span>Taxa</span>
-                      <strong>${quote.taxaCotacao}</strong>
-                    </div>
-                    <div>
-                      <span>Anexos</span>
-                      <strong>{quote.attachmentCount}</strong>
-                    </div>
+                    <div><span>Idioma</span><strong>{quote.idioma}</strong></div>
+                    <div><span>Taxa</span><strong>${quote.taxaCotacao}</strong></div>
+                    <div><span>Status</span><strong>{quote.hasPriceData ? 'OK' : 'Pendente'}</strong></div>
                   </div>
                 </div>
 
                 <div className="quotes-board-card__footer">
                   <span>{quote.data || 'Sem data'}</span>
-                  <span>{getCardSourceLabel(quote.source)}</span>
+                  <span>Local</span>
                 </div>
               </button>
             );
           })}
         </div>
 
-        <button
-          type="button"
-          className="quotes-board-add-card"
-          onClick={() => setShowCreateForm(true)}
-        >
+        <button type="button" className="quotes-board-add-card" onClick={() => setShowCreate(true)}>
           <span>+</span>
-          <span>Adicionar um card</span>
+          <span>Adicionar cotação local</span>
         </button>
       </section>
 
@@ -715,20 +341,17 @@ export const QuotesList: React.FC = () => {
               </div>
               <div className="quotes-board-panel__status">
                 <span className={`quotes-board-dot ${selected.hasPriceData ? 'is-ready' : ''}`} />
-                {selected.canRunAutomation ? 'Pronta para rodar' : 'Só visualização'}
+                {selected.hasPriceData ? 'Com dados de preço' : 'Aguardando preço'}
               </div>
             </div>
 
             <div className="quotes-preview-stage">
               <div className="quotes-preview-stage__toolbar">
-                <span className="quotes-preview-stage__pill">{boardLabel.toLowerCase()}</span>
+                <span className="quotes-preview-stage__pill">kanban nativo</span>
                 <span className="quotes-preview-stage__meta">{selected.seguradora}</span>
               </div>
 
-              <div
-                className={`quotes-preview-screen ${selected.coverUrl ? 'has-cover' : ''}`}
-                style={getPreviewStyle(selected.coverUrl, selected.nome)}
-              >
+              <div className="quotes-preview-screen">
                 <div className="quotes-preview-screen__brand">
                   <div className="quotes-preview-screen__badge">{getInitials(selected.nome)}</div>
                   <div>
@@ -776,118 +399,58 @@ export const QuotesList: React.FC = () => {
                   onChange={(event) => setSelectedInsurer(event.target.value)}
                 >
                   {AUTOMATION_INSURERS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
+                    <option key={option.value} value={option.value}>{option.label}</option>
                   ))}
                 </select>
               </div>
 
               <div className="quotes-board-actions__buttons">
-                {selected.source === 'trello' ? (
-                  <button
-                    className="quotes-board-success"
-                    onClick={() => handleImportFromTrello(selected)}
-                    disabled={loading || runLoading || importLoading}
-                  >
-                    {importLoading ? 'Adicionando...' : 'Add ao app'}
-                  </button>
-                ) : null}
                 <button
                   className="quotes-board-primary"
                   onClick={() => handleRunAutomation(selected)}
-                  disabled={loading || runLoading || importLoading || !selected.canRunAutomation}
+                  disabled={loading || runLoading}
                 >
                   {runLoading ? 'Abrindo automação...' : 'Iniciar cotação'}
                 </button>
                 <button
                   className="quotes-board-danger"
                   onClick={() => handleDelete(selected)}
-                  disabled={loading || runLoading || importLoading}
+                  disabled={loading || runLoading}
                 >
                   Excluir card
                 </button>
               </div>
             </div>
-
-            <div className="quotes-board-details">
-              <div>
-                <span>Tipo</span>
-                <strong>{selected.formType === 'financiado' ? 'Financiado' : 'Quitado'}</strong>
-              </div>
-              <div>
-                <span>Idioma</span>
-                <strong>{selected.idioma}</strong>
-              </div>
-              <div>
-                <span>Taxa</span>
-                <strong>${selected.taxaCotacao}</strong>
-              </div>
-              <div>
-                <span>Origem</span>
-                <strong>{getCardSourceLabel(selected.source)}</strong>
-              </div>
-            </div>
-
-            {selected.description ? (
-              <div className="quotes-board-description">
-                <h4>Descrição do card</h4>
-                <p>{selected.description}</p>
-              </div>
-            ) : null}
           </>
         ) : (
           <div className="quotes-board-empty quotes-board-empty--panel">
             <span className="quotes-board-empty__icon">◌</span>
             <p>Selecione uma cotação para ver o preview.</p>
-            <span>Essa área já está preparada para ler a fila real do Trello.</span>
+            <span>Fluxo totalmente local e integrado ao Kanban nativo.</span>
           </div>
         )}
       </section>
 
-      {showCreateForm ? (
-        <div
-          className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm"
-          onClick={() => setShowCreateForm(false)}
-        >
-          <div
-            className="flex max-h-[84vh] w-full max-w-4xl flex-col overflow-hidden rounded-[2rem] border border-white/10 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 bg-slate-50/90 px-6 py-5 dark:border-slate-800 dark:bg-slate-900/90">
-              <div className="min-w-0">
-                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-slate-400 dark:text-slate-500">
-                  Nova cotação
-                </p>
-                <h3 className="mt-1 text-2xl font-semibold text-slate-800 dark:text-white">
-                  Criar card no Trello
-                </h3>
-                <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                  Preencha os dados da cotação em uma janela centralizada, sem apertar o board.
-                </p>
-              </div>
-              <button
-                type="button"
-                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-colors hover:border-slate-300 hover:text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
-                onClick={() => setShowCreateForm(false)}
-                aria-label="Fechar modal de criação"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 6 6 18" />
-                  <path d="m6 6 12 12" />
-                </svg>
-              </button>
+      {showCreate ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/70 p-4 backdrop-blur-sm" onClick={() => setShowCreate(false)}>
+          <form className="w-full max-w-lg rounded-3xl border border-white/10 bg-white p-6 shadow-2xl dark:border-slate-800 dark:bg-slate-950" onClick={(e) => e.stopPropagation()} onSubmit={handleCreate}>
+            <h3 className="text-xl font-semibold text-slate-900 dark:text-white">Nova cotação local</h3>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Crie um card base para trabalhar no Kanban nativo.</p>
+            <div className="mt-4 space-y-3">
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Nome</span>
+                <input className="input-control" value={newNome} onChange={(e) => setNewNome(e.target.value)} required />
+              </label>
+              <label className="block">
+                <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Documento</span>
+                <input className="input-control" value={newDocumento} onChange={(e) => setNewDocumento(e.target.value)} />
+              </label>
             </div>
-
-            <div className="overflow-y-auto px-5 py-5 sm:px-6 sm:py-6">
-              <TrelloForm
-                onSuccess={() => {
-                  setShowCreateForm(false);
-                  fetchQuotes();
-                }}
-              />
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" className="btn-secondary px-4" onClick={() => setShowCreate(false)} disabled={loading}>Cancelar</button>
+              <button type="submit" className="btn-primary px-5" disabled={loading}>{loading ? 'Salvando...' : 'Criar'}</button>
             </div>
-          </div>
+          </form>
         </div>
       ) : null}
     </div>

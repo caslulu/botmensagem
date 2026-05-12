@@ -5,13 +5,12 @@ import { registerFileSystemBridge } from './bridges/file-system';
 import { registerProfileBridge } from './bridges/profile';
 import { registerServicesBridge } from './bridges/services';
 import { registerRtaBridge } from './bridges/rta';
-import { registerTrelloBridge } from './bridges/trello';
 import { registerPriceBridge } from './bridges/price';
 import { registerQuotesBridge } from './bridges/quotes';
 import { registerFilesBridge } from './bridges/files';
 import { registerRoadmapBridge } from './bridges/roadmap';
-import { registerWebAppBridge } from './bridges/web-app';
 import { registerAuthBridge } from './bridges/auth';
+import { registerWebApiBridge } from './bridges/web-api';
 
 type BridgeRegistrar = (deps: {
   contextBridge: typeof contextBridge;
@@ -25,13 +24,12 @@ const bridges: BridgeRegistrar[] = [
   registerProfileBridge,
   registerServicesBridge,
   registerRtaBridge,
-  registerTrelloBridge,
   registerPriceBridge,
   registerQuotesBridge,
   registerFilesBridge,
   registerRoadmapBridge,
-  registerWebAppBridge,
-  registerAuthBridge
+  registerAuthBridge,
+  registerWebApiBridge
 ];
 
 bridges.forEach((registerBridge) => {

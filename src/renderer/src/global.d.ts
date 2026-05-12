@@ -32,6 +32,7 @@ interface ProfileAPI {
   getSettings: (profileId: string) => AsyncResult<IpcResult<{ send_limit?: number }> | any>;
   updateSendLimit: (profileId: string, sendLimit: number) => AsyncResult<IpcResult<{ updated?: boolean }> | any>;
   update: (profileId: string, updates: any) => AsyncResult<IpcResult<{ updated?: boolean }> | any>;
+  delete: (profileId: string) => AsyncResult<IpcResult<{ success?: boolean }> | any>;
 }
 
 interface AuthUser {
@@ -56,20 +57,16 @@ interface DesktopAuthAPI {
   validateAdmin: (credentials: { email: string; password: string }) => AsyncResult<IpcResult<{ session?: DesktopAuthSession }>>;
 }
 
+interface DesktopWebApi {
+  request: (payload: { method?: string; path: string; body?: unknown }) => AsyncResult<IpcResult<{ data?: any }>>;
+}
+
 interface ServicesAPI {
   list: () => AsyncResult<any>;
 }
 
 interface RtaAPI {
   generate: (data: any) => AsyncResult<any>;
-}
-
-interface TrelloAPI {
-  authCheck: () => AsyncResult<IpcResult<{ authenticated?: boolean }>>;
-  createCard: (payload: any) => AsyncResult<IpcResult<{ card?: any }>>;
-  decodeVin: (vin: string) => AsyncResult<IpcResult<{ data?: { year?: string; make?: string; model?: string } | null }>>;
-  getListCards: (payload: any) => AsyncResult<IpcResult<{ listId?: string; listName?: string; cards?: any[] }>>;
-  deleteCard: (cardId: string) => AsyncResult<IpcResult<{ deleted?: boolean }>>;
 }
 
 interface PriceAPI {
@@ -116,10 +113,6 @@ interface FilesAPI {
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
 }
 
-interface WebAppAPI {
-  open: () => AsyncResult<IpcResult<{ url?: string }>>;
-}
-
 declare global {
   interface Window {
     automation?: AutomationAPI;
@@ -127,14 +120,13 @@ declare global {
     profile?: ProfileAPI;
     services?: ServicesAPI;
     rta?: RtaAPI;
-    trello?: TrelloAPI;
     price?: PriceAPI;
     quotes?: QuotesAPI;
     roadmap?: RoadmapAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
-    webApp?: WebAppAPI;
     desktopAuth?: DesktopAuthAPI;
+    desktopWebApi?: DesktopWebApi;
     lastGeneratedPricePath?: string;
   }
 }

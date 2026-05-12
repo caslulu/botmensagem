@@ -39,25 +39,7 @@ class QuotesRepository {
       id,
       nome: entry.nome || entry.name || 'Sem nome',
       documento: entry.documento || entry.document || '',
-      payload: entry.payload || entry.data || {},
-      trelloCardId: entry.trelloCardId || entry.trello_card_id || entry.cardId || '',
-      trelloCardUrl: entry.trelloCardUrl || entry.trello_card_url || entry.cardUrl || ''
-    });
-  }
-
-  saveFromTrello(formData, card) {
-    if (!card || !card.id) {
-      throw new Error('Card do Trello inválido para salvar a cotação.');
-    }
-
-    const payload = this._sanitizePayload(formData);
-    return this.upsert({
-      id: card.id,
-      nome: formData?.nome || card.name || 'Sem nome',
-      documento: formData?.documento || '',
-      payload,
-      trelloCardId: card.id,
-      trelloCardUrl: card.url || ''
+      payload: entry.payload || entry.data || {}
     });
   }
 
@@ -104,9 +86,7 @@ class QuotesRepository {
           this.upsert({
             id,
             nome: item?.nome || item?.name || 'Sem nome',
-            documento: item?.documento || item?.document || '',
-            trelloCardId: item?.trelloCardId || item?.trello_card_id || item?.cardId || '',
-            trelloCardUrl: item?.trelloCardUrl || item?.trello_card_url || ''
+            documento: item?.documento || item?.document || ''
           });
         });
       }

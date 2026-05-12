@@ -12,15 +12,7 @@ type UpsertInput = {
   document?: string;
   payload?: Record<string, unknown>;
   data?: Record<string, unknown>;
-  trelloCardId?: string;
-  trello_card_id?: string;
-  cardId?: string;
-  trelloCardUrl?: string;
-  trello_card_url?: string;
-  cardUrl?: string;
 };
-
-type TrelloCard = { id: string; name?: string; url?: string };
 
 const LEGACY_QUOTES_FILE = path.join(PathResolver.getUserDataDir(), 'price', 'quotes.json');
 
@@ -51,25 +43,7 @@ class QuotesRepository {
       id,
       nome: entry.nome || entry.name || 'Sem nome',
       documento: entry.documento || entry.document || '',
-      payload: (entry.payload || entry.data || {}) as Record<string, unknown>,
-      trelloCardId: entry.trelloCardId || entry.trello_card_id || entry.cardId || '',
-      trelloCardUrl: entry.trelloCardUrl || entry.trello_card_url || entry.cardUrl || ''
-    });
-  }
-
-  saveFromTrello(formData: Record<string, unknown> | undefined, card: TrelloCard): Quote {
-    if (!card || !card.id) {
-      throw new Error('Card do Trello inválido para salvar a cotação.');
-    }
-
-    const payload = this._sanitizePayload(formData);
-    return this.upsert({
-      id: card.id,
-      nome: (formData as any)?.nome || card.name || 'Sem nome',
-      documento: (formData as any)?.documento || '',
-      payload,
-      trelloCardId: card.id,
-      trelloCardUrl: card.url || ''
+      payload: (entry.payload || entry.data || {}) as Record<string, unknown>
     });
   }
 
@@ -116,9 +90,7 @@ class QuotesRepository {
           this.upsert({
             id,
             nome: item?.nome || item?.name || 'Sem nome',
-            documento: item?.documento || item?.document || '',
-            trelloCardId: item?.trelloCardId || item?.trello_card_id || item?.cardId || '',
-            trelloCardUrl: item?.trelloCardUrl || item?.trello_card_url || ''
+            documento: item?.documento || item?.document || ''
           });
         });
       }

@@ -5,8 +5,6 @@ export type QuoteRecord = {
   nome: string;
   documento: string;
   payload: string;
-  trello_card_id: string;
-  trello_card_url: string;
   created_at?: string;
   updated_at?: string;
 };
@@ -16,8 +14,6 @@ export type Quote = {
   nome: string;
   documento: string;
   payload: Record<string, unknown>;
-  trelloCardId: string;
-  trelloCardUrl: string;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -30,8 +26,6 @@ function normalizeQuoteRow(row: QuoteRecord | null): Quote | null {
     nome: row.nome || '',
     documento: row.documento || '',
     payload,
-    trelloCardId: row.trello_card_id || '',
-    trelloCardUrl: row.trello_card_url || '',
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -43,7 +37,7 @@ export function getQuoteById(id: string): Quote | null {
 
   const stmt = db.prepare(
     `
-    SELECT id, nome, documento, payload, trello_card_id, trello_card_url, created_at, updated_at
+    SELECT id, nome, documento, payload, created_at, updated_at
     FROM quotes
     WHERE id = ?
     LIMIT 1
@@ -63,7 +57,7 @@ export function listQuotes(): Quote[] {
   const db = getDb();
   const stmt = db.prepare(
     `
-    SELECT id, nome, documento, payload, trello_card_id, trello_card_url, created_at, updated_at
+    SELECT id, nome, documento, payload, created_at, updated_at
     FROM quotes
     ORDER BY datetime(created_at) DESC, datetime(updated_at) DESC
   `
@@ -84,8 +78,6 @@ type UpsertQuoteInput = {
   nome?: string;
   documento?: string;
   payload?: Record<string, unknown>;
-  trelloCardId?: string;
-  trelloCardUrl?: string;
 };
 
 export function upsertQuoteRecord(quote: UpsertQuoteInput): Quote {
@@ -96,8 +88,6 @@ export function upsertQuoteRecord(quote: UpsertQuoteInput): Quote {
 
   const nome = quote.nome || '';
   const documento = quote.documento || '';
-  const trelloCardId = quote.trelloCardId || '';
-  const trelloCardUrl = quote.trelloCardUrl || '';
   const payloadJson = JSON.stringify(quote.payload || {});
 
   const existsStmt = db.prepare('SELECT id FROM quotes WHERE id = ? LIMIT 1');
@@ -109,21 +99,21 @@ export function upsertQuoteRecord(quote: UpsertQuoteInput): Quote {
     const updateStmt = db.prepare(
       `
       UPDATE quotes
-      SET nome = ?, documento = ?, payload = ?, trello_card_id = ?, trello_card_url = ?, updated_at = CURRENT_TIMESTAMP
+      SET nome = ?, documento = ?, payload = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?
     `
     );
-    updateStmt.bind([nome, documento, payloadJson, trelloCardId, trelloCardUrl, quote.id]);
+    updateStmt.bind([nome, documento, payloadJson, quote.id]);
     updateStmt.step();
     updateStmt.free();
   } else {
     const insertStmt = db.prepare(
       `
-      INSERT INTO quotes (id, nome, documento, payload, trello_card_id, trello_card_url)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO quotes (id, nome, documento, payload)
+      VALUES (?, ?, ?, ?)
     `
     );
-    insertStmt.bind([quote.id, nome, documento, payloadJson, trelloCardId, trelloCardUrl]);
+    insertStmt.bind([quote.id, nome, documento, payloadJson]);
     insertStmt.step();
     insertStmt.free();
   }

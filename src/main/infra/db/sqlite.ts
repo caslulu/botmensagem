@@ -81,8 +81,6 @@ function createSchema(): void {
       nome TEXT,
       documento TEXT,
       payload TEXT,
-      trello_card_id TEXT,
-      trello_card_url TEXT,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )

@@ -7,20 +7,20 @@ export const QuotesView: React.FC = () => (
       <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-3xl">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
-            Fila unificada
+            Fila local
           </p>
           <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
-            Visualize cards do Trello e dados locais no mesmo quadro
+            Gerencie as cotações no Kanban nativo do desktop
           </h2>
           <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
-            Use este painel para sincronizar a fila, criar novos cards e iniciar automações somente quando o espelho local estiver pronto.
+            Use este painel para manter as cotações locais organizadas e executar automações com fluxo totalmente nativo.
           </p>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-3">
           <div className="mini-stat">
-            <p className="text-sm font-semibold text-slate-900 dark:text-white">Sync com Trello</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Atualize a fila com um clique.</p>
+            <p className="text-sm font-semibold text-slate-900 dark:text-white">Fila local</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Tudo fica salvo no banco da aplicação.</p>
           </div>
           <div className="mini-stat">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">Criação rápida</p>
@@ -28,7 +28,7 @@ export const QuotesView: React.FC = () => (
           </div>
           <div className="mini-stat">
             <p className="text-sm font-semibold text-slate-900 dark:text-white">Automação segura</p>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Roda apenas quando já existe espelho local.</p>
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Executa com os dados já preparados localmente.</p>
           </div>
         </div>
       </div>
