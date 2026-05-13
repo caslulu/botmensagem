@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
@@ -33,7 +33,8 @@
       "assets/**/*",
       "node_modules/**/*",
       "package.json",
-      ".env"
+      ".env",
+      ".env.evolution"
     ],
     "asarUnpack": [
       "node_modules/@napi-rs/canvas/**",
