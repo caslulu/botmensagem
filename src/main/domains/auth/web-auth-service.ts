@@ -104,7 +104,7 @@ function saveSession(session: StoredDesktopSession): void {
     fs.mkdirSync(path.dirname(sessionPath()), { recursive: true });
     fs.writeFileSync(sessionPath(), JSON.stringify(session, null, 2), 'utf8');
   } catch (error) {
-    console.warn('Falha ao salvar sessao web do desktop:', (error as Error).message);
+    console.warn('Falha ao salvar sessao cloud do desktop:', (error as Error).message);
   }
 }
 
@@ -162,7 +162,7 @@ async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<
     }
   }
 
-  throw new Error(`Nao foi possivel conectar na API web. Testei: ${failures.join(' | ')}. Verifique se a aplicacao web/API esta rodando ou configure DESKTOP_API_URL.`);
+  throw new Error(`Nao foi possivel conectar na API cloud. Testei: ${failures.join(' | ')}. Verifique se a API esta rodando ou configure DESKTOP_API_URL.`);
 }
 
 export async function requestWebApi<T>(pathName: string, init: RequestInit = {}): Promise<T> {
@@ -213,7 +213,7 @@ export async function login(email: string, password: string) {
   });
 
   if (!cookie) {
-    throw new Error('API web nao retornou a sessao de login.');
+    throw new Error('API cloud nao retornou a sessao de login.');
   }
 
   const session: StoredDesktopSession = {

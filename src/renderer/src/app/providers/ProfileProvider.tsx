@@ -60,7 +60,7 @@ async function fetchProfiles(): Promise<Profile[]> {
     }
     return [];
   } catch (err) {
-    console.error('[ProfileProvider] Error fetching web session:', err);
+    console.error('[ProfileProvider] Error fetching cloud session:', err);
     return [];
   }
 }
@@ -107,7 +107,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (credentials: { email: string; password: string }) => {
       if (!window.desktopAuth?.login) {
-        return { success: false, error: 'API de login web não disponível' };
+        return { success: false, error: 'API de login cloud não disponível' };
       }
 
       try {
@@ -185,7 +185,7 @@ export function ProfileProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (err) {
         if (!active) return;
-        setError(err instanceof Error ? err.message : 'Falha ao validar sessão web');
+        setError(err instanceof Error ? err.message : 'Falha ao validar sessão cloud');
         applySession(null);
       } finally {
         if (active) {

@@ -323,7 +323,7 @@ export const RtaForm: React.FC = () => {
           <div className="rta-section-icon">👤</div>
           <div>
             <h4 className="rta-section-title">Cliente</h4>
-            <p className="rta-section-description">Preencha o bloco do cliente seguindo a ordem do RTA web original.</p>
+            <p className="rta-section-description">Preencha o bloco do cliente seguindo a ordem do RTA original.</p>
           </div>
         </div>
         <div className="rta-grid rta-grid-wide gap-4">

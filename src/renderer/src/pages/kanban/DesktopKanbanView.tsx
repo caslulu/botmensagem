@@ -146,10 +146,10 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
   };
 }
 
-async function webRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+async function apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
   const response = await window.desktopWebApi?.request({ method, path, body });
   if (!response?.success) {
-    throw new Error(response?.error || 'Erro ao acessar a API web.');
+    throw new Error(response?.error || 'Erro ao acessar a API cloud.');
   }
   return response.data as T;
 }
@@ -276,7 +276,7 @@ export const DesktopKanbanView: React.FC = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await webRequest<BoardResponse>('GET', '/kanban');
+      const data = await apiRequest<BoardResponse>('GET', '/kanban');
       setBoard(normalizeBoard(data));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao carregar Kanban.');
@@ -320,13 +320,13 @@ export const DesktopKanbanView: React.FC = () => {
     try {
       const payload = payloadFromDraft(draft);
       if (editingCard) {
-        await webRequest<KanbanCard>('PATCH', `/kanban/cards/${editingCard.id}`, { payload });
+        await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${editingCard.id}`, { payload });
         if (columnId && columnId !== editingCard.columnId) {
           const target = board.columns.find((column) => column.id === columnId);
-          await webRequest('PATCH', `/kanban/cards/${editingCard.id}/move`, { columnId, position: target?.cards?.length || 0 });
+          await apiRequest('PATCH', `/kanban/cards/${editingCard.id}/move`, { columnId, position: target?.cards?.length || 0 });
         }
       } else {
-        await webRequest<KanbanCard>('POST', '/kanban/cards', { columnId, payload });
+        await apiRequest<KanbanCard>('POST', '/kanban/cards', { columnId, payload });
       }
       setShowEditor(false);
       await loadBoard();
@@ -345,7 +345,7 @@ export const DesktopKanbanView: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      await webRequest('POST', '/kanban/columns', { title });
+      await apiRequest('POST', '/kanban/columns', { title });
       setNewColumnTitle('');
       await loadBoard();
       setNotice('Coluna criada com sucesso.');
@@ -363,7 +363,7 @@ export const DesktopKanbanView: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      await webRequest('PATCH', `/kanban/columns/${column.id}`, { title: next });
+      await apiRequest('PATCH', `/kanban/columns/${column.id}`, { title: next });
       await loadBoard();
       setNotice('Coluna renomeada com sucesso.');
     } catch (err) {
@@ -387,7 +387,7 @@ export const DesktopKanbanView: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      await webRequest('DELETE', `/kanban/columns/${column.id}`);
+      await apiRequest('DELETE', `/kanban/columns/${column.id}`);
       await loadBoard();
       setNotice('Coluna deletada com sucesso.');
     } catch (err) {
@@ -401,7 +401,7 @@ export const DesktopKanbanView: React.FC = () => {
     if (!columnId || columnId === card.columnId) return;
     try {
       const target = board.columns.find((column) => column.id === columnId);
-      await webRequest('PATCH', `/kanban/cards/${card.id}/move`, { columnId, position: target?.cards?.length || 0 });
+      await apiRequest('PATCH', `/kanban/cards/${card.id}/move`, { columnId, position: target?.cards?.length || 0 });
       await loadBoard();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao mover card.');
@@ -449,13 +449,13 @@ export const DesktopKanbanView: React.FC = () => {
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div className="max-w-3xl">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
-              Kanban web no desktop
+              Kanban cloud no desktop
             </p>
             <h2 className="mt-3 text-3xl font-semibold text-slate-900 dark:text-white">
-              Cotações do banco web com automação local
+              Cotações do banco cloud com automação local
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
-              O quadro usa os mesmos cards da aplicação web. No desktop, cada card também pode abrir a automação de cotação.
+              O quadro usa os mesmos cards da API cloud. No desktop, cada card também pode abrir a automação de cotação.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
@@ -481,7 +481,7 @@ export const DesktopKanbanView: React.FC = () => {
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <h3 className="text-2xl font-semibold text-slate-900 dark:text-white">Quadro de cotações</h3>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{allCards.length} card{allCards.length === 1 ? '' : 's'} sincronizados com a web.</p>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{allCards.length} card{allCards.length === 1 ? '' : 's'} sincronizados com a API cloud.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <input

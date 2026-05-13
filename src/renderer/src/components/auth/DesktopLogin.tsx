@@ -56,7 +56,7 @@ export const DesktopLogin: React.FC<DesktopLoginProps> = ({ onLogin, loading = f
                 Entrar
               </h1>
               <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-                Use o mesmo email e senha cadastrados no painel web.
+                Use o mesmo email e senha cadastrados no painel cloud.
               </p>
             </div>
             <button type="button" className="btn-secondary px-3.5" onClick={onToggleTheme}>

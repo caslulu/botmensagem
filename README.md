@@ -32,13 +32,11 @@ Integrações do fluxo:
 - Resultados de preço/cotação refletem no card.
 - RTA e Preço são gerados no desktop.
 
-## Banco da parte web
+## API e Banco (Cloud)
 
-Somente a estrutura de banco da antiga parte web foi mantida como referência em:
+Somente a API e a estrutura de banco cloud foram mantidas como referência em:
 
 - `apps/api/prisma/`
-
-A aplicação web em si não faz mais parte do fluxo operacional do desktop.
 
 ## Evolution API
 
@@ -53,7 +51,7 @@ Stack local atual:
 
 - `evolution-api`
 
-Não existe mais container da aplicação web base, nem Postgres dentro deste compose, e o Redis foi removido deste stack.
+Não existe mais container de frontend nesse compose, nem Postgres dentro deste stack, e o Redis foi removido.
 
 O `evolution-api` deve apontar para o banco principal compartilhado via
 `DATABASE_CONNECTION_URI` no arquivo `.env.evolution`.

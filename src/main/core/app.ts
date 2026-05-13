@@ -9,6 +9,16 @@ import windowManager from '../window-manager';
 
 export function startMainProcess(): void {
   const isDev = process.env.NODE_ENV === 'development';
+  const hasSingleInstanceLock = app.requestSingleInstanceLock();
+
+  if (!hasSingleInstanceLock) {
+    app.quit();
+    return;
+  }
+
+  app.on('second-instance', () => {
+    windowManager.restoreOrCreateMainWindow({ isDev });
+  });
 
   app.on('ready', async () => {
     if (process.platform === 'win32') {

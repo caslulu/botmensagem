@@ -16,6 +16,8 @@ autoUpdater.autoInstallOnAppQuit = true;
 
 let cleanupPromise = null;
 let shutdownHandlersRegistered = false;
+let scheduledCheckInterval = null;
+let isInstallingUpdate = false;
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -64,17 +66,67 @@ function registerShutdownHandlers() {
   });
 }
 
+async function installDownloadedUpdate(mainWindow) {
+  if (isInstallingUpdate) {
+    return;
+  }
+
+  isInstallingUpdate = true;
+
+  if (scheduledCheckInterval) {
+    clearInterval(scheduledCheckInterval);
+    scheduledCheckInterval = null;
+  }
+
+  try {
+    await prepareAppForInstall();
+  } catch (error) {
+    log.error('Falha durante preparação para update:', error);
+  }
+
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.hide();
+  }
+
+  setImmediate(() => {
+    try {
+      autoUpdater.autoInstallOnAppQuit = false;
+      autoUpdater.quitAndInstall(false, true);
+    } catch (error) {
+      isInstallingUpdate = false;
+      log.error('Erro ao iniciar instalação da atualização:', error);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        dialog.showMessageBox(mainWindow, {
+          type: 'error',
+          title: 'Falha ao iniciar atualização',
+          message: 'Não foi possível iniciar a instalação da atualização.',
+          detail: 'Feche o app e instale manualmente o instalador da versão mais recente no GitHub Releases.',
+          buttons: ['OK']
+        }).catch(() => {});
+      }
+    }
+  });
+}
+
 function setupAutoUpdater(mainWindow) {
   registerShutdownHandlers();
 
   // Verificar atualizações quando o app iniciar
   setTimeout(() => {
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.checkForUpdatesAndNotify().catch((error) => {
+      log.error('Falha ao verificar atualizações no startup:', error);
+    });
   }, 3000);
 
   // Verificar a cada 30 minutos
-  setInterval(() => {
-    autoUpdater.checkForUpdates();
+  scheduledCheckInterval = setInterval(() => {
+    if (isInstallingUpdate) {
+      return;
+    }
+
+    autoUpdater.checkForUpdates().catch((error) => {
+      log.error('Falha ao verificar atualizações em background:', error);
+    });
   }, 30 * 60 * 1000);
 
   // Quando encontrar atualização disponível
@@ -134,11 +186,7 @@ function setupAutoUpdater(mainWindow) {
       buttons: ['Reiniciar Agora', 'Reiniciar Depois']
     }).then(async (result) => {
       if (result.response === 0) {
-        await prepareAppForInstall();
-
-        setImmediate(() => {
-          autoUpdater.quitAndInstall();
-        });
+        await installDownloadedUpdate(mainWindow);
       }
     });
   });
@@ -146,6 +194,10 @@ function setupAutoUpdater(mainWindow) {
   // Erros
   autoUpdater.on('error', (error) => {
     log.error('Erro ao atualizar:', error);
+    isInstallingUpdate = false;
+
+    const errorMessage = String(error?.message || '');
+    const looksLikeUninstallIssue = /uninstall|desinstal|old application files|cannot be closed|cannot delete/i.test(errorMessage);
 
     if (mainWindow && !mainWindow.isDestroyed()) {
       dialog.showMessageBox(mainWindow, {
@@ -154,6 +206,9 @@ function setupAutoUpdater(mainWindow) {
         message: 'Não foi possível aplicar a atualização automaticamente.',
         detail: [
           'Feche automações e janelas auxiliares abertas e tente novamente.',
+          looksLikeUninstallIssue
+            ? 'Se o erro persistir, feche todas as instâncias do app e rode manualmente o instalador da última versão (GitHub Releases).'
+            : null,
           error?.message ? `Detalhes técnicos: ${error.message}` : null
         ].filter(Boolean).join('\n\n'),
         buttons: ['OK']

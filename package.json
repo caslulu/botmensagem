@@ -1,6 +1,6 @@
 {
   "name": "botmensagem",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "description": "Insurance Helper",
   "main": "out/main/main.js",
   "scripts": {
@@ -71,7 +71,7 @@
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowToChangeInstallationDirectory": false,
       "allowElevation": true,
       "perMachine": false,
       "createDesktopShortcut": true,

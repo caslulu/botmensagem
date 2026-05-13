@@ -8,7 +8,7 @@ const SETTINGS_CARDS = [
   },
   {
     title: 'Login cloud',
-    detail: 'A autenticação do desktop usa a mesma conta da web.'
+    detail: 'A autenticação do desktop usa a mesma conta da API cloud.'
   },
   {
     title: 'Banco cloud',
@@ -263,7 +263,7 @@ export const ConfigView: React.FC = () => {
               Ajustes gerais e gestão de acessos cloud
             </h2>
             <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400 sm:text-base">
-              A operação agora é centralizada em login web e banco cloud, sem gestão local de perfis.
+              A operação agora é centralizada em login cloud e banco cloud, sem gestão local de perfis.
             </p>
           </div>
 

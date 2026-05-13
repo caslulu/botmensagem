@@ -51,7 +51,7 @@ function AppContent() {
       <div className="surface-subtle max-w-md">
         <p className="text-sm font-semibold text-slate-800 dark:text-white">Validando sessão...</p>
         <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-          Conferindo seu login no banco da aplicação web.
+          Conferindo seu login na API cloud.
         </p>
       </div>
     </div>
