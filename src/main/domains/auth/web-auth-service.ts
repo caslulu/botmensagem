@@ -26,7 +26,15 @@ type StoredDesktopSession = AuthSession & {
   cookie: string;
 };
 
-class ApiHttpError extends Error {}
+class ApiHttpError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = 'ApiHttpError';
+    this.status = status;
+  }
+}
 
 const SESSION_FILE = 'web-auth-session.json';
 const SESSION_COOKIE_NAME = 'botmensagem_session';
@@ -136,7 +144,7 @@ async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<
 
       const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
       if (!response.ok) {
-        throw new ApiHttpError((payload as { message?: string } | null)?.message || `Erro HTTP ${response.status}`);
+        throw new ApiHttpError((payload as { message?: string } | null)?.message || `Erro HTTP ${response.status}`, response.status);
       }
 
       return {

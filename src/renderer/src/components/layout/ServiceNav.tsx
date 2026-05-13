@@ -7,7 +7,7 @@ export interface ServiceModule {
   description?: string;
   requiresAdmin?: boolean;
   requiresProfile?: boolean;
-  group?: 'modules' | 'news' | 'account';
+  group?: 'modules' | 'account';
 }
 
 interface ServiceNavProps {
@@ -29,11 +29,10 @@ export const ServiceNav: React.FC<ServiceNavProps> = ({
 }) => {
   const groups = [
     { id: 'modules', title: 'Operação', icon: '🧭' },
-    { id: 'news', title: 'Apoio', icon: '📰' },
     { id: 'account', title: 'Conta', icon: '⚙️' }
   ] as const;
 
-  const initialOpen: Record<string, boolean> = { modules: true, news: true, account: true };
+  const initialOpen: Record<string, boolean> = { modules: true, account: true };
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>(initialOpen);
 
   const groupedModules = useMemo(() => {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { WhatsAppAutomationView, HowToView, ConfigView, DesktopKanbanView, RtaView, PriceView } from './pages';
+import { WhatsAppAutomationView, ConfigView, DesktopKanbanView, RtaView, PriceView } from './pages';
 import AppShell from './components/layout/AppShell';
 import type { ServiceModule } from './components/layout/ServiceNav';
 import { AdminPasswordModal } from './components/profile/AdminPasswordModal';
@@ -76,7 +76,6 @@ function AppContent() {
       {activeModuleId === 'kanban' && <DesktopKanbanView />}
       {activeModuleId === 'rta' && <RtaView />}
       {activeModuleId === 'preco' && <PriceView />}
-      {activeModuleId === 'howto' && <HowToView />}
       {activeModuleId === 'config' && <ConfigView />}
     </AppShell>
   ) : (

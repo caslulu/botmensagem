@@ -21,8 +21,8 @@ const releaseNotes: ReleaseNote[] = [
     date: 'Abr 2026',
     summary: 'A versão atual concentra novamente toda a operação no desktop.',
     highlights: [
-      'Fluxos visíveis no desktop: mensagens, cotações, kanban, RTA, preço, roadmap, novidades, perfil e configurações',
-      'Seleção de perfil logo na entrada, com acesso admin apenas onde realmente é necessário',
+      'Fluxos visíveis no desktop: mensagens, kanban, RTA, preço, ajuda e configurações',
+      'Login e permissões continuam centralizados no backend cloud',
       'Conteúdo desta tela alinhado ao comportamento atual do sistema',
     ],
     badge: 'Atual',
@@ -30,7 +30,7 @@ const releaseNotes: ReleaseNote[] = [
   {
     title: 'Kanban próprio no desktop',
     date: 'Abr 2026',
-    summary: 'A fila de cotações usa um quadro próprio persistido localmente no aplicativo.',
+    summary: 'A fila de cotações usa o Kanban nativo no desktop com dados no banco cloud.',
     highlights: [
       'O quadro começa com colunas de fila, em cotação e pronto',
       'O mesmo painel permite criar cards no formato atual e adicionar novas colunas',
@@ -74,8 +74,8 @@ const visuals: VisualItem[] = [
 
 const quickStarts = [
   {
-    title: 'Acesso por perfil',
-    detail: 'Selecione ou crie um perfil na entrada. Apenas administradores conseguem iniciar disparos de WhatsApp.',
+    title: 'Acesso por login cloud',
+    detail: 'Autenticação, permissões e criação de usuário seguem o backend cloud integrado.',
   },
   {
     title: 'Fluxo de cotação',

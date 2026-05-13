@@ -112,10 +112,6 @@
     @apply accent-brand-500;
   }
 
-  .trello-field-error {
-    @apply min-h-[1rem] text-xs text-rose-500 dark:text-rose-400;
-  }
-
   .input-control.error {
     @apply border-rose-300 focus:border-rose-500 focus:ring-rose-500/20
            dark:border-rose-500/50 dark:focus:border-rose-500 dark:focus:ring-rose-500/20;

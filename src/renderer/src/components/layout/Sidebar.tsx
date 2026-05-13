@@ -208,7 +208,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               isCollapsed ? 'justify-center px-0 py-3' : 'justify-between px-4 py-3'
             }`}
             onClick={onResetProfile}
-            title="Trocar perfil"
+            title="Sair"
           >
             <span className="flex items-center gap-3">
               <span className={`flex h-10 w-10 items-center justify-center rounded-2xl text-lg shadow-sm ${isDarkMode ? 'bg-slate-800' : 'bg-white dark:bg-slate-800'}`}>
@@ -216,16 +216,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </span>
               {!isCollapsed ? (
                 <span className="text-left">
-                  <strong className="block text-sm font-semibold">Trocar perfil</strong>
-                  <span className={`block text-xs ${isDarkMode ? 'text-slate-300' : 'text-slate-500 dark:text-slate-400'}`}>
-                    Voltar à seleção inicial
-                  </span>
+                  <strong className="block text-sm font-semibold">Sair</strong>
                 </span>
               ) : null}
             </span>
             {!isCollapsed ? (
               <span className={`text-xs font-semibold uppercase tracking-[0.18em] ${isDarkMode ? 'text-slate-400' : 'text-slate-400 dark:text-slate-500'}`}>
-                Perfil
+                Sessão
               </span>
             ) : null}
           </button>

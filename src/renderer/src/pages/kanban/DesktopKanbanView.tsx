@@ -268,6 +268,9 @@ export const DesktopKanbanView: React.FC = () => {
   const [editingColumnId, setEditingColumnId] = useState('');
   const [showEditor, setShowEditor] = useState(false);
   const [newColumnTitle, setNewColumnTitle] = useState('');
+  const [columnDrafts, setColumnDrafts] = useState<Record<string, string>>({});
+  const [renamingColumnId, setRenamingColumnId] = useState('');
+  const [deletingColumnId, setDeletingColumnId] = useState('');
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -285,6 +288,16 @@ export const DesktopKanbanView: React.FC = () => {
   useEffect(() => {
     void loadBoard();
   }, [loadBoard]);
+
+  useEffect(() => {
+    setColumnDrafts((current) => {
+      const next: Record<string, string> = {};
+      for (const column of board.columns) {
+        next[column.id] = current[column.id] ?? column.title;
+      }
+      return next;
+    });
+  }, [board.columns]);
 
   const allCards = useMemo(() => board.columns.flatMap((column) => column.cards || []), [board.columns]);
 
@@ -330,10 +343,12 @@ export const DesktopKanbanView: React.FC = () => {
     if (!title) return;
     setSaving(true);
     setError('');
+    setNotice('');
     try {
       await webRequest('POST', '/kanban/columns', { title });
       setNewColumnTitle('');
       await loadBoard();
+      setNotice('Coluna criada com sucesso.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao criar coluna.');
     } finally {
@@ -341,14 +356,44 @@ export const DesktopKanbanView: React.FC = () => {
     }
   };
 
-  const renameColumn = async (column: KanbanColumn, title: string) => {
-    const next = title.trim();
+  const renameColumn = async (column: KanbanColumn) => {
+    const next = (columnDrafts[column.id] || '').trim();
     if (!next || next === column.title) return;
+    setRenamingColumnId(column.id);
+    setError('');
+    setNotice('');
     try {
       await webRequest('PATCH', `/kanban/columns/${column.id}`, { title: next });
       await loadBoard();
+      setNotice('Coluna renomeada com sucesso.');
     } catch (err) {
+      setColumnDrafts((current) => ({ ...current, [column.id]: column.title }));
       setError(err instanceof Error ? err.message : 'Erro ao renomear coluna.');
+    } finally {
+      setRenamingColumnId('');
+    }
+  };
+
+  const deleteColumn = async (column: KanbanColumn) => {
+    if (column.cards.length > 0) {
+      setError('Esvazie a coluna antes de deletar para evitar perda de cards.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Deseja deletar a coluna "${column.title}"?`);
+    if (!confirmed) return;
+
+    setDeletingColumnId(column.id);
+    setError('');
+    setNotice('');
+    try {
+      await webRequest('DELETE', `/kanban/columns/${column.id}`);
+      await loadBoard();
+      setNotice('Coluna deletada com sucesso.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao deletar coluna.');
+    } finally {
+      setDeletingColumnId('');
     }
   };
 
@@ -457,12 +502,33 @@ export const DesktopKanbanView: React.FC = () => {
               <header className="mb-3 flex items-center gap-2">
                 <input
                   className="min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none dark:text-white"
-                  defaultValue={column.title}
-                  onBlur={(event) => void renameColumn(column, event.target.value)}
+                  value={columnDrafts[column.id] ?? column.title}
+                  onChange={(event) => setColumnDrafts((current) => ({ ...current, [column.id]: event.target.value }))}
+                  onBlur={() => void renameColumn(column)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void renameColumn(column);
+                    }
+                    if (event.key === 'Escape') {
+                      setColumnDrafts((current) => ({ ...current, [column.id]: column.title }));
+                      (event.target as HTMLInputElement).blur();
+                    }
+                  }}
+                  disabled={renamingColumnId === column.id || deletingColumnId === column.id}
                 />
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
                   {column.cards.length}
                 </span>
+                <button
+                  type="button"
+                  className="btn-secondary min-h-[32px] px-2 text-xs"
+                  onClick={() => void deleteColumn(column)}
+                  disabled={Boolean(deletingColumnId) || Boolean(renamingColumnId)}
+                  title={column.cards.length ? 'Mova os cards para outra coluna antes de deletar.' : 'Deletar coluna'}
+                >
+                  {deletingColumnId === column.id ? 'Deletando...' : 'Deletar'}
+                </button>
               </header>
 
               <div className="space-y-3">
