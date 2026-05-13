@@ -52,13 +52,11 @@ npm run evolution:up
 Stack local atual:
 
 - `evolution-api`
-- `principal-postgres` (banco principal do cliente)
 
-Não existe mais container da aplicação web base e o Redis foi removido deste stack.
+Não existe mais container da aplicação web base, nem Postgres dentro deste compose, e o Redis foi removido deste stack.
 
-Se você já tiver um banco principal existente fora do compose, basta apontar
-`DATABASE_CONNECTION_URI` para esse banco e remover o serviço `principal-postgres`
-do compose (mantendo somente `evolution-api`).
+O `evolution-api` deve apontar para o banco principal compartilhado via
+`DATABASE_CONNECTION_URI` no arquivo `.env.evolution`.
 
 Comandos úteis:
 

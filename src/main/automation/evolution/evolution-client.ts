@@ -41,7 +41,7 @@ export default class EvolutionClient {
   constructor() {
     const envFile = loadEnvFile(path.join(process.cwd(), '.env.evolution'));
     const effectiveBaseUrl = String(
-      config.EVOLUTION_API_BASE_URL || envFile.EVOLUTION_API_BASE_URL || envFile.SERVER_URL || ''
+      config.EVOLUTION_API_BASE_URL || envFile.EVOLUTION_API_BASE_URL || envFile.SERVER_URL || 'http://127.0.0.1:8080'
     ).trim();
     const effectiveApiKey = String(
       config.EVOLUTION_API_KEY || envFile.EVOLUTION_API_KEY || envFile.AUTHENTICATION_API_KEY || ''

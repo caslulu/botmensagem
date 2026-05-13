@@ -1,35 +1,8 @@
 services:
-  principal-postgres:
-    image: postgres:15
-    container_name: principal_postgres
-    restart: always
-    environment:
-      POSTGRES_DB: ${PRINCIPAL_POSTGRES_DATABASE:-principal}
-      POSTGRES_USER: ${PRINCIPAL_POSTGRES_USERNAME:-postgres}
-      POSTGRES_PASSWORD: ${PRINCIPAL_POSTGRES_PASSWORD:-postgres}
-    command:
-      - postgres
-      - -c
-      - max_connections=1000
-      - -c
-      - listen_addresses=*
-    volumes:
-      - principal_postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PRINCIPAL_POSTGRES_USERNAME:-postgres} -d ${PRINCIPAL_POSTGRES_DATABASE:-principal}"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    networks:
-      - evolution-net
-
   evolution-api:
     image: evoapicloud/evolution-api:latest
     container_name: evolution_api
     restart: always
-    depends_on:
-      principal-postgres:
-        condition: service_healthy
     ports:
       - "127.0.0.1:${EVOLUTION_PORT:-8080}:8080"
     volumes:
@@ -41,7 +14,6 @@ services:
 
 volumes:
   evolution_instances:
-  principal_postgres_data:
 
 networks:
   evolution-net:
