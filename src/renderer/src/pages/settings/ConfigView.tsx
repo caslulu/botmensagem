@@ -43,8 +43,11 @@ export const ConfigView: React.FC = () => {
   const [targetPasswordError, setTargetPasswordError] = useState<string | null>(null);
   const [targetPasswordSuccess, setTargetPasswordSuccess] = useState<string | null>(null);
   const [deleteUserLoadingId, setDeleteUserLoadingId] = useState<string | null>(null);
+  const [toggleRoleLoadingId, setToggleRoleLoadingId] = useState<string | null>(null);
   const [deleteUserError, setDeleteUserError] = useState<string | null>(null);
   const [deleteUserSuccess, setDeleteUserSuccess] = useState<string | null>(null);
+  const [toggleRoleError, setToggleRoleError] = useState<string | null>(null);
+  const [toggleRoleSuccess, setToggleRoleSuccess] = useState<string | null>(null);
 
   const nonSelfUsers = useMemo(() => users.filter((user) => user.id !== authUser?.id), [authUser?.id, users]);
 
@@ -234,13 +237,22 @@ export const ConfigView: React.FC = () => {
     setDeleteUserLoadingId(userId);
     setDeleteUserError(null);
     setDeleteUserSuccess(null);
+    setToggleRoleError(null);
+    setToggleRoleSuccess(null);
     try {
-      const response = await window.desktopWebApi?.request({
-        method: 'DELETE',
-        path: `/users/${userId}`
-      });
-      if (!response?.success) {
-        throw new Error(response?.error || 'Não foi possível excluir o usuário.');
+      const attempts = [`/users/${userId}`, `/users/${userId}/delete`, `/profile/users/${userId}`];
+      let deleted = false;
+      let lastError = 'Não foi possível excluir o usuário.';
+      for (const path of attempts) {
+        const response = await window.desktopWebApi?.request({ method: 'DELETE', path });
+        if (response?.success) {
+          deleted = true;
+          break;
+        }
+        lastError = response?.error || lastError;
+      }
+      if (!deleted) {
+        throw new Error(lastError);
       }
       setDeleteUserSuccess('Usuário excluído com sucesso.');
       await loadUsers();
@@ -248,6 +260,56 @@ export const ConfigView: React.FC = () => {
       setDeleteUserError(error instanceof Error ? error.message : 'Erro ao excluir usuário.');
     } finally {
       setDeleteUserLoadingId(null);
+    }
+  };
+
+  const handleToggleUserRole = async (userId: string, currentRole: string) => {
+    if (!isAdmin || !userId || toggleRoleLoadingId || deleteUserLoadingId) return;
+    if (userId === authUser?.id) {
+      setToggleRoleError('Você não pode alterar o seu próprio tipo de usuário.');
+      setToggleRoleSuccess(null);
+      return;
+    }
+
+    const user = users.find((item) => item.id === userId);
+    const nextRole: 'user' | 'admin' = currentRole === 'admin' ? 'user' : 'admin';
+    const confirmed = window.confirm(
+      `Confirma alterar "${user?.name || userId}" para ${nextRole === 'admin' ? 'Administrador' : 'Usuário'}?`
+    );
+    if (!confirmed) return;
+
+    setToggleRoleLoadingId(userId);
+    setToggleRoleError(null);
+    setToggleRoleSuccess(null);
+    setDeleteUserError(null);
+    setDeleteUserSuccess(null);
+    try {
+      const payloads = [{ role: nextRole }, { isAdmin: nextRole === 'admin' }];
+      const attempts = [`/users/${userId}/role`, `/users/${userId}`, `/profile/users/${userId}`];
+      let updated = false;
+      let lastError = 'Não foi possível alterar o tipo do usuário.';
+
+      for (const path of attempts) {
+        for (const body of payloads) {
+          const response = await window.desktopWebApi?.request({ method: 'PATCH', path, body });
+          if (response?.success) {
+            updated = true;
+            break;
+          }
+          lastError = response?.error || lastError;
+        }
+        if (updated) break;
+      }
+
+      if (!updated) {
+        throw new Error(lastError);
+      }
+      setToggleRoleSuccess(`Tipo do usuário atualizado para ${nextRole === 'admin' ? 'Administrador' : 'Usuário'}.`);
+      await loadUsers();
+    } catch (error) {
+      setToggleRoleError(error instanceof Error ? error.message : 'Erro ao alterar tipo do usuário.');
+    } finally {
+      setToggleRoleLoadingId(null);
     }
   };
 
@@ -383,6 +445,8 @@ export const ConfigView: React.FC = () => {
                 {usersError ? <p className="text-sm font-semibold text-rose-600 dark:text-rose-300">{usersError}</p> : null}
                 {deleteUserError ? <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-300">{deleteUserError}</p> : null}
                 {deleteUserSuccess ? <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{deleteUserSuccess}</p> : null}
+                {toggleRoleError ? <p className="mt-2 text-sm font-semibold text-rose-600 dark:text-rose-300">{toggleRoleError}</p> : null}
+                {toggleRoleSuccess ? <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-300">{toggleRoleSuccess}</p> : null}
 
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm">
@@ -403,15 +467,26 @@ export const ConfigView: React.FC = () => {
                           <td className="py-2 pr-3 text-slate-500 dark:text-slate-400">{user.role === 'admin' ? 'Administrador' : 'Usuário'}</td>
                           <td className="py-2 pr-3 text-slate-500 dark:text-slate-400">{user.isActive === false ? 'Inativo' : 'Ativo'}</td>
                           <td className="py-2 pr-3">
-                            <button
-                              type="button"
-                              className="btn-secondary px-3 py-1 text-xs"
-                              onClick={() => void handleDeleteUser(user.id)}
-                              disabled={deleteUserLoadingId !== null || user.id === authUser?.id}
-                              title={user.id === authUser?.id ? 'Não é possível excluir seu próprio usuário' : 'Excluir usuário'}
-                            >
-                              {deleteUserLoadingId === user.id ? 'Excluindo...' : 'Excluir'}
-                            </button>
+                            <div className="flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                className="btn-secondary px-3 py-1 text-xs"
+                                onClick={() => void handleToggleUserRole(user.id, user.role)}
+                                disabled={toggleRoleLoadingId !== null || deleteUserLoadingId !== null || user.id === authUser?.id}
+                                title={user.id === authUser?.id ? 'Não é possível alterar seu próprio tipo' : 'Alternar tipo do usuário'}
+                              >
+                                {toggleRoleLoadingId === user.id ? 'Alterando...' : user.role === 'admin' ? 'Tornar usuário' : 'Tornar admin'}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-secondary px-3 py-1 text-xs"
+                                onClick={() => void handleDeleteUser(user.id)}
+                                disabled={deleteUserLoadingId !== null || toggleRoleLoadingId !== null || user.id === authUser?.id}
+                                title={user.id === authUser?.id ? 'Não é possível excluir seu próprio usuário' : 'Excluir usuário'}
+                              >
+                                {deleteUserLoadingId === user.id ? 'Excluindo...' : 'Excluir'}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       ))}

@@ -2,6 +2,8 @@ import { config } from '../config';
 import type { EvolutionGroup, EvolutionInstanceState } from './types';
 import fs from 'fs';
 import path from 'path';
+import { app as electronApp } from 'electron';
+import PathResolver from '../utils/path-resolver';
 
 function normalizeBaseUrl(url: string): string {
   return (url || '').trim().replace(/\/+$/, '');
@@ -37,9 +39,11 @@ function parseBooleanLike(value: unknown): boolean | undefined {
 export default class EvolutionClient {
   private readonly baseUrl: string;
   private readonly apiKey: string;
+  private readonly envSources: string[];
 
   constructor() {
-    const envFile = loadEnvFile(path.join(process.cwd(), '.env.evolution'));
+    const envLookup = loadEvolutionEnv();
+    const envFile = envLookup.values;
     const effectiveBaseUrl = String(
       config.EVOLUTION_API_BASE_URL || envFile.EVOLUTION_API_BASE_URL || envFile.SERVER_URL || 'http://127.0.0.1:8080'
     ).trim();
@@ -49,8 +53,13 @@ export default class EvolutionClient {
 
     this.baseUrl = normalizeBaseUrl(effectiveBaseUrl);
     this.apiKey = effectiveApiKey;
+    this.envSources = envLookup.sources;
     if (!this.baseUrl) throw new Error('EVOLUTION_API_BASE_URL não configurado.');
-    if (!this.apiKey) throw new Error('EVOLUTION_API_KEY não configurado.');
+    if (!this.apiKey) {
+      throw new Error(
+        `EVOLUTION_API_KEY não configurado. Verifique o arquivo .env.evolution. Caminhos verificados: ${this.envSources.join(', ')}`
+      );
+    }
   }
 
   private async request(path: string, init: RequestInit = {}, timeoutMs = 30000): Promise<any> {
@@ -348,4 +357,46 @@ function loadEnvFile(filePath: string): Record<string, string> {
   } catch {
     return {};
   }
+}
+
+function loadEvolutionEnv(): { values: Record<string, string>; sources: string[] } {
+  const candidates = getEvolutionEnvCandidates();
+  for (const candidate of candidates) {
+    const values = loadEnvFile(candidate);
+    if (Object.keys(values).length > 0) {
+      return { values, sources: candidates };
+    }
+  }
+  return { values: {}, sources: candidates };
+}
+
+function getEvolutionEnvCandidates(): string[] {
+  const candidates = new Set<string>();
+  const fileName = '.env.evolution';
+
+  candidates.add(path.join(process.cwd(), fileName));
+
+  try {
+    candidates.add(path.join(PathResolver.getUserDataDir(), fileName));
+  } catch {
+    // no-op
+  }
+
+  try {
+    if (process.resourcesPath) {
+      candidates.add(path.join(process.resourcesPath, fileName));
+    }
+  } catch {
+    // no-op
+  }
+
+  try {
+    if (electronApp && !electronApp.isPackaged && typeof electronApp.getAppPath === 'function') {
+      candidates.add(path.join(electronApp.getAppPath(), fileName));
+    }
+  } catch {
+    // no-op
+  }
+
+  return Array.from(candidates);
 }

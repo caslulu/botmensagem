@@ -36,6 +36,15 @@ class ApiHttpError extends Error {
   }
 }
 
+function isRouteNotFoundMessage(message: string): boolean {
+  const normalized = String(message || '').toLowerCase();
+  return (
+    normalized.includes('rota nao encontrada') ||
+    normalized.includes('rota não encontrada') ||
+    normalized.includes('not found')
+  );
+}
+
 const SESSION_FILE = 'web-auth-session.json';
 const SESSION_COOKIE_NAME = 'botmensagem_session';
 const REQUEST_TIMEOUT_MS = 10000;
@@ -144,7 +153,8 @@ async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<
 
       const payload = (await response.json().catch(() => null)) as T | { message?: string } | null;
       if (!response.ok) {
-        throw new ApiHttpError((payload as { message?: string } | null)?.message || `Erro HTTP ${response.status}`, response.status);
+        const message = (payload as { message?: string } | null)?.message || `Erro HTTP ${response.status}`;
+        throw new ApiHttpError(message, response.status);
       }
 
       return {
@@ -153,6 +163,10 @@ async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<
       };
     } catch (error) {
       if (error instanceof ApiHttpError) {
+        if (error.status === 404 || isRouteNotFoundMessage(error.message)) {
+          failures.push(`${apiUrl}: ${error.message}`);
+          continue;
+        }
         throw error;
       }
       const message = error instanceof Error ? error.message : 'falha desconhecida';
