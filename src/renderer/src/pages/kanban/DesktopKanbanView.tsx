@@ -23,6 +23,26 @@ type BoardResponse = {
   columns: KanbanColumn[];
 };
 
+type PersonDraft = {
+  nome: string;
+  documento: string;
+  documento_estado: string;
+  data_nascimento: string;
+  email: string;
+  genero: string;
+  estado_civil: string;
+  tempo_de_seguro: string;
+  tempo_no_endereco: string;
+};
+
+type VehicleDraft = {
+  vin: string;
+  placa: string;
+  ano: string;
+  marca: string;
+  modelo: string;
+};
+
 type CardDraft = {
   nome: string;
   documento: string;
@@ -38,11 +58,29 @@ type CardDraft = {
   estado_civil: string;
   tempo_de_seguro: string;
   tempo_no_endereco: string;
-  veiculo_vin: string;
-  veiculo_ano: string;
-  veiculo_marca: string;
-  veiculo_modelo: string;
   observacoes: string;
+  pessoas: PersonDraft[];
+  veiculos: VehicleDraft[];
+};
+
+const emptyPerson: PersonDraft = {
+  nome: '',
+  documento: '',
+  documento_estado: '',
+  data_nascimento: '',
+  email: '',
+  genero: '',
+  estado_civil: '',
+  tempo_de_seguro: '',
+  tempo_no_endereco: ''
+};
+
+const emptyVehicle: VehicleDraft = {
+  vin: '',
+  placa: '',
+  ano: '',
+  marca: '',
+  modelo: ''
 };
 
 const emptyDraft: CardDraft = {
@@ -60,16 +98,50 @@ const emptyDraft: CardDraft = {
   estado_civil: '',
   tempo_de_seguro: '',
   tempo_no_endereco: '',
-  veiculo_vin: '',
-  veiculo_ano: '',
-  veiculo_marca: '',
-  veiculo_modelo: '',
-  observacoes: ''
+  observacoes: '',
+  pessoas: [],
+  veiculos: []
 };
 
 const insurers = [
   { value: 'progressive', label: 'Progressive' },
   { value: 'liberty', label: 'Liberty Mutual' }
+];
+
+const documentStates = [
+  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',
+  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
+  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
+  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+];
+
+const genderOptions = [
+  { value: 'male', label: 'Masculino' },
+  { value: 'female', label: 'Feminino' },
+  { value: 'other', label: 'Outro' }
+];
+
+const maritalStatusOptions = [
+  { value: 'single', label: 'Solteiro(a)' },
+  { value: 'married', label: 'Casado(a)' },
+  { value: 'divorced', label: 'Divorciado(a)' },
+  { value: 'widowed', label: 'Viúvo(a)' }
+];
+
+const insuranceDurationOptions = [
+  { value: 'lt_6m', label: 'Menos de 6 meses' },
+  { value: '6m_1y', label: '6 meses a 1 ano' },
+  { value: '1y_3y', label: '1 a 3 anos' },
+  { value: '3y_5y', label: '3 a 5 anos' },
+  { value: '5y_plus', label: 'Mais de 5 anos' }
+];
+
+const addressDurationOptions = [
+  { value: 'lt_1y', label: 'Menos de 1 ano' },
+  { value: '1y_2y', label: '1 a 2 anos' },
+  { value: '3y_5y', label: '3 a 5 anos' },
+  { value: '5y_plus', label: 'Mais de 5 anos' }
 ];
 
 function readString(...values: unknown[]): string {
@@ -89,10 +161,81 @@ function normalizeBoard(data: any): BoardResponse {
   };
 }
 
+function normalizePerson(raw: Record<string, any>): PersonDraft {
+  return {
+    nome: readString(raw.nome),
+    documento: readString(raw.documento),
+    documento_estado: readString(raw.documento_estado),
+    data_nascimento: readString(raw.data_nascimento),
+    email: readString(raw.email),
+    genero: readString(raw.genero),
+    estado_civil: readString(raw.estado_civil),
+    tempo_de_seguro: readString(raw.tempo_de_seguro),
+    tempo_no_endereco: readString(raw.tempo_no_endereco)
+  };
+}
+
+function normalizeVehicle(raw: Record<string, any>): VehicleDraft {
+  return {
+    vin: readString(raw.vin),
+    placa: readString(raw.placa, raw.plate),
+    ano: readString(raw.ano),
+    marca: readString(raw.marca),
+    modelo: readString(raw.modelo)
+  };
+}
+
+function personHasData(person: PersonDraft): boolean {
+  return Boolean(
+    person.nome.trim() ||
+    person.documento.trim() ||
+    person.documento_estado.trim() ||
+    person.data_nascimento.trim() ||
+    person.email.trim() ||
+    person.genero.trim() ||
+    person.estado_civil.trim() ||
+    person.tempo_de_seguro.trim() ||
+    person.tempo_no_endereco.trim()
+  );
+}
+
+function vehicleHasData(vehicle: VehicleDraft): boolean {
+  return Boolean(
+    vehicle.vin.trim() ||
+    vehicle.placa.trim() ||
+    vehicle.ano.trim() ||
+    vehicle.marca.trim() ||
+    vehicle.modelo.trim()
+  );
+}
+
+function peopleFromPayload(payload: Record<string, any>): PersonDraft[] {
+  if (!Array.isArray(payload.pessoas)) return [];
+  return payload.pessoas
+    .map((entry: Record<string, any>) => normalizePerson(entry || {}))
+    .filter((person: PersonDraft) => personHasData(person));
+}
+
+function vehiclesFromPayload(payload: Record<string, any>): VehicleDraft[] {
+  if (Array.isArray(payload.veiculos)) {
+    return payload.veiculos
+      .map((entry: Record<string, any>) => normalizeVehicle(entry || {}))
+      .filter((vehicle: VehicleDraft) => vehicleHasData(vehicle));
+  }
+
+  const legacyVehicle = {
+    vin: readString(payload.veiculo_vin),
+    placa: readString(payload.veiculo_placa, payload.placa),
+    ano: readString(payload.veiculo_ano),
+    marca: readString(payload.veiculo_marca),
+    modelo: readString(payload.veiculo_modelo)
+  };
+  return vehicleHasData(legacyVehicle) ? [legacyVehicle] : [];
+}
+
 function draftFromCard(card: KanbanCard | null): CardDraft {
   if (!card) return { ...emptyDraft };
   const payload = card.payload || {};
-  const vehicle = Array.isArray(payload.veiculos) && payload.veiculos[0] ? payload.veiculos[0] : {};
 
   return {
     nome: readString(payload.nome, card.title),
@@ -109,11 +252,9 @@ function draftFromCard(card: KanbanCard | null): CardDraft {
     estado_civil: readString(payload.estado_civil),
     tempo_de_seguro: readString(payload.tempo_de_seguro),
     tempo_no_endereco: readString(payload.tempo_no_endereco),
-    veiculo_vin: readString(vehicle.vin),
-    veiculo_ano: readString(vehicle.ano),
-    veiculo_marca: readString(vehicle.marca),
-    veiculo_modelo: readString(vehicle.modelo),
-    observacoes: readString(payload.observacoes)
+    observacoes: readString(payload.observacoes),
+    pessoas: peopleFromPayload(payload),
+    veiculos: vehiclesFromPayload(payload)
   };
 }
 
@@ -134,16 +275,97 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
     tempo_de_seguro: draft.tempo_de_seguro,
     tempo_no_endereco: draft.tempo_no_endereco,
     observacoes: draft.observacoes,
-    veiculos: [
-      {
-        vin: draft.veiculo_vin,
-        ano: draft.veiculo_ano,
-        marca: draft.veiculo_marca,
-        modelo: draft.veiculo_modelo
-      }
-    ].filter((vehicle) => vehicle.vin || vehicle.ano || vehicle.marca || vehicle.modelo),
-    pessoas: []
+    veiculos: draft.veiculos
+      .map((vehicle) => ({
+        vin: vehicle.vin.trim().toUpperCase(),
+        placa: vehicle.placa.trim().toUpperCase(),
+        ano: vehicle.ano.trim(),
+        marca: vehicle.marca.trim(),
+        modelo: vehicle.modelo.trim()
+      }))
+      .filter((vehicle) => vehicleHasData(vehicle)),
+    pessoas: draft.pessoas
+      .map((person) => ({
+        nome: person.nome.trim(),
+        documento: person.documento.trim(),
+        documento_estado: person.documento_estado.trim(),
+        data_nascimento: person.data_nascimento.trim(),
+        email: person.email.trim(),
+        genero: person.genero.trim(),
+        estado_civil: person.estado_civil.trim(),
+        tempo_de_seguro: person.tempo_de_seguro.trim(),
+        tempo_no_endereco: person.tempo_no_endereco.trim()
+      }))
+      .filter((person) => personHasData(person))
   };
+}
+
+function isRouteNotFoundError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error || '');
+  const normalized = message.toLowerCase();
+  return (
+    normalized.includes('rota nao encontrada') ||
+    normalized.includes('rota não encontrada') ||
+    normalized.includes('not found') ||
+    normalized.includes('http 404')
+  );
+}
+
+function parseVehicleLookup(payload: any): Partial<VehicleDraft> {
+  const candidates = [
+    payload,
+    Array.isArray(payload) ? payload[0] : null,
+    payload?.vehicle,
+    payload?.data,
+    payload?.result,
+    payload?.results?.[0],
+    Array.isArray(payload?.results) ? payload.results[0] : null
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    const year = readString(candidate.ano, candidate.year, candidate.modelYear, candidate.ModelYear);
+    const make = readString(candidate.marca, candidate.make, candidate.Make);
+    const model = readString(candidate.modelo, candidate.model, candidate.Model);
+    if (year || make || model) {
+      return {
+        ano: year,
+        marca: make,
+        modelo: model
+      };
+    }
+  }
+
+  return {};
+}
+
+async function lookupVehicleByVin(vin: string): Promise<Partial<VehicleDraft>> {
+  const normalizedVin = vin.trim().toUpperCase();
+  if (!normalizedVin || normalizedVin.length < 6) return {};
+
+  const encodedVin = encodeURIComponent(normalizedVin);
+  const paths = [
+    `/vehicles/decode-vin/${encodedVin}`,
+    `/vehicles/decode/${encodedVin}`,
+    `/vehicles/vin/${encodedVin}`,
+    `/vehicles/lookup?vin=${encodedVin}`,
+    `/vehicles?vin=${encodedVin}`
+  ];
+
+  for (const path of paths) {
+    try {
+      const data = await apiRequest<any>('GET', path);
+      const vehicle = parseVehicleLookup(data);
+      if (vehicle.ano || vehicle.marca || vehicle.modelo) {
+        return vehicle;
+      }
+    } catch (error) {
+      if (!isRouteNotFoundError(error)) {
+        throw error;
+      }
+    }
+  }
+
+  return {};
 }
 
 async function apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
@@ -171,15 +393,112 @@ function CardEditor({
 }) {
   const [draft, setDraft] = useState<CardDraft>(() => draftFromCard(card));
   const [columnId, setColumnId] = useState(card?.columnId || initialColumnId || columns[0]?.id || '');
+  const [vinLoadingKey, setVinLoadingKey] = useState('');
+  const [vinNotice, setVinNotice] = useState('');
+
+  useEffect(() => {
+    setDraft(draftFromCard(card));
+    setColumnId(card?.columnId || initialColumnId || columns[0]?.id || '');
+  }, [card, columns, initialColumnId]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !saving) {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose, saving]);
 
   const update = (key: keyof CardDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
   };
 
+  const updatePerson = (index: number, key: keyof PersonDraft, value: string) => {
+    setDraft((current) => ({
+      ...current,
+      pessoas: current.pessoas.map((person, itemIndex) => {
+        if (itemIndex !== index) return person;
+        return { ...person, [key]: value };
+      })
+    }));
+  };
+
+  const addPerson = () => {
+    setDraft((current) => ({ ...current, pessoas: [...current.pessoas, { ...emptyPerson }] }));
+  };
+
+  const removePerson = (index: number) => {
+    setDraft((current) => ({ ...current, pessoas: current.pessoas.filter((_, itemIndex) => itemIndex !== index) }));
+  };
+
+  const updateVehicle = (index: number, key: keyof VehicleDraft, value: string) => {
+    setVinNotice('');
+    setDraft((current) => ({
+      ...current,
+      veiculos: current.veiculos.map((vehicle, itemIndex) => {
+        if (itemIndex !== index) return vehicle;
+        return { ...vehicle, [key]: value };
+      })
+    }));
+  };
+
+  const addVehicle = () => {
+    setDraft((current) => ({ ...current, veiculos: [...current.veiculos, { ...emptyVehicle }] }));
+  };
+
+  const removeVehicle = (index: number) => {
+    setDraft((current) => ({ ...current, veiculos: current.veiculos.filter((_, itemIndex) => itemIndex !== index) }));
+  };
+
+  const resolveVin = async (index: number) => {
+    const row = draft.veiculos[index];
+    const vin = row?.vin?.trim().toUpperCase();
+    if (!vin || vin.length < 6) return;
+
+    setVinLoadingKey(`${index}:${vin}`);
+    setVinNotice('');
+    try {
+      const resolved = await lookupVehicleByVin(vin);
+      if (!resolved.ano && !resolved.marca && !resolved.modelo) {
+        setVinNotice(`VIN ${vin}: sem retorno automático para modelo/marca/ano.`);
+        return;
+      }
+
+      setDraft((current) => ({
+        ...current,
+        veiculos: current.veiculos.map((vehicle, itemIndex) => {
+          if (itemIndex !== index) return vehicle;
+          return {
+            ...vehicle,
+            vin,
+            ano: readString(resolved.ano, vehicle.ano),
+            marca: readString(resolved.marca, vehicle.marca),
+            modelo: readString(resolved.modelo, vehicle.modelo)
+          };
+        })
+      }));
+      setVinNotice(`VIN ${vin}: veículo preenchido automaticamente.`);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao consultar o VIN.';
+      setVinNotice(`VIN ${vin}: ${message}`);
+    } finally {
+      setVinLoadingKey('');
+    }
+  };
+
   return (
-    <div className="modal-overlay opacity-100">
+    <div
+      className="modal-overlay opacity-100"
+      onClick={(event) => {
+        if (event.target === event.currentTarget && !saving) {
+          onClose();
+        }
+      }}
+    >
       <form
-        className="modal-content max-h-[92vh] max-w-5xl overflow-hidden"
+        className="modal-content max-h-[92vh] max-w-6xl overflow-hidden"
         onSubmit={(event) => {
           event.preventDefault();
           onSave(draft, columnId);
@@ -199,40 +518,227 @@ function CardEditor({
           </button>
         </div>
 
-        <div className="modal-body max-h-[68vh] overflow-y-auto">
-          <div className="grid gap-5 md:grid-cols-2">
-            <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Coluna</span>
-              <select className="input-control" value={columnId} onChange={(event) => setColumnId(event.target.value)}>
-                {columns.map((column) => <option key={column.id} value={column.id}>{column.title}</option>)}
-              </select>
-            </label>
-            <Field label="Nome completo" value={draft.nome} onChange={(value) => update('nome', value)} required />
-            <Field label="Documento" value={draft.documento} onChange={(value) => update('documento', value)} />
-            <Field label="Estado documento" value={draft.documento_estado} onChange={(value) => update('documento_estado', value)} />
-            <Field label="Nascimento" type="date" value={draft.data_nascimento} onChange={(value) => update('data_nascimento', value)} />
-            <Field label="Email" type="email" value={draft.email} onChange={(value) => update('email', value)} />
-            <Field label="Rua" value={draft.endereco_rua} onChange={(value) => update('endereco_rua', value)} />
-            <Field label="Apt" value={draft.endereco_apt} onChange={(value) => update('endereco_apt', value)} />
-            <Field label="Cidade" value={draft.endereco_cidade} onChange={(value) => update('endereco_cidade', value)} />
-            <Field label="Estado" value={draft.endereco_estado} onChange={(value) => update('endereco_estado', value)} />
-            <Field label="ZIP" value={draft.endereco_zipcode} onChange={(value) => update('endereco_zipcode', value)} />
-            <Field label="Genero" value={draft.genero} onChange={(value) => update('genero', value)} />
-            <Field label="Estado civil" value={draft.estado_civil} onChange={(value) => update('estado_civil', value)} />
-            <Field label="Tempo de seguro" value={draft.tempo_de_seguro} onChange={(value) => update('tempo_de_seguro', value)} />
-            <Field label="Tempo no endereço" value={draft.tempo_no_endereco} onChange={(value) => update('tempo_no_endereco', value)} />
-            <Field label="VIN" value={draft.veiculo_vin} onChange={(value) => update('veiculo_vin', value.toUpperCase())} />
-            <Field label="Ano" value={draft.veiculo_ano} onChange={(value) => update('veiculo_ano', value)} />
-            <Field label="Marca" value={draft.veiculo_marca} onChange={(value) => update('veiculo_marca', value)} />
-            <Field label="Modelo" value={draft.veiculo_modelo} onChange={(value) => update('veiculo_modelo', value)} />
-            <label className="block md:col-span-2">
-              <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Observações</span>
-              <textarea
-                className="input-control min-h-[110px]"
-                value={draft.observacoes}
-                onChange={(event) => update('observacoes', event.target.value)}
-              />
-            </label>
+        <div className="modal-body max-h-[72vh] overflow-y-auto custom-scrollbar">
+          <div className="grid gap-6 lg:grid-cols-3">
+            <div className="space-y-6 lg:col-span-2">
+              <section className="surface-subtle">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                  Dados principais
+                </h4>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Nome completo" value={draft.nome} onChange={(value) => update('nome', value)} required />
+                  <Field label="Documento" value={draft.documento} onChange={(value) => update('documento', value)} />
+                  <SelectField
+                    label="Estado documento"
+                    value={draft.documento_estado}
+                    onChange={(value) => update('documento_estado', value)}
+                    options={documentStates.map((state) => ({ value: state, label: state }))}
+                    placeholder="Selecione"
+                  />
+                  <Field label="Nascimento" type="date" value={draft.data_nascimento} onChange={(value) => update('data_nascimento', value)} />
+                  <Field label="Email" type="email" value={draft.email} onChange={(value) => update('email', value)} />
+                  <ChoiceField
+                    label="Gênero"
+                    value={draft.genero}
+                    onChange={(value) => update('genero', value)}
+                    options={genderOptions}
+                  />
+                  <ChoiceField
+                    label="Estado civil"
+                    value={draft.estado_civil}
+                    onChange={(value) => update('estado_civil', value)}
+                    options={maritalStatusOptions}
+                  />
+                  <SelectField
+                    label="Tempo de seguro"
+                    value={draft.tempo_de_seguro}
+                    onChange={(value) => update('tempo_de_seguro', value)}
+                    options={insuranceDurationOptions}
+                    placeholder="Selecione"
+                  />
+                  <SelectField
+                    label="Tempo no endereço"
+                    value={draft.tempo_no_endereco}
+                    onChange={(value) => update('tempo_no_endereco', value)}
+                    options={addressDurationOptions}
+                    placeholder="Selecione"
+                  />
+                </div>
+              </section>
+
+              <section className="surface-subtle">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                  Endereço
+                </h4>
+                <div className="mt-4 grid gap-4 md:grid-cols-2">
+                  <Field label="Rua" value={draft.endereco_rua} onChange={(value) => update('endereco_rua', value)} />
+                  <Field label="Apt" value={draft.endereco_apt} onChange={(value) => update('endereco_apt', value)} />
+                  <Field label="Cidade" value={draft.endereco_cidade} onChange={(value) => update('endereco_cidade', value)} />
+                  <Field label="Estado" value={draft.endereco_estado} onChange={(value) => update('endereco_estado', value)} />
+                  <Field label="ZIP" value={draft.endereco_zipcode} onChange={(value) => update('endereco_zipcode', value)} />
+                </div>
+              </section>
+
+              <section className="surface-subtle">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Veículos ({draft.veiculos.length})
+                  </h4>
+                  <button type="button" className="btn-secondary min-h-[36px] px-3 text-xs" onClick={addVehicle}>
+                    Adicionar veículo
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {draft.veiculos.map((vehicle, index) => (
+                    <div key={`vehicle-${index}`} className="rounded-2xl border border-slate-200/80 bg-white/90 p-3 dark:border-slate-800/80 dark:bg-slate-900/85">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                          Veículo {index + 1}
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-secondary min-h-[32px] px-2 text-xs"
+                          onClick={() => removeVehicle(index)}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <label className="block md:col-span-2">
+                          <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">VIN</span>
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <input
+                              className="input-control"
+                              value={vehicle.vin}
+                              maxLength={17}
+                              placeholder="17 caracteres"
+                              onChange={(event) => updateVehicle(index, 'vin', event.target.value.toUpperCase())}
+                              onBlur={() => void resolveVin(index)}
+                            />
+                            <button
+                              type="button"
+                              className="btn-secondary min-h-[44px] px-3 text-xs"
+                              onClick={() => void resolveVin(index)}
+                              disabled={vinLoadingKey === `${index}:${vehicle.vin.trim().toUpperCase()}`}
+                            >
+                              {vinLoadingKey === `${index}:${vehicle.vin.trim().toUpperCase()}` ? 'Buscando...' : 'Preencher'}
+                            </button>
+                          </div>
+                        </label>
+                        <Field label="Placa (opcional)" value={vehicle.placa} onChange={(value) => updateVehicle(index, 'placa', value.toUpperCase())} />
+                        <ReadOnlyField label="Marca" value={vehicle.marca || 'Automático pelo VIN'} />
+                        <ReadOnlyField label="Modelo" value={vehicle.modelo || 'Automático pelo VIN'} />
+                        <ReadOnlyField label="Ano" value={vehicle.ano || 'Automático pelo VIN'} />
+                      </div>
+                    </div>
+                  ))}
+                  {!draft.veiculos.length ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      Nenhum veículo adicionado.
+                    </div>
+                  ) : null}
+                </div>
+                {vinNotice ? (
+                  <p className="mt-3 text-xs font-semibold text-slate-500 dark:text-slate-400">{vinNotice}</p>
+                ) : null}
+              </section>
+            </div>
+
+            <aside className="space-y-6">
+              <section className="surface-subtle">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">Status</h4>
+                <label className="mt-4 block">
+                  <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">Coluna</span>
+                  <select className="input-control" value={columnId} onChange={(event) => setColumnId(event.target.value)}>
+                    {columns.map((column) => <option key={column.id} value={column.id}>{column.title}</option>)}
+                  </select>
+                </label>
+              </section>
+
+              <section className="surface-subtle">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Pessoas ({draft.pessoas.length})
+                  </h4>
+                  <button type="button" className="btn-secondary min-h-[36px] px-3 text-xs" onClick={addPerson}>
+                    Adicionar pessoa
+                  </button>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {draft.pessoas.map((person, index) => (
+                    <div key={`person-${index}`} className="rounded-2xl border border-slate-200/80 bg-white/90 p-3 dark:border-slate-800/80 dark:bg-slate-900/85">
+                      <div className="mb-3 flex items-center justify-between gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                          Pessoa {index + 1}
+                        </p>
+                        <button
+                          type="button"
+                          className="btn-secondary min-h-[32px] px-2 text-xs"
+                          onClick={() => removePerson(index)}
+                        >
+                          Remover
+                        </button>
+                      </div>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="Nome" value={person.nome} onChange={(value) => updatePerson(index, 'nome', value)} />
+                        <Field label="Documento" value={person.documento} onChange={(value) => updatePerson(index, 'documento', value)} />
+                        <SelectField
+                          label="Estado documento"
+                          value={person.documento_estado}
+                          onChange={(value) => updatePerson(index, 'documento_estado', value)}
+                          options={documentStates.map((state) => ({ value: state, label: state }))}
+                          placeholder="Selecione"
+                        />
+                        <Field label="Nascimento" type="date" value={person.data_nascimento} onChange={(value) => updatePerson(index, 'data_nascimento', value)} />
+                        <Field label="Email" type="email" value={person.email} onChange={(value) => updatePerson(index, 'email', value)} />
+                        <ChoiceField
+                          label="Gênero"
+                          value={person.genero}
+                          onChange={(value) => updatePerson(index, 'genero', value)}
+                          options={genderOptions}
+                        />
+                        <ChoiceField
+                          label="Estado civil"
+                          value={person.estado_civil}
+                          onChange={(value) => updatePerson(index, 'estado_civil', value)}
+                          options={maritalStatusOptions}
+                        />
+                        <SelectField
+                          label="Tempo de seguro"
+                          value={person.tempo_de_seguro}
+                          onChange={(value) => updatePerson(index, 'tempo_de_seguro', value)}
+                          options={insuranceDurationOptions}
+                          placeholder="Selecione"
+                        />
+                        <SelectField
+                          label="Tempo no endereço"
+                          value={person.tempo_no_endereco}
+                          onChange={(value) => updatePerson(index, 'tempo_no_endereco', value)}
+                          options={addressDurationOptions}
+                          placeholder="Selecione"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                  {!draft.pessoas.length ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      Nenhuma pessoa adicional cadastrada.
+                    </div>
+                  ) : null}
+                </div>
+              </section>
+
+              <section className="surface-subtle">
+                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                  Observações
+                </h4>
+                <textarea
+                  className="input-control mt-4 min-h-[140px]"
+                  value={draft.observacoes}
+                  onChange={(event) => update('observacoes', event.target.value)}
+                />
+              </section>
+            </aside>
           </div>
         </div>
 
@@ -256,6 +762,75 @@ function Field({ label, value, onChange, type = 'text', required = false }: { la
   );
 }
 
+function SelectField({
+  label,
+  value,
+  onChange,
+  options,
+  placeholder
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+  placeholder?: string;
+}) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</span>
+      <select className="input-control" value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="">{placeholder || 'Selecione'}</option>
+        {options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+      </select>
+    </label>
+  );
+}
+
+function ChoiceField({
+  label,
+  value,
+  onChange,
+  options
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  options: Array<{ value: string; label: string }>;
+}) {
+  return (
+    <div className="block md:col-span-2">
+      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</span>
+      <div className="flex flex-wrap gap-2">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            className={`rounded-2xl border px-3 py-2 text-sm font-semibold transition-all ${
+              value === option.value
+                ? 'border-brand-400 bg-brand-50 text-brand-700 dark:border-brand-500/40 dark:bg-brand-500/10 dark:text-brand-200'
+                : 'border-slate-200 bg-white/90 text-slate-600 hover:border-brand-200 dark:border-slate-800 dark:bg-slate-900/80 dark:text-slate-300'
+            }`}
+            onClick={() => onChange(option.value)}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-semibold text-slate-700 dark:text-slate-300">{label}</span>
+      <div className="input-control cursor-not-allowed bg-slate-100 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+        {value}
+      </div>
+    </label>
+  );
+}
+
 export const DesktopKanbanView: React.FC = () => {
   const [board, setBoard] = useState<BoardResponse>({ columns: [] });
   const [loading, setLoading] = useState(false);
@@ -271,6 +846,8 @@ export const DesktopKanbanView: React.FC = () => {
   const [columnDrafts, setColumnDrafts] = useState<Record<string, string>>({});
   const [renamingColumnId, setRenamingColumnId] = useState('');
   const [deletingColumnId, setDeletingColumnId] = useState('');
+  const [draggingCardId, setDraggingCardId] = useState('');
+  const [dragOverColumnId, setDragOverColumnId] = useState('');
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -408,6 +985,14 @@ export const DesktopKanbanView: React.FC = () => {
     }
   };
 
+  const handleCardDrop = async (columnId: string) => {
+    const card = allCards.find((item) => item.id === draggingCardId);
+    setDragOverColumnId('');
+    setDraggingCardId('');
+    if (!card) return;
+    await moveCard(card, columnId);
+  };
+
   const runQuote = async (card: KanbanCard, insurer: string = selectedInsurer) => {
     setRunningId(card.id);
     setError('');
@@ -498,7 +1083,22 @@ export const DesktopKanbanView: React.FC = () => {
 
         <div className="grid gap-4 overflow-x-auto pb-2 xl:grid-cols-3">
           {board.columns.map((column) => (
-            <section key={column.id} className="min-w-[280px] rounded-[24px] border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/45">
+            <section
+              key={column.id}
+              className={`min-w-[280px] rounded-[24px] border p-3 transition-all ${
+                dragOverColumnId === column.id
+                  ? 'border-brand-300 bg-brand-50/70 ring-2 ring-brand-500/20 dark:border-brand-500/30 dark:bg-brand-500/10'
+                  : 'border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/45'
+              }`}
+              onDragOver={(event) => {
+                event.preventDefault();
+                setDragOverColumnId(column.id);
+              }}
+              onDrop={(event) => {
+                event.preventDefault();
+                void handleCardDrop(column.id);
+              }}
+            >
               <header className="mb-3 flex items-center gap-2">
                 <input
                   className="min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none dark:text-white"
@@ -534,8 +1134,23 @@ export const DesktopKanbanView: React.FC = () => {
               <div className="space-y-3">
                 {column.cards.map((card) => {
                   const latest = card.latestPrice?.processed || {};
+                  const peopleCount = Array.isArray(card.payload?.pessoas) ? card.payload.pessoas.length : 0;
+                  const vehiclesCount = Array.isArray(card.payload?.veiculos) ? card.payload.veiculos.length : 0;
                   return (
-                    <article key={card.id} className="rounded-[22px] border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+                    <article
+                      key={card.id}
+                      draggable
+                      onDragStart={() => setDraggingCardId(card.id)}
+                      onDragEnd={() => {
+                        setDraggingCardId('');
+                        setDragOverColumnId('');
+                      }}
+                      className={`rounded-[22px] border bg-white p-4 shadow-sm transition-opacity dark:bg-slate-900 ${
+                        draggingCardId === card.id
+                          ? 'border-brand-300 opacity-65 dark:border-brand-500/30'
+                          : 'border-slate-200 dark:border-slate-800'
+                      }`}
+                    >
                       <button type="button" className="block w-full text-left" onClick={() => openCard(card)}>
                         <div className="flex items-start justify-between gap-3">
                           <strong className="text-sm font-semibold text-slate-900 dark:text-white">{card.title}</strong>
@@ -545,6 +1160,9 @@ export const DesktopKanbanView: React.FC = () => {
                         </div>
                         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                           {card.description || readString(card.payload?.endereco_zipcode, card.payload?.documento, 'Sem resumo')}
+                        </p>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                          {peopleCount} pessoa{peopleCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
                         </p>
                       </button>
 
