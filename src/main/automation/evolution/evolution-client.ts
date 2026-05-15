@@ -391,8 +391,11 @@ function getEvolutionEnvCandidates(): string[] {
   }
 
   try {
-    if (electronApp && !electronApp.isPackaged && typeof electronApp.getAppPath === 'function') {
-      candidates.add(path.join(electronApp.getAppPath(), fileName));
+    if (electronApp && typeof electronApp.getAppPath === 'function') {
+      const appPath = electronApp.getAppPath();
+      // Packaged apps usually run from resources/app.asar; this path allows reading env bundled in the app.
+      candidates.add(path.join(appPath, fileName));
+      candidates.add(path.join(path.dirname(appPath), fileName));
     }
   } catch {
     // no-op
