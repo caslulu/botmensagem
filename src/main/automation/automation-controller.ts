@@ -199,23 +199,16 @@ class AutomationController extends EventEmitter {
 
   private async fetchTargetGroups(instanceName: string): Promise<EvolutionGroup[]> {
     const groups = await this.evolution!.fetchGroups(instanceName);
-    const archivedGroupIds = await this.evolution!.fetchArchivedGroupIds(instanceName);
-    this.logger.info(`Grupos arquivados encontrados: ${archivedGroupIds.size}`);
-
-    if (archivedGroupIds.size === 0) {
-      throw new Error('Nenhum grupo arquivado encontrado para envio.');
-    }
-
     const dedup = new Map<string, EvolutionGroup>();
     for (const group of groups) {
-      if (archivedGroupIds.has(group.id) && !dedup.has(group.id)) {
+      if (!dedup.has(group.id)) {
         dedup.set(group.id, group);
       }
     }
 
     const filtered = Array.from(dedup.values()).sort((a, b) => a.id.localeCompare(b.id));
     if (filtered.length === 0) {
-      throw new Error('Nenhum grupo arquivado elegível foi retornado pelo endpoint de grupos.');
+      throw new Error('Nenhum grupo elegível foi retornado pelo endpoint de grupos.');
     }
 
     return filtered;

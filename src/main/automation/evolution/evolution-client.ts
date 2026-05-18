@@ -25,6 +25,45 @@ function asArray<T>(value: unknown): T[] {
   return [];
 }
 
+class EvolutionApiError extends Error {
+  constructor(
+    readonly status: number,
+    message: string
+  ) {
+    super(`Evolution API ${status}: ${message}`);
+    this.name = 'EvolutionApiError';
+  }
+}
+
+function extractErrorDetails(payload: any): string {
+  const message = payload?.response?.message ?? payload?.message ?? payload?.error ?? payload?.raw;
+  if (Array.isArray(message)) return message.flat(2).map(String).join('; ');
+  if (message && typeof message === 'object') return JSON.stringify(message);
+  if (message) return String(message);
+  return JSON.stringify(payload);
+}
+
+function extractGroupJid(value: any): string {
+  return String(
+    value?.remoteJid ||
+      value?.jid ||
+      value?.groupId ||
+      value?.chatId ||
+      value?.key?.remoteJid ||
+      value?.lastMessage?.key?.remoteJid ||
+      value?.id ||
+      ''
+  ).trim();
+}
+
+function normalizeGroup(value: any): EvolutionGroup | null {
+  const id = extractGroupJid(value);
+  if (!id.endsWith('@g.us')) return null;
+
+  const subject = String(value?.subject || value?.name || value?.pushName || id).trim();
+  return { id, subject };
+}
+
 function parseBooleanLike(value: unknown): boolean | undefined {
   if (typeof value === 'boolean') return value;
   if (typeof value === 'number') return value === 1 ? true : value === 0 ? false : undefined;
@@ -89,8 +128,7 @@ export default class EvolutionClient {
     }
 
     if (!res.ok) {
-      const details = payload?.message || payload?.error || JSON.stringify(payload);
-      throw new Error(`Evolution API ${res.status}: ${details}`);
+      throw new EvolutionApiError(res.status, extractErrorDetails(payload));
     }
 
     return payload;
@@ -138,39 +176,57 @@ export default class EvolutionClient {
 
   async fetchGroups(instanceName: string): Promise<EvolutionGroup[]> {
     const encoded = encodeURIComponent(instanceName);
-    const endpoint = `/group/fetchAllGroups/${encoded}?getParticipants=false`;
-    let lastError: Error | null = null;
-    let payload: any = null;
+    const attempts: Array<{ endpoint: string; method: 'GET' | 'POST'; body?: Record<string, unknown> }> = [
+      // Evolution API 2.3.x returns chats here; groups are identified by remoteJid ending in @g.us.
+      { endpoint: `/chat/findChats/${encoded}`, method: 'POST', body: { where: {}, take: 10000, skip: 0 } },
+      { endpoint: `/chat/findChats/${encoded}`, method: 'POST', body: {} },
+      { endpoint: `/chat/findContacts/${encoded}`, method: 'POST', body: { where: { isGroup: true }, take: 10000, skip: 0 } },
+      { endpoint: `/group/fetchAllGroups/${encoded}?getParticipants=false`, method: 'GET' },
+      { endpoint: `/group/fetchAllGroups/${encoded}`, method: 'GET' },
+      { endpoint: `/group/fetchAllGroups/${encoded}`, method: 'POST', body: { getParticipants: false } },
+      { endpoint: `/group/findGroups/${encoded}`, method: 'GET' },
+      { endpoint: `/group/findGroups/${encoded}`, method: 'POST', body: {} },
+      // Alguns builds da Evolution esperam o instanceName fora da URL.
+      { endpoint: `/group/fetchAllGroups?instanceName=${encoded}&getParticipants=false`, method: 'GET' },
+      { endpoint: `/group/fetchAllGroups?instance=${encoded}&getParticipants=false`, method: 'GET' },
+      { endpoint: `/group/fetchAllGroups`, method: 'POST', body: { instanceName, getParticipants: false } },
+      { endpoint: `/group/fetchAllGroups`, method: 'POST', body: { instance: instanceName, getParticipants: false } },
+      { endpoint: `/group/findGroups`, method: 'POST', body: { instanceName } },
+      { endpoint: `/group/findGroups`, method: 'POST', body: { instance: instanceName } },
+      { endpoint: `/chat/findChats/${encoded}`, method: 'GET' },
+      { endpoint: `/chat/findChats?instanceName=${encoded}`, method: 'GET' },
+      { endpoint: `/chat/findChats?instance=${encoded}`, method: 'GET' }
+    ];
 
-    // A API pode demorar após reconexão; tentamos algumas vezes com backoff.
-    for (let attempt = 1; attempt <= 4; attempt += 1) {
-      try {
-        payload = await this.request(endpoint, { method: 'GET' }, 120000);
-        break;
-      } catch (error: any) {
-        if (error?.name === 'AbortError') {
-          lastError = new Error(`Timeout ao buscar grupos em ${endpoint}`);
-        } else {
-          lastError = error as Error;
-        }
-        if (attempt < 4) {
-          await new Promise((resolve) => setTimeout(resolve, attempt * 3000));
+    const errors: string[] = [];
+    for (const target of attempts) {
+      for (let retry = 1; retry <= 3; retry += 1) {
+        try {
+          const payload = await this.request(
+            target.endpoint,
+            {
+              method: target.method,
+              ...(target.method === 'POST' ? { body: JSON.stringify(target.body || {}) } : {})
+            },
+            120000
+          );
+
+          const groups = asArray<any>(payload)
+            .map(normalizeGroup)
+            .filter((group): group is EvolutionGroup => Boolean(group));
+
+          if (groups.length > 0) {
+            return groups;
+          }
+        } catch (error: any) {
+          errors.push(`${target.method} ${target.endpoint}: ${(error as Error)?.message || String(error)}`);
+          if (error instanceof EvolutionApiError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 429) break;
+          if (retry < 3) await new Promise((resolve) => setTimeout(resolve, retry * 2500));
         }
       }
     }
 
-    if (!payload) {
-      throw new Error(`Falha ao buscar grupos na Evolution API: ${lastError?.message || 'erro desconhecido'}`);
-    }
-
-    const groups = asArray<any>(payload);
-    return groups
-      .map((g) => {
-        const id = String(g?.id || g?.jid || g?.groupId || '').trim();
-        const subject = String(g?.subject || g?.name || id).trim();
-        return { id, subject };
-      })
-      .filter((g) => !!g.id);
+    throw new Error(`Falha ao buscar grupos na Evolution API: ${errors.slice(0, 8).join(' | ')}`);
   }
 
   async fetchArchivedGroupIds(instanceName: string): Promise<Set<string>> {
@@ -208,15 +264,7 @@ export default class EvolutionClient {
 
         const ids = new Set<string>();
         for (const chat of chats) {
-          const jid = String(
-            chat?.id ||
-              chat?.remoteJid ||
-              chat?.jid ||
-              chat?.chatId ||
-              chat?.key?.remoteJid ||
-              chat?.lastMessage?.key?.remoteJid ||
-              ''
-          ).trim();
+          const jid = extractGroupJid(chat);
           const archivedRaw =
             chat?.archived ??
             chat?.archive ??

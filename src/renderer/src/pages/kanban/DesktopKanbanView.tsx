@@ -59,6 +59,7 @@ type CardDraft = {
   tempo_de_seguro: string;
   tempo_no_endereco: string;
   observacoes: string;
+  conjuge: PersonDraft;
   pessoas: PersonDraft[];
   veiculos: VehicleDraft[];
 };
@@ -99,6 +100,7 @@ const emptyDraft: CardDraft = {
   tempo_de_seguro: '',
   tempo_no_endereco: '',
   observacoes: '',
+  conjuge: { ...emptyPerson },
   pessoas: [],
   veiculos: []
 };
@@ -191,7 +193,6 @@ function personHasData(person: PersonDraft): boolean {
     person.documento.trim() ||
     person.documento_estado.trim() ||
     person.data_nascimento.trim() ||
-    person.email.trim() ||
     person.genero.trim() ||
     person.estado_civil.trim() ||
     person.tempo_de_seguro.trim() ||
@@ -253,12 +254,25 @@ function draftFromCard(card: KanbanCard | null): CardDraft {
     tempo_de_seguro: readString(payload.tempo_de_seguro),
     tempo_no_endereco: readString(payload.tempo_no_endereco),
     observacoes: readString(payload.observacoes),
+    conjuge: normalizePerson((payload.conjuge as Record<string, any>) || {}),
     pessoas: peopleFromPayload(payload),
     veiculos: vehiclesFromPayload(payload)
   };
 }
 
 function payloadFromDraft(draft: CardDraft): Record<string, any> {
+  const conjuge = {
+    nome: draft.conjuge.nome.trim(),
+    documento: draft.conjuge.documento.trim(),
+    documento_estado: draft.conjuge.documento_estado.trim(),
+    data_nascimento: draft.conjuge.data_nascimento.trim(),
+    email: '',
+    genero: draft.conjuge.genero.trim(),
+    estado_civil: '',
+    tempo_de_seguro: '',
+    tempo_no_endereco: ''
+  };
+
   return {
     nome: draft.nome,
     documento: draft.documento,
@@ -275,6 +289,7 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
     tempo_de_seguro: draft.tempo_de_seguro,
     tempo_no_endereco: draft.tempo_no_endereco,
     observacoes: draft.observacoes,
+    conjuge: draft.estado_civil === 'married' && personHasData(conjuge) ? conjuge : null,
     veiculos: draft.veiculos
       .map((vehicle) => ({
         vin: vehicle.vin.trim().toUpperCase(),
@@ -290,11 +305,11 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
         documento: person.documento.trim(),
         documento_estado: person.documento_estado.trim(),
         data_nascimento: person.data_nascimento.trim(),
-        email: person.email.trim(),
+        email: '',
         genero: person.genero.trim(),
         estado_civil: person.estado_civil.trim(),
-        tempo_de_seguro: person.tempo_de_seguro.trim(),
-        tempo_no_endereco: person.tempo_no_endereco.trim()
+        tempo_de_seguro: '',
+        tempo_no_endereco: ''
       }))
       .filter((person) => personHasData(person))
   };
@@ -425,6 +440,10 @@ function CardEditor({
     }));
   };
 
+  const updateConjuge = (key: keyof PersonDraft, value: string) => {
+    setDraft((current) => ({ ...current, conjuge: { ...current.conjuge, [key]: value } }));
+  };
+
   const addPerson = () => {
     setDraft((current) => ({ ...current, pessoas: [...current.pessoas, { ...emptyPerson }] }));
   };
@@ -549,6 +568,31 @@ function CardEditor({
                     onChange={(value) => update('estado_civil', value)}
                     options={maritalStatusOptions}
                   />
+                  {draft.estado_civil === 'married' ? (
+                    <div className="md:col-span-2 rounded-2xl border border-slate-200/80 bg-white/80 p-3 dark:border-slate-800/80 dark:bg-slate-900/60">
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                        Dados do cônjuge
+                      </p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <Field label="Nome" value={draft.conjuge.nome} onChange={(value) => updateConjuge('nome', value)} />
+                        <Field label="Documento" value={draft.conjuge.documento} onChange={(value) => updateConjuge('documento', value)} />
+                        <SelectField
+                          label="Estado documento"
+                          value={draft.conjuge.documento_estado}
+                          onChange={(value) => updateConjuge('documento_estado', value)}
+                          options={documentStates.map((state) => ({ value: state, label: state }))}
+                          placeholder="Selecione"
+                        />
+                        <Field label="Nascimento" type="date" value={draft.conjuge.data_nascimento} onChange={(value) => updateConjuge('data_nascimento', value)} />
+                        <ChoiceField
+                          label="Gênero"
+                          value={draft.conjuge.genero}
+                          onChange={(value) => updateConjuge('genero', value)}
+                          options={genderOptions}
+                        />
+                      </div>
+                    </div>
+                  ) : null}
                   <SelectField
                     label="Tempo de seguro"
                     value={draft.tempo_de_seguro}
@@ -690,7 +734,6 @@ function CardEditor({
                           placeholder="Selecione"
                         />
                         <Field label="Nascimento" type="date" value={person.data_nascimento} onChange={(value) => updatePerson(index, 'data_nascimento', value)} />
-                        <Field label="Email" type="email" value={person.email} onChange={(value) => updatePerson(index, 'email', value)} />
                         <ChoiceField
                           label="Gênero"
                           value={person.genero}
@@ -702,20 +745,6 @@ function CardEditor({
                           value={person.estado_civil}
                           onChange={(value) => updatePerson(index, 'estado_civil', value)}
                           options={maritalStatusOptions}
-                        />
-                        <SelectField
-                          label="Tempo de seguro"
-                          value={person.tempo_de_seguro}
-                          onChange={(value) => updatePerson(index, 'tempo_de_seguro', value)}
-                          options={insuranceDurationOptions}
-                          placeholder="Selecione"
-                        />
-                        <SelectField
-                          label="Tempo no endereço"
-                          value={person.tempo_no_endereco}
-                          onChange={(value) => updatePerson(index, 'tempo_no_endereco', value)}
-                          options={addressDurationOptions}
-                          placeholder="Selecione"
                         />
                       </div>
                     </div>
@@ -999,27 +1028,40 @@ export const DesktopKanbanView: React.FC = () => {
     setNotice('');
     try {
       const payload = card.payload || {};
-      const saved = await window.price?.upsertQuote?.({
-        id: card.id,
-        nome: readString(payload.nome, card.title),
-        documento: readString(payload.documento),
-        payload,
-        cardId: card.id
+      const selected = readString(insurer, selectedInsurer, 'progressive').toLowerCase();
+      const requestedAt = new Date().toISOString();
+
+      await apiRequest('POST', '/quotes', {
+        cardId: card.id,
+        payload: {
+          ...payload,
+          nome: readString(payload.nome, card.title),
+          documento: readString(payload.documento),
+          insurer: selected,
+          requestedAt,
+          requestedFrom: 'desktop-kanban'
+        },
+        processed: {
+          status: 'queued',
+          insurer: selected,
+          source: 'desktop-kanban',
+          queuedAt: requestedAt
+        }
       });
 
-      if (saved && typeof saved === 'object' && 'success' in saved && !saved.success) {
-        throw new Error(saved.error || 'Erro ao salvar espelho local da cotação.');
-      }
-
-      const result = await window.quotes?.runAutomation?.({
-        quoteId: card.id,
-        insurer,
-        headless: false
+      const inProgressColumn = board.columns.find((column) => {
+        const title = String(column.title || '').toLowerCase();
+        return title.includes('cotação') || title.includes('cotacao') || title.includes('quote');
       });
 
-      if (result && typeof result === 'object' && 'success' in result && !result.success) {
-        throw new Error(result.error || 'Erro ao iniciar cotação.');
+      if (inProgressColumn && inProgressColumn.id !== card.columnId) {
+        await apiRequest('PATCH', `/kanban/cards/${card.id}/move`, {
+          columnId: inProgressColumn.id,
+          position: inProgressColumn.cards.length || 0
+        });
       }
+
+      await loadBoard();
       setNotice(`Cotação iniciada para ${card.title}.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Erro ao iniciar cotação.');
@@ -1135,6 +1177,7 @@ export const DesktopKanbanView: React.FC = () => {
                 {column.cards.map((card) => {
                   const latest = card.latestPrice?.processed || {};
                   const peopleCount = Array.isArray(card.payload?.pessoas) ? card.payload.pessoas.length : 0;
+                  const spouseCount = personHasData(normalizePerson((card.payload?.conjuge as Record<string, any>) || {})) ? 1 : 0;
                   const vehiclesCount = Array.isArray(card.payload?.veiculos) ? card.payload.veiculos.length : 0;
                   return (
                     <article
@@ -1162,7 +1205,7 @@ export const DesktopKanbanView: React.FC = () => {
                           {card.description || readString(card.payload?.endereco_zipcode, card.payload?.documento, 'Sem resumo')}
                         </p>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
-                          {peopleCount} pessoa{peopleCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
+                          {peopleCount + spouseCount} pessoa{peopleCount + spouseCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
                         </p>
                       </button>
 
