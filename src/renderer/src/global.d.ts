@@ -64,6 +64,10 @@ interface PriceAPI {
   generate: (payload: any) => AsyncResult<IpcResult<{ result?: any }> | any>;
 }
 
+interface QuotesAPI {
+  runAutomation: (payload: any) => AsyncResult<IpcResult<{ result?: any }> | any>;
+}
+
 interface FileSystemAPI {
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
 }
@@ -82,6 +86,7 @@ declare global {
     services?: ServicesAPI;
     rta?: RtaAPI;
     price?: PriceAPI;
+    quotes?: QuotesAPI;
     fileSystem?: FileSystemAPI;
     files?: FilesAPI;
     desktopAuth?: DesktopAuthAPI;

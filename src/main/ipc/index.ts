@@ -4,6 +4,7 @@ import { registerMessageHandlers } from './message-handlers';
 import { registerFileHandlers } from './file-handlers';
 import { registerServiceHandlers } from './services-handlers';
 import { registerPriceHandlers } from './price-handlers';
+import { registerQuoteHandlers } from './quotes-handlers';
 import { registerRtaHandlers } from './rta-handlers';
 import { registerAppHandlers } from './app-handlers';
 import { registerAuthHandlers } from './auth-handlers';
@@ -17,6 +18,7 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerMessageHandlers();
   registerServiceHandlers();
   registerPriceHandlers();
+  registerQuoteHandlers();
   registerRtaHandlers();
   registerFileHandlers(getMainWindow);
 }

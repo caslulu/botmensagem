@@ -5,6 +5,7 @@ import { registerFileSystemBridge } from './bridges/file-system';
 import { registerServicesBridge } from './bridges/services';
 import { registerRtaBridge } from './bridges/rta';
 import { registerPriceBridge } from './bridges/price';
+import { registerQuotesBridge } from './bridges/quotes';
 import { registerFilesBridge } from './bridges/files';
 import { registerAuthBridge } from './bridges/auth';
 import { registerWebApiBridge } from './bridges/web-api';
@@ -21,6 +22,7 @@ const bridges: BridgeRegistrar[] = [
   registerServicesBridge,
   registerRtaBridge,
   registerPriceBridge,
+  registerQuotesBridge,
   registerFilesBridge,
   registerAuthBridge,
   registerWebApiBridge

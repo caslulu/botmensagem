@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 interface PriceFormData {
   formType: 'quitado' | 'financiado';
@@ -15,6 +15,31 @@ interface PriceFormData {
   valor_total_completo: string;
 }
 
+type KanbanCard = {
+  id: string;
+  title: string;
+  payload: Record<string, any>;
+  columnId: string;
+};
+
+type KanbanColumn = {
+  id: string;
+  title: string;
+  cards: KanbanCard[];
+};
+
+type BoardResponse = {
+  columns: KanbanColumn[];
+};
+
+type CardPersonOption = {
+  key: string;
+  name: string;
+  label: string;
+};
+
+const OTHER_PERSON_KEY = '__other_person__';
+
 const initialForm: PriceFormData = {
   formType: 'quitado',
   seguradora: 'Allstate',
@@ -30,15 +55,164 @@ const initialForm: PriceFormData = {
   valor_total_completo: ''
 };
 
+function readString(...values: unknown[]): string {
+  for (const value of values) {
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+  return '';
+}
+
+function normalizeBoard(data: any): BoardResponse {
+  return {
+    columns: Array.isArray(data?.columns)
+      ? data.columns.map((column: KanbanColumn) => ({ ...column, cards: Array.isArray(column.cards) ? column.cards : [] }))
+      : []
+  };
+}
+
+async function apiRequest<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const response = await window.desktopWebApi?.request({ method, path, body });
+  if (!response?.success) {
+    throw new Error(response?.error || 'Erro ao acessar a API cloud.');
+  }
+  return response.data as T;
+}
+
+function extractPeopleFromCard(card: KanbanCard | null): CardPersonOption[] {
+  if (!card) return [];
+
+  const payload = card.payload || {};
+  const people: CardPersonOption[] = [];
+  const seen = new Set<string>();
+  const addPerson = (key: string, name: string, label: string) => {
+    const normalizedName = name.trim();
+    if (!normalizedName) return;
+    const dedupeKey = normalizedName.toLowerCase();
+    if (seen.has(dedupeKey)) return;
+    seen.add(dedupeKey);
+    people.push({ key, name: normalizedName, label });
+  };
+
+  addPerson('titular', readString(payload.nome, card.title), `Titular: ${readString(payload.nome, card.title)}`);
+
+  const spouseName = readString(payload?.conjuge?.nome);
+  if (spouseName) {
+    addPerson('conjuge', spouseName, `Cônjuge: ${spouseName}`);
+  }
+
+  if (Array.isArray(payload.pessoas)) {
+    payload.pessoas.forEach((person: any, index: number) => {
+      const personName = readString(person?.nome);
+      if (personName) {
+        addPerson(`pessoa-${index}`, personName, `Pessoa ${index + 1}: ${personName}`);
+      }
+    });
+  }
+
+  return people;
+}
+
+function pickFileName(filePath: string): string {
+  const clean = String(filePath || '').trim();
+  if (!clean) return `preco-${Date.now()}.png`;
+  const parts = clean.split(/[/\\]/).filter(Boolean);
+  return parts[parts.length - 1] || `preco-${Date.now()}.png`;
+}
+
 export const PriceForm: React.FC = () => {
   const [form, setForm] = useState<PriceFormData>(initialForm);
+  const [cards, setCards] = useState<KanbanCard[]>([]);
+  const [selectedCardId, setSelectedCardId] = useState('');
+  const [selectedPersonKey, setSelectedPersonKey] = useState<string>(OTHER_PERSON_KEY);
+  const [loadingCards, setLoadingCards] = useState(false);
+  const [cardsError, setCardsError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const selectedCard = useMemo(
+    () => cards.find((card) => card.id === selectedCardId) || null,
+    [cards, selectedCardId]
+  );
+
+  const peopleOptions = useMemo(
+    () => extractPeopleFromCard(selectedCard),
+    [selectedCard]
+  );
+
+  const customNameMode = selectedPersonKey === OTHER_PERSON_KEY;
+
+  const loadKanbanCards = async () => {
+    setLoadingCards(true);
+    setCardsError(null);
+    try {
+      const board = await apiRequest<BoardResponse>('GET', '/kanban');
+      const normalized = normalizeBoard(board);
+      const flatCards = normalized.columns
+        .flatMap((column) => column.cards || [])
+        .filter((card) => card?.id)
+        .sort((a, b) => readString(a.title).localeCompare(readString(b.title), 'pt-BR'));
+
+      setCards(flatCards);
+      setSelectedCardId((current) => {
+        if (current && flatCards.some((card) => card.id === current)) return current;
+        return flatCards[0]?.id || '';
+      });
+    } catch (err) {
+      setCards([]);
+      setSelectedCardId('');
+      setCardsError(err instanceof Error ? err.message : 'Erro ao carregar cards do Kanban.');
+    } finally {
+      setLoadingCards(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadKanbanCards();
+  }, []);
+
+  useEffect(() => {
+    if (!selectedCard) {
+      setSelectedPersonKey(OTHER_PERSON_KEY);
+      setForm((prev) => ({ ...prev, nome: '' }));
+      return;
+    }
+
+    if (peopleOptions.length > 0) {
+      setSelectedPersonKey(peopleOptions[0].key);
+      setForm((prev) => ({ ...prev, nome: peopleOptions[0].name }));
+      return;
+    }
+
+    setSelectedPersonKey(OTHER_PERSON_KEY);
+    setForm((prev) => ({ ...prev, nome: '' }));
+  }, [selectedCardId, selectedCard, peopleOptions]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleCardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextCardId = e.target.value;
+    setSelectedCardId(nextCardId);
+    setSelectedPersonKey(OTHER_PERSON_KEY);
+    setForm((prev) => ({ ...prev, nome: '' }));
+  };
+
+  const handlePersonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const nextPersonKey = e.target.value;
+    setSelectedPersonKey(nextPersonKey);
+    if (nextPersonKey === OTHER_PERSON_KEY) {
+      setForm((prev) => ({ ...prev, nome: '' }));
+      return;
+    }
+    const selectedPerson = peopleOptions.find((person) => person.key === nextPersonKey);
+    if (selectedPerson) {
+      setForm((prev) => ({ ...prev, nome: selectedPerson.name }));
+    }
   };
 
   const handleTaxChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,11 +228,59 @@ export const PriceForm: React.FC = () => {
     setForm((prev) => ({ ...prev, taxaCotacao: Number(e.target.value) }));
   };
 
+  const attachImageToKanbanCard = async (cardId: string, imagePath: string) => {
+    const board = await apiRequest<BoardResponse>('GET', '/kanban');
+    const normalized = normalizeBoard(board);
+    const currentCard = normalized.columns
+      .flatMap((column) => column.cards || [])
+      .find((card) => card.id === cardId);
+
+    if (!currentCard) {
+      throw new Error('Card do Kanban não encontrado para anexar a imagem.');
+    }
+
+    const payload = (currentCard.payload || {}) as Record<string, any>;
+    const existingImages = Array.isArray(payload.priceImages) ? payload.priceImages : [];
+    const nextImage = {
+      kind: 'price-image',
+      source: 'desktop-price',
+      path: imagePath,
+      filename: pickFileName(imagePath),
+      createdAt: new Date().toISOString()
+    };
+
+    await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${cardId}`, {
+      payload: {
+        ...payload,
+        priceImages: [nextImage, ...existingImages].slice(0, 30),
+        lastPriceImage: nextImage
+      }
+    });
+
+    setCards((prev) => prev.map((card) => {
+      if (card.id !== cardId) return card;
+      return {
+        ...card,
+        payload: {
+          ...payload,
+          priceImages: [nextImage, ...existingImages].slice(0, 30),
+          lastPriceImage: nextImage
+        }
+      };
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
     setResult(null);
+
+    if (!selectedCardId) {
+      setError('Selecione um card do Kanban.');
+      setLoading(false);
+      return;
+    }
 
     const requiredFields = form.formType === 'quitado'
       ? ['nome', 'entrada_basico', 'mensal_basico', 'valor_total_basico', 'entrada_completo', 'mensal_completo', 'valor_total_completo']
@@ -92,13 +314,18 @@ export const PriceForm: React.FC = () => {
       const res = await window.price?.generate?.(payload);
       if (res && typeof res === 'object' && 'success' in res && res.success) {
         const generatedPath = res.result?.outputPath || res.output?.outputPath;
-        setResult(`Imagem gerada: ${generatedPath || 'Arquivo salvo.'}`);
-        if (generatedPath) window.lastGeneratedPricePath = generatedPath;
+        if (generatedPath) {
+          window.lastGeneratedPricePath = generatedPath;
+          await attachImageToKanbanCard(selectedCardId, generatedPath);
+          setResult(`Imagem gerada e anexada ao card: ${generatedPath}`);
+        } else {
+          setResult('Imagem gerada, mas sem caminho de arquivo retornado para anexar no card.');
+        }
       } else {
         setError((res as any)?.error || 'Erro ao gerar imagem.');
       }
-    } catch (e: any) {
-      setError(e?.message || 'Erro ao gerar imagem.');
+    } catch (submitError: any) {
+      setError(submitError?.message || 'Erro ao gerar imagem.');
     } finally {
       setLoading(false);
     }
@@ -119,11 +346,25 @@ export const PriceForm: React.FC = () => {
           <span className="rta-section-icon">💵</span>
           <div>
             <h2 className="rta-section-title">Gerar Imagem de Preço</h2>
-            <p className="rta-section-description">Preencha os campos para gerar a imagem de preço.</p>
+            <p className="rta-section-description">Selecione o card e a pessoa para gerar e anexar a imagem no Kanban.</p>
           </div>
         </div>
 
         <div className="rta-grid rta-grid-auto gap-4">
+          <div className="input-group">
+            <label>Card do Kanban</label>
+            <select value={selectedCardId} onChange={handleCardChange} className="input-control" disabled={loadingCards}>
+              <option value="">Selecione um card</option>
+              {cards.map((card) => (
+                <option key={card.id} value={card.id}>
+                  {readString(card.payload?.nome, card.title, card.id)}
+                </option>
+              ))}
+            </select>
+            {loadingCards ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Carregando cards...</p> : null}
+            {cardsError ? <p className="mt-2 text-xs text-rose-500 dark:text-rose-300">{cardsError}</p> : null}
+          </div>
+
           <div className="input-group">
             <label>Tipo</label>
             <div className="flex gap-4">
@@ -194,9 +435,35 @@ export const PriceForm: React.FC = () => {
           </div>
 
           <div className="input-group">
-            <label>Nome do Cliente</label>
-            <input name="nome" value={form.nome} onChange={handleChange} className="input-control" required />
+            <label>Pessoa do Card</label>
+            <select
+              value={selectedPersonKey}
+              onChange={handlePersonChange}
+              className="input-control"
+              disabled={!selectedCardId}
+            >
+              {peopleOptions.map((person) => (
+                <option key={person.key} value={person.key}>
+                  {person.label}
+                </option>
+              ))}
+              <option value={OTHER_PERSON_KEY}>Outro</option>
+            </select>
           </div>
+
+          {customNameMode ? (
+            <div className="input-group">
+              <label>Nome do Cliente</label>
+              <input
+                name="nome"
+                value={form.nome}
+                onChange={handleChange}
+                className="input-control"
+                placeholder="Digite o nome desejado"
+                required
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 

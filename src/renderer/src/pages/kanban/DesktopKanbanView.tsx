@@ -41,6 +41,7 @@ type VehicleDraft = {
   ano: string;
   marca: string;
   modelo: string;
+  financiado: string;
 };
 
 type CardDraft = {
@@ -81,7 +82,8 @@ const emptyVehicle: VehicleDraft = {
   placa: '',
   ano: '',
   marca: '',
-  modelo: ''
+  modelo: '',
+  financiado: ''
 };
 
 const emptyDraft: CardDraft = {
@@ -115,7 +117,7 @@ const documentStates = [
   'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',
   'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',
   'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',
-  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'
+  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'IT'
 ];
 
 const genderOptions = [
@@ -146,6 +148,11 @@ const addressDurationOptions = [
   { value: '5y_plus', label: 'Mais de 5 anos' }
 ];
 
+const vehicleFinanceOptions = [
+  { value: 'quitado', label: 'Quitado' },
+  { value: 'financiado', label: 'Financiado' }
+];
+
 function readString(...values: unknown[]): string {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim()) {
@@ -153,6 +160,52 @@ function readString(...values: unknown[]): string {
     }
   }
   return '';
+}
+
+function normalizeToInputDate(value: string): string {
+  const raw = readString(value);
+  if (!raw) return '';
+
+  const matchIso = raw.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+  if (matchIso) {
+    const [, year, month, day] = matchIso;
+    return `${year}-${month}-${day}`;
+  }
+
+  const matchSlash = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+  if (!matchSlash) return '';
+
+  const [, part1, part2, year] = matchSlash;
+  const first = Number(part1);
+  const second = Number(part2);
+  if (first > 12 && second <= 12) {
+    return `${year}-${part2}-${part1}`;
+  }
+
+  return `${year}-${part1}-${part2}`;
+}
+
+function normalizeToStorageDate(value: string): string {
+  const raw = readString(value);
+  if (!raw) return '';
+
+  const matchIso = raw.match(/^(\d{4})[-/](\d{2})[-/](\d{2})$/);
+  if (matchIso) {
+    const [, year, month, day] = matchIso;
+    return `${month}/${day}/${year}`;
+  }
+
+  const matchSlash = raw.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
+  if (!matchSlash) return raw;
+
+  const [, part1, part2, year] = matchSlash;
+  const first = Number(part1);
+  const second = Number(part2);
+  if (first > 12 && second <= 12) {
+    return `${part2}/${part1}/${year}`;
+  }
+
+  return `${part1}/${part2}/${year}`;
 }
 
 function normalizeBoard(data: any): BoardResponse {
@@ -168,7 +221,7 @@ function normalizePerson(raw: Record<string, any>): PersonDraft {
     nome: readString(raw.nome),
     documento: readString(raw.documento),
     documento_estado: readString(raw.documento_estado),
-    data_nascimento: readString(raw.data_nascimento),
+    data_nascimento: normalizeToInputDate(readString(raw.data_nascimento)),
     email: readString(raw.email),
     genero: readString(raw.genero),
     estado_civil: readString(raw.estado_civil),
@@ -183,7 +236,8 @@ function normalizeVehicle(raw: Record<string, any>): VehicleDraft {
     placa: readString(raw.placa, raw.plate),
     ano: readString(raw.ano),
     marca: readString(raw.marca),
-    modelo: readString(raw.modelo)
+    modelo: readString(raw.modelo),
+    financiado: readString(raw.financiado, raw.estado, raw.payment_status)
   };
 }
 
@@ -206,7 +260,8 @@ function vehicleHasData(vehicle: VehicleDraft): boolean {
     vehicle.placa.trim() ||
     vehicle.ano.trim() ||
     vehicle.marca.trim() ||
-    vehicle.modelo.trim()
+    vehicle.modelo.trim() ||
+    vehicle.financiado.trim()
   );
 }
 
@@ -229,7 +284,8 @@ function vehiclesFromPayload(payload: Record<string, any>): VehicleDraft[] {
     placa: readString(payload.veiculo_placa, payload.placa),
     ano: readString(payload.veiculo_ano),
     marca: readString(payload.veiculo_marca),
-    modelo: readString(payload.veiculo_modelo)
+    modelo: readString(payload.veiculo_modelo),
+    financiado: readString(payload.financiado, payload.veiculo_financiado)
   };
   return vehicleHasData(legacyVehicle) ? [legacyVehicle] : [];
 }
@@ -242,7 +298,7 @@ function draftFromCard(card: KanbanCard | null): CardDraft {
     nome: readString(payload.nome, card.title),
     documento: readString(payload.documento),
     documento_estado: readString(payload.documento_estado),
-    data_nascimento: readString(payload.data_nascimento),
+    data_nascimento: normalizeToInputDate(readString(payload.data_nascimento)),
     email: readString(payload.email),
     endereco_rua: readString(payload.endereco_rua),
     endereco_apt: readString(payload.endereco_apt),
@@ -265,7 +321,7 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
     nome: draft.conjuge.nome.trim(),
     documento: draft.conjuge.documento.trim(),
     documento_estado: draft.conjuge.documento_estado.trim(),
-    data_nascimento: draft.conjuge.data_nascimento.trim(),
+    data_nascimento: normalizeToStorageDate(draft.conjuge.data_nascimento),
     email: '',
     genero: draft.conjuge.genero.trim(),
     estado_civil: '',
@@ -277,7 +333,7 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
     nome: draft.nome,
     documento: draft.documento,
     documento_estado: draft.documento_estado,
-    data_nascimento: draft.data_nascimento,
+    data_nascimento: normalizeToStorageDate(draft.data_nascimento),
     email: draft.email,
     endereco_rua: draft.endereco_rua,
     endereco_apt: draft.endereco_apt,
@@ -296,7 +352,8 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
         placa: vehicle.placa.trim().toUpperCase(),
         ano: vehicle.ano.trim(),
         marca: vehicle.marca.trim(),
-        modelo: vehicle.modelo.trim()
+        modelo: vehicle.modelo.trim(),
+        financiado: vehicle.financiado.trim()
       }))
       .filter((vehicle) => vehicleHasData(vehicle)),
     pessoas: draft.pessoas
@@ -304,7 +361,7 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
         nome: person.nome.trim(),
         documento: person.documento.trim(),
         documento_estado: person.documento_estado.trim(),
-        data_nascimento: person.data_nascimento.trim(),
+        data_nascimento: normalizeToStorageDate(person.data_nascimento),
         email: '',
         genero: person.genero.trim(),
         estado_civil: person.estado_civil.trim(),
@@ -673,6 +730,12 @@ function CardEditor({
                         <ReadOnlyField label="Marca" value={vehicle.marca || 'Automático pelo VIN'} />
                         <ReadOnlyField label="Modelo" value={vehicle.modelo || 'Automático pelo VIN'} />
                         <ReadOnlyField label="Ano" value={vehicle.ano || 'Automático pelo VIN'} />
+                        <ChoiceField
+                          label="Situação do veículo"
+                          value={vehicle.financiado}
+                          onChange={(value) => updateVehicle(index, 'financiado', value)}
+                          options={vehicleFinanceOptions}
+                        />
                       </div>
                     </div>
                   ))}
@@ -1031,23 +1094,42 @@ export const DesktopKanbanView: React.FC = () => {
       const selected = readString(insurer, selectedInsurer, 'progressive').toLowerCase();
       const requestedAt = new Date().toISOString();
 
-      await apiRequest('POST', '/quotes', {
-        cardId: card.id,
+      await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${card.id}`, {
         payload: {
           ...payload,
           nome: readString(payload.nome, card.title),
           documento: readString(payload.documento),
           insurer: selected,
           requestedAt,
-          requestedFrom: 'desktop-kanban'
-        },
-        processed: {
-          status: 'queued',
-          insurer: selected,
-          source: 'desktop-kanban',
-          queuedAt: requestedAt
+          requestedFrom: 'desktop-kanban',
+          quoteStatus: 'queued',
+          quoteQueue: {
+            status: 'queued',
+            insurer: selected,
+            source: 'desktop-kanban',
+            queuedAt: requestedAt
+          }
         }
       });
+
+      if (!window.quotes?.runAutomation) {
+        throw new Error('Automação local de cotação não está disponível nesta versão do desktop.');
+      }
+
+      const result = await window.quotes.runAutomation({
+        quoteId: card.id,
+        insurer: selected,
+        payload: {
+          ...payload,
+          nome: readString(payload.nome, card.title),
+          documento: readString(payload.documento)
+        },
+        headless: false
+      });
+
+      if (result && typeof result === 'object' && 'success' in result && !result.success) {
+        throw new Error(result.error || 'Erro ao iniciar automação local da cotação.');
+      }
 
       const inProgressColumn = board.columns.find((column) => {
         const title = String(column.title || '').toLowerCase();
@@ -1179,6 +1261,7 @@ export const DesktopKanbanView: React.FC = () => {
                   const peopleCount = Array.isArray(card.payload?.pessoas) ? card.payload.pessoas.length : 0;
                   const spouseCount = personHasData(normalizePerson((card.payload?.conjuge as Record<string, any>) || {})) ? 1 : 0;
                   const vehiclesCount = Array.isArray(card.payload?.veiculos) ? card.payload.veiculos.length : 0;
+                  const priceImagesCount = Array.isArray(card.payload?.priceImages) ? card.payload.priceImages.length : 0;
                   return (
                     <article
                       key={card.id}
@@ -1207,6 +1290,11 @@ export const DesktopKanbanView: React.FC = () => {
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
                           {peopleCount + spouseCount} pessoa{peopleCount + spouseCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
                         </p>
+                        {priceImagesCount > 0 ? (
+                          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-300">
+                            {priceImagesCount} imagem{priceImagesCount === 1 ? '' : 'ens'} de preço anexada{priceImagesCount === 1 ? '' : 's'}
+                          </p>
+                        ) : null}
                       </button>
 
                       <div className="mt-4 flex flex-col gap-2">
