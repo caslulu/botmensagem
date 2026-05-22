@@ -673,7 +673,7 @@ class ProgressiveQuoteAutomation {
       await this.page.fill("input[name='VehiclesNew_embedded_questions_list_Vin']", veiculo.vin);
 
       // Aguarda um pouco para a interface atualizar após o VIN
-      await this.page.waitForTimeout(2000);
+      await this.page.waitForTimeout(7000);
       await this.preencherCamposVeiculoPadrao(veiculo);
 
       // Tenta clicar em "Done" para salvar o veículo atual antes de prosseguir

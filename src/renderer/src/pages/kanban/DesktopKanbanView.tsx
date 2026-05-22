@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 type KanbanCard = {
   id: string;
@@ -42,6 +43,7 @@ type VehicleDraft = {
   marca: string;
   modelo: string;
   financiado: string;
+  tempo_com_veiculo: string;
 };
 
 type CardDraft = {
@@ -65,6 +67,17 @@ type CardDraft = {
   veiculos: VehicleDraft[];
 };
 
+type QuoteAttachment = {
+  id: string;
+  kind: string;
+  source: string;
+  filename: string;
+  rawPath: string;
+  href: string;
+  previewSrc: string | null;
+  createdAt: string;
+};
+
 const emptyPerson: PersonDraft = {
   nome: '',
   documento: '',
@@ -83,7 +96,8 @@ const emptyVehicle: VehicleDraft = {
   ano: '',
   marca: '',
   modelo: '',
-  financiado: ''
+  financiado: '',
+  tempo_com_veiculo: ''
 };
 
 const emptyDraft: CardDraft = {
@@ -153,6 +167,14 @@ const vehicleFinanceOptions = [
   { value: 'financiado', label: 'Financiado' }
 ];
 
+const vehicleOwnershipOptions = [
+  { value: 'less than 1 month', label: 'Menos de 1 mês' },
+  { value: '1 month - 1 year', label: '1 mês a 1 ano' },
+  { value: '1 year - 3 years', label: '1 a 3 anos' },
+  { value: '3 years - 5 years', label: '3 a 5 anos' },
+  { value: '5 years or more', label: 'Mais de 5 anos' }
+];
+
 function readString(...values: unknown[]): string {
   for (const value of values) {
     if (value !== undefined && value !== null && String(value).trim()) {
@@ -160,6 +182,124 @@ function readString(...values: unknown[]): string {
     }
   }
   return '';
+}
+
+function pickFileNameFromPath(raw: string): string {
+  const value = readString(raw).replace(/\\/g, '/');
+  if (!value) return '';
+  const withoutHash = value.split('#')[0];
+  const withoutQuery = withoutHash.split('?')[0];
+  const name = withoutQuery.split('/').pop() || '';
+  return decodeURIComponent(name || '').trim();
+}
+
+function normalizeAttachmentHref(rawPath: string): string {
+  const value = readString(rawPath);
+  if (!value) return '';
+  if (/^(https?:\/\/|file:\/\/|data:)/i.test(value)) {
+    return value;
+  }
+
+  const normalized = value.replace(/\\/g, '/');
+  if (/^[a-zA-Z]:\//.test(normalized)) {
+    return `file:///${encodeURI(normalized)}`;
+  }
+  if (normalized.startsWith('/')) {
+    return `file://${encodeURI(normalized)}`;
+  }
+  return encodeURI(normalized);
+}
+
+function isLikelyImageHref(value: string): boolean {
+  const raw = readString(value).toLowerCase();
+  if (!raw) return false;
+  if (raw.startsWith('data:image/')) return true;
+  const withoutHash = raw.split('#')[0];
+  const withoutQuery = withoutHash.split('?')[0];
+  return /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif)$/.test(withoutQuery);
+}
+
+function normalizeAttachment(item: unknown, sourceField: string, index: number): QuoteAttachment | null {
+  if (item === null || item === undefined) return null;
+
+  const candidate = item as Record<string, any>;
+  const rawPath = typeof item === 'string'
+    ? readString(item)
+    : readString(
+      candidate.path,
+      candidate.imagePath,
+      candidate.filePath,
+      candidate.url,
+      candidate.href,
+      candidate.src,
+      candidate.dataUrl,
+      candidate.value
+    );
+
+  if (!rawPath) return null;
+
+  const href = normalizeAttachmentHref(rawPath);
+  if (!href) return null;
+
+  const filename = typeof item === 'string'
+    ? pickFileNameFromPath(rawPath)
+    : readString(candidate.filename, candidate.name, pickFileNameFromPath(rawPath));
+
+  const kind = typeof item === 'string' ? sourceField : readString(candidate.kind, sourceField);
+  const source = typeof item === 'string' ? sourceField : readString(candidate.source, sourceField);
+  const createdAt = typeof item === 'string' ? '' : readString(candidate.createdAt, candidate.created_at);
+  const explicitId = typeof item === 'string' ? '' : readString(candidate.id);
+  const fallbackId = `${sourceField}:${index}:${href}`;
+
+  return {
+    id: explicitId || fallbackId,
+    kind: kind || sourceField,
+    source: source || sourceField,
+    filename: filename || `anexo-${index + 1}`,
+    rawPath,
+    href,
+    previewSrc: isLikelyImageHref(href) ? href : null,
+    createdAt
+  };
+}
+
+function extractQuoteAttachments(payload: Record<string, any> | null | undefined): QuoteAttachment[] {
+  if (!payload || typeof payload !== 'object') return [];
+
+  const fields = ['priceImages', 'attachments', 'anexos', 'images', 'imagens', 'files', 'arquivos', 'photos', 'fotos'];
+  const attachments: QuoteAttachment[] = [];
+  const seen = new Set<string>();
+
+  const pushItem = (item: unknown, field: string, index: number) => {
+    const normalized = normalizeAttachment(item, field, index);
+    if (!normalized) return;
+    const dedupeKey = `${normalized.href}|${normalized.filename}|${normalized.createdAt}`;
+    if (seen.has(dedupeKey)) return;
+    seen.add(dedupeKey);
+    attachments.push(normalized);
+  };
+
+  for (const field of fields) {
+    const value = payload[field];
+    if (Array.isArray(value)) {
+      value.forEach((item, index) => pushItem(item, field, index));
+    } else if (value) {
+      pushItem(value, field, 0);
+    }
+  }
+
+  if (payload.lastPriceImage) {
+    pushItem(payload.lastPriceImage, 'lastPriceImage', 0);
+  }
+
+  return attachments.sort((a, b) => {
+    const aTime = a.createdAt ? Date.parse(a.createdAt) : NaN;
+    const bTime = b.createdAt ? Date.parse(b.createdAt) : NaN;
+    if (Number.isNaN(aTime) && Number.isNaN(bTime)) return 0;
+    if (Number.isNaN(aTime)) return 1;
+    if (Number.isNaN(bTime)) return -1;
+    return bTime - aTime;
+  });
 }
 
 function normalizeToInputDate(value: string): string {
@@ -237,7 +377,8 @@ function normalizeVehicle(raw: Record<string, any>): VehicleDraft {
     ano: readString(raw.ano),
     marca: readString(raw.marca),
     modelo: readString(raw.modelo),
-    financiado: readString(raw.financiado, raw.estado, raw.payment_status)
+    financiado: readString(raw.financiado, raw.estado, raw.payment_status),
+    tempo_com_veiculo: readString(raw.tempo_com_veiculo, raw.tempoComVeiculo)
   };
 }
 
@@ -261,7 +402,8 @@ function vehicleHasData(vehicle: VehicleDraft): boolean {
     vehicle.ano.trim() ||
     vehicle.marca.trim() ||
     vehicle.modelo.trim() ||
-    vehicle.financiado.trim()
+    vehicle.financiado.trim() ||
+    vehicle.tempo_com_veiculo.trim()
   );
 }
 
@@ -285,7 +427,8 @@ function vehiclesFromPayload(payload: Record<string, any>): VehicleDraft[] {
     ano: readString(payload.veiculo_ano),
     marca: readString(payload.veiculo_marca),
     modelo: readString(payload.veiculo_modelo),
-    financiado: readString(payload.financiado, payload.veiculo_financiado)
+    financiado: readString(payload.financiado, payload.veiculo_financiado),
+    tempo_com_veiculo: readString(payload.tempo_com_veiculo, payload.tempoComVeiculo, payload.veiculo_tempo_com_veiculo)
   };
   return vehicleHasData(legacyVehicle) ? [legacyVehicle] : [];
 }
@@ -316,7 +459,7 @@ function draftFromCard(card: KanbanCard | null): CardDraft {
   };
 }
 
-function payloadFromDraft(draft: CardDraft): Record<string, any> {
+function payloadFromDraft(draft: CardDraft, existingPayload: Record<string, any> = {}): Record<string, any> {
   const conjuge = {
     nome: draft.conjuge.nome.trim(),
     documento: draft.conjuge.documento.trim(),
@@ -330,6 +473,7 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
   };
 
   return {
+    ...existingPayload,
     nome: draft.nome,
     documento: draft.documento,
     documento_estado: draft.documento_estado,
@@ -353,7 +497,8 @@ function payloadFromDraft(draft: CardDraft): Record<string, any> {
         ano: vehicle.ano.trim(),
         marca: vehicle.marca.trim(),
         modelo: vehicle.modelo.trim(),
-        financiado: vehicle.financiado.trim()
+        financiado: vehicle.financiado.trim(),
+        tempo_com_veiculo: vehicle.tempo_com_veiculo.trim()
       }))
       .filter((vehicle) => vehicleHasData(vehicle)),
     pessoas: draft.pessoas
@@ -467,6 +612,7 @@ function CardEditor({
   const [columnId, setColumnId] = useState(card?.columnId || initialColumnId || columns[0]?.id || '');
   const [vinLoadingKey, setVinLoadingKey] = useState('');
   const [vinNotice, setVinNotice] = useState('');
+  const attachments = useMemo(() => extractQuoteAttachments(card?.payload || {}), [card]);
 
   useEffect(() => {
     setDraft(draftFromCard(card));
@@ -564,7 +710,7 @@ function CardEditor({
     }
   };
 
-  return (
+  const modal = (
     <div
       className="modal-overlay opacity-100"
       onClick={(event) => {
@@ -736,6 +882,13 @@ function CardEditor({
                           onChange={(value) => updateVehicle(index, 'financiado', value)}
                           options={vehicleFinanceOptions}
                         />
+                        <SelectField
+                          label="Tempo com o veículo"
+                          value={vehicle.tempo_com_veiculo}
+                          onChange={(value) => updateVehicle(index, 'tempo_com_veiculo', value)}
+                          options={vehicleOwnershipOptions}
+                          placeholder="Selecione"
+                        />
                       </div>
                     </div>
                   ))}
@@ -760,6 +913,42 @@ function CardEditor({
                     {columns.map((column) => <option key={column.id} value={column.id}>{column.title}</option>)}
                   </select>
                 </label>
+              </section>
+
+              <section className="surface-subtle">
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Anexos ({attachments.length})
+                  </h4>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {attachments.map((attachment) => (
+                    <article key={attachment.id} className="rounded-2xl border border-slate-200/80 bg-white/90 p-3 dark:border-slate-800/80 dark:bg-slate-900/85">
+                      {attachment.previewSrc ? (
+                        <a href={attachment.href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800/80">
+                          <img src={attachment.previewSrc} alt={attachment.filename} className="h-36 w-full object-cover" />
+                        </a>
+                      ) : null}
+                      <p className="mt-2 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{attachment.filename}</p>
+                      <p className="mt-1 text-xs uppercase tracking-[0.1em] text-slate-400 dark:text-slate-500">
+                        {attachment.kind || attachment.source}
+                      </p>
+                      <a
+                        href={attachment.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="mt-2 inline-flex text-xs font-semibold text-brand-700 underline decoration-brand-300 underline-offset-2 dark:text-brand-200"
+                      >
+                        Abrir anexo
+                      </a>
+                    </article>
+                  ))}
+                  {!attachments.length ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+                      Nenhum anexo encontrado nesta cotação.
+                    </div>
+                  ) : null}
+                </div>
               </section>
 
               <section className="surface-subtle">
@@ -843,6 +1032,8 @@ function CardEditor({
       </form>
     </div>
   );
+
+  return createPortal(modal, document.body);
 }
 
 function Field({ label, value, onChange, type = 'text', required = false }: { label: string; value: string; onChange: (value: string) => void; type?: string; required?: boolean }) {
@@ -987,7 +1178,7 @@ export const DesktopKanbanView: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      const payload = payloadFromDraft(draft);
+      const payload = payloadFromDraft(draft, editingCard?.payload || {});
       if (editingCard) {
         await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${editingCard.id}`, { payload });
         if (columnId && columnId !== editingCard.columnId) {
@@ -1261,7 +1452,7 @@ export const DesktopKanbanView: React.FC = () => {
                   const peopleCount = Array.isArray(card.payload?.pessoas) ? card.payload.pessoas.length : 0;
                   const spouseCount = personHasData(normalizePerson((card.payload?.conjuge as Record<string, any>) || {})) ? 1 : 0;
                   const vehiclesCount = Array.isArray(card.payload?.veiculos) ? card.payload.veiculos.length : 0;
-                  const priceImagesCount = Array.isArray(card.payload?.priceImages) ? card.payload.priceImages.length : 0;
+                  const attachmentsCount = extractQuoteAttachments((card.payload as Record<string, any>) || {}).length;
                   return (
                     <article
                       key={card.id}
@@ -1290,9 +1481,9 @@ export const DesktopKanbanView: React.FC = () => {
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
                           {peopleCount + spouseCount} pessoa{peopleCount + spouseCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
                         </p>
-                        {priceImagesCount > 0 ? (
+                        {attachmentsCount > 0 ? (
                           <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-emerald-600 dark:text-emerald-300">
-                            {priceImagesCount} imagem{priceImagesCount === 1 ? '' : 'ens'} de preço anexada{priceImagesCount === 1 ? '' : 's'}
+                            {attachmentsCount} anexo{attachmentsCount === 1 ? '' : 's'} {attachmentsCount === 1 ? 'disponível' : 'disponíveis'}
                           </p>
                         ) : null}
                       </button>
