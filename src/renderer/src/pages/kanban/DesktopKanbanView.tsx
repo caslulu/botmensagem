@@ -24,6 +24,8 @@ type BoardResponse = {
   columns: KanbanColumn[];
 };
 
+type KanbanStatus = 'pendente' | 'fazendo' | 'feito';
+
 type PersonDraft = {
   nome: string;
   documento: string;
@@ -219,6 +221,11 @@ function isLikelyImageHref(value: string): boolean {
   return /\.(png|jpe?g|gif|webp|bmp|svg|avif|heic|heif)$/.test(withoutQuery);
 }
 
+function isLocalAttachmentHref(value: string): boolean {
+  const raw = readString(value);
+  return /^file:\/\//i.test(raw) || /^[a-zA-Z]:[\\/]/.test(raw) || raw.startsWith('/');
+}
+
 function normalizeAttachment(item: unknown, sourceField: string, index: number): QuoteAttachment | null {
   if (item === null || item === undefined) return null;
 
@@ -351,8 +358,62 @@ function normalizeToStorageDate(value: string): string {
 function normalizeBoard(data: any): BoardResponse {
   return {
     columns: Array.isArray(data?.columns)
-      ? data.columns.map((column: KanbanColumn) => ({ ...column, cards: column.cards || [] }))
+      ? data.columns.map((column: KanbanColumn) => ({
+        ...column,
+        cards: (column.cards || []).map((card) => ({ ...card, columnId: card.columnId || column.id }))
+      }))
       : []
+  };
+}
+
+function normalizeText(value: string): string {
+  return readString(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function inferKanbanStatus(columnId: string, columns: KanbanColumn[]): KanbanStatus {
+  const sortedColumns = [...columns].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const target = sortedColumns.find((column) => column.id === columnId);
+  if (!target) return 'pendente';
+
+  const normalizedTitle = normalizeText(target.title);
+  if (/(pend|todo|backlog|novo|entrada)/.test(normalizedTitle)) return 'pendente';
+  if (/(faz|doing|progress|andamento|cotacao|quote)/.test(normalizedTitle)) return 'fazendo';
+  if (/(feito|done|conclu|final|aprovad|sucesso)/.test(normalizedTitle)) return 'feito';
+
+  const index = sortedColumns.findIndex((column) => column.id === target.id);
+  if (index <= 0) return 'pendente';
+  if (index >= sortedColumns.length - 1 && sortedColumns.length > 2) return 'feito';
+  return 'fazendo';
+}
+
+function isCardArchived(card: KanbanCard): boolean {
+  const payload = (card.payload || {}) as Record<string, any>;
+  if (payload.archived === true || payload.arquivado === true || payload.isArchived === true) return true;
+  if (payload.archived === false || payload.arquivado === false || payload.isArchived === false) return false;
+  return Boolean(readString(payload.archivedAt, payload.arquivadoEm));
+}
+
+function withKanbanStatus(payload: Record<string, any>, columnId: string, columns: KanbanColumn[]): Record<string, any> {
+  const status = inferKanbanStatus(columnId, columns);
+  return {
+    ...payload,
+    status,
+    kanbanStatus: status
+  };
+}
+
+function withArchiveState(payload: Record<string, any>, archived: boolean): Record<string, any> {
+  const archivedAt = archived ? new Date().toISOString() : null;
+  return {
+    ...payload,
+    archived,
+    arquivado: archived,
+    isArchived: archived,
+    archivedAt,
+    arquivadoEm: archivedAt
   };
 }
 
@@ -593,20 +654,74 @@ async function apiRequest<T>(method: string, path: string, body?: unknown): Prom
   return response.data as T;
 }
 
+function AttachmentPreviewImage({
+  attachment,
+  className
+}: {
+  attachment: QuoteAttachment;
+  className: string;
+}) {
+  const [src, setSrc] = useState(() => {
+    const initialSrc = attachment.previewSrc || '';
+    return initialSrc && !isLocalAttachmentHref(initialSrc) ? initialSrc : '';
+  });
+
+  useEffect(() => {
+    let active = true;
+    const fallbackSrc = attachment.previewSrc || '';
+    const isLocalPreview = isLocalAttachmentHref(fallbackSrc);
+
+    setSrc(isLocalPreview ? '' : fallbackSrc);
+    if (!fallbackSrc || !isLocalPreview || !window.files?.readImageAsDataUrl) {
+      return () => {
+        active = false;
+      };
+    }
+
+    window.files.readImageAsDataUrl(attachment.rawPath || fallbackSrc)
+      .then((response) => {
+        if (active && response?.success && response.dataUrl) {
+          setSrc(response.dataUrl);
+        }
+      })
+      .catch(() => {
+        if (active) setSrc('');
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [attachment.previewSrc, attachment.rawPath]);
+
+  if (!src) {
+    return (
+      <div className={`${className} flex items-center justify-center bg-slate-100 text-[11px] font-semibold text-slate-400 dark:bg-slate-950 dark:text-slate-500`}>
+        Preview indisponível
+      </div>
+    );
+  }
+
+  return <img src={src} alt={attachment.filename} className={className} loading="lazy" />;
+}
+
 function CardEditor({
   card,
   columns,
   initialColumnId,
   saving,
+  archiving,
   onClose,
-  onSave
+  onSave,
+  onArchive
 }: {
   card: KanbanCard | null;
   columns: KanbanColumn[];
   initialColumnId: string;
   saving: boolean;
+  archiving: boolean;
   onClose: () => void;
   onSave: (draft: CardDraft, columnId: string) => void;
+  onArchive: () => void;
 }) {
   const [draft, setDraft] = useState<CardDraft>(() => draftFromCard(card));
   const [columnId, setColumnId] = useState(card?.columnId || initialColumnId || columns[0]?.id || '');
@@ -926,7 +1041,7 @@ function CardEditor({
                     <article key={attachment.id} className="rounded-2xl border border-slate-200/80 bg-white/90 p-3 dark:border-slate-800/80 dark:bg-slate-900/85">
                       {attachment.previewSrc ? (
                         <a href={attachment.href} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border border-slate-200/80 dark:border-slate-800/80">
-                          <img src={attachment.previewSrc} alt={attachment.filename} className="h-36 w-full object-cover" />
+                          <AttachmentPreviewImage attachment={attachment} className="h-36 w-full object-cover" />
                         </a>
                       ) : null}
                       <p className="mt-2 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{attachment.filename}</p>
@@ -1024,6 +1139,16 @@ function CardEditor({
         </div>
 
         <div className="modal-footer">
+          {card ? (
+            <button
+              type="button"
+              className="btn-danger mr-auto px-5"
+              onClick={onArchive}
+              disabled={saving || archiving}
+            >
+              {archiving ? 'Arquivando...' : 'Arquivar card'}
+            </button>
+          ) : null}
           <button type="button" className="btn-secondary px-5" onClick={onClose} disabled={saving}>Cancelar</button>
           <button type="submit" className="btn-primary px-6" disabled={saving || !draft.nome.trim()}>
             {saving ? 'Salvando...' : 'Salvar no Kanban'}
@@ -1114,6 +1239,73 @@ function ReadOnlyField({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ArchivedCardsModal({
+  cards,
+  restoringId,
+  onClose,
+  onRestore
+}: {
+  cards: Array<{ card: KanbanCard; columnTitle: string }>;
+  restoringId: string;
+  onClose: () => void;
+  onRestore: (card: KanbanCard) => void;
+}) {
+  const modal = (
+    <div className="modal-overlay opacity-100" onClick={(event) => event.target === event.currentTarget && onClose()}>
+      <div className="modal-content max-h-[90vh] max-w-4xl overflow-hidden">
+        <div className="modal-header">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-600 dark:text-brand-300">
+              Cards arquivados
+            </p>
+            <h3 className="mt-1 text-2xl font-semibold text-slate-900 dark:text-white">
+              {cards.length} card{cards.length === 1 ? '' : 's'} arquivado{cards.length === 1 ? '' : 's'}
+            </h3>
+          </div>
+          <button type="button" className="btn-secondary px-3" onClick={onClose}>
+            Fechar
+          </button>
+        </div>
+
+        <div className="modal-body max-h-[68vh] overflow-y-auto custom-scrollbar space-y-3">
+          {cards.map(({ card, columnTitle }) => (
+            <article key={card.id} className="rounded-[20px] border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="block truncate text-sm font-semibold text-slate-900 dark:text-white">
+                    {card.title}
+                  </strong>
+                  <p className="mt-1 text-xs uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
+                    Coluna original: {columnTitle}
+                  </p>
+                  <p className="mt-2 line-clamp-2 text-sm text-slate-500 dark:text-slate-400">
+                    {card.description || readString(card.payload?.documento, 'Sem resumo')}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="btn-primary min-h-[38px] px-4 text-xs"
+                  disabled={restoringId === card.id}
+                  onClick={() => onRestore(card)}
+                >
+                  {restoringId === card.id ? 'Desarquivando...' : 'Desarquivar'}
+                </button>
+              </div>
+            </article>
+          ))}
+          {!cards.length ? (
+            <div className="rounded-[20px] border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
+              Nenhum card arquivado.
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+
+  return createPortal(modal, document.body);
+}
+
 export const DesktopKanbanView: React.FC = () => {
   const [board, setBoard] = useState<BoardResponse>({ columns: [] });
   const [loading, setLoading] = useState(false);
@@ -1131,6 +1323,9 @@ export const DesktopKanbanView: React.FC = () => {
   const [deletingColumnId, setDeletingColumnId] = useState('');
   const [draggingCardId, setDraggingCardId] = useState('');
   const [dragOverColumnId, setDragOverColumnId] = useState('');
+  const [showArchived, setShowArchived] = useState(false);
+  const [archivingCardId, setArchivingCardId] = useState('');
+  const [restoringCardId, setRestoringCardId] = useState('');
 
   const loadBoard = useCallback(async () => {
     setLoading(true);
@@ -1159,7 +1354,16 @@ export const DesktopKanbanView: React.FC = () => {
     });
   }, [board.columns]);
 
-  const allCards = useMemo(() => board.columns.flatMap((column) => column.cards || []), [board.columns]);
+  const allCards = useMemo(
+    () => board.columns.flatMap((column) => (column.cards || []).filter((card) => !isCardArchived(card))),
+    [board.columns]
+  );
+  const archivedCards = useMemo(
+    () => board.columns.flatMap((column) => (column.cards || [])
+      .filter((card) => isCardArchived(card))
+      .map((card) => ({ card, columnTitle: column.title }))),
+    [board.columns]
+  );
 
   const openNewCard = (columnId: string) => {
     setEditingCard(null);
@@ -1178,7 +1382,7 @@ export const DesktopKanbanView: React.FC = () => {
     setError('');
     setNotice('');
     try {
-      const payload = payloadFromDraft(draft, editingCard?.payload || {});
+      const payload = withKanbanStatus(payloadFromDraft(draft, editingCard?.payload || {}), columnId, board.columns);
       if (editingCard) {
         await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${editingCard.id}`, { payload });
         if (columnId && columnId !== editingCard.columnId) {
@@ -1257,10 +1461,52 @@ export const DesktopKanbanView: React.FC = () => {
     }
   };
 
+  const archiveEditingCard = async () => {
+    if (!editingCard) return;
+
+    const confirmed = window.confirm(`Arquivar o card "${editingCard.title}"?`);
+    if (!confirmed) return;
+
+    setArchivingCardId(editingCard.id);
+    setError('');
+    setNotice('');
+    try {
+      const nextPayload = withArchiveState(editingCard.payload || {}, true);
+      await apiRequest('PATCH', `/kanban/cards/${editingCard.id}`, { payload: nextPayload });
+      setShowEditor(false);
+      setEditingCard(null);
+      await loadBoard();
+      setNotice('Card arquivado com sucesso.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao arquivar card.');
+    } finally {
+      setArchivingCardId('');
+    }
+  };
+
+  const restoreCard = async (card: KanbanCard) => {
+    setRestoringCardId(card.id);
+    setError('');
+    setNotice('');
+    try {
+      const restoredPayload = withArchiveState(card.payload || {}, false);
+      const nextPayload = withKanbanStatus(restoredPayload, card.columnId, board.columns);
+      await apiRequest('PATCH', `/kanban/cards/${card.id}`, { payload: nextPayload });
+      await loadBoard();
+      setNotice(`Card "${card.title}" desarquivado com sucesso.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao desarquivar card.');
+    } finally {
+      setRestoringCardId('');
+    }
+  };
+
   const moveCard = async (card: KanbanCard, columnId: string) => {
     if (!columnId || columnId === card.columnId) return;
     try {
       const target = board.columns.find((column) => column.id === columnId);
+      const nextPayload = withKanbanStatus(card.payload || {}, columnId, board.columns);
+      await apiRequest('PATCH', `/kanban/cards/${card.id}`, { payload: nextPayload });
       await apiRequest('PATCH', `/kanban/cards/${card.id}/move`, { columnId, position: target?.cards?.length || 0 });
       await loadBoard();
     } catch (err) {
@@ -1285,23 +1531,23 @@ export const DesktopKanbanView: React.FC = () => {
       const selected = readString(insurer, selectedInsurer, 'progressive').toLowerCase();
       const requestedAt = new Date().toISOString();
 
-      await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${card.id}`, {
-        payload: {
-          ...payload,
-          nome: readString(payload.nome, card.title),
-          documento: readString(payload.documento),
+      const queuedPayload = withKanbanStatus({
+        ...payload,
+        nome: readString(payload.nome, card.title),
+        documento: readString(payload.documento),
+        insurer: selected,
+        requestedAt,
+        requestedFrom: 'desktop-kanban',
+        quoteStatus: 'queued',
+        quoteQueue: {
+          status: 'queued',
           insurer: selected,
-          requestedAt,
-          requestedFrom: 'desktop-kanban',
-          quoteStatus: 'queued',
-          quoteQueue: {
-            status: 'queued',
-            insurer: selected,
-            source: 'desktop-kanban',
-            queuedAt: requestedAt
-          }
+          source: 'desktop-kanban',
+          queuedAt: requestedAt
         }
-      });
+      }, card.columnId, board.columns);
+
+      await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${card.id}`, { payload: queuedPayload });
 
       if (!window.quotes?.runAutomation) {
         throw new Error('Automação local de cotação não está disponível nesta versão do desktop.');
@@ -1332,6 +1578,8 @@ export const DesktopKanbanView: React.FC = () => {
           columnId: inProgressColumn.id,
           position: inProgressColumn.cards.length || 0
         });
+        const movedPayload = withKanbanStatus(queuedPayload, inProgressColumn.id, board.columns);
+        await apiRequest<KanbanCard>('PATCH', `/kanban/cards/${card.id}`, { payload: movedPayload });
       }
 
       await loadBoard();
@@ -1384,6 +1632,9 @@ export const DesktopKanbanView: React.FC = () => {
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{allCards.length} card{allCards.length === 1 ? '' : 's'} sincronizados com a API cloud.</p>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
+            <button type="button" className="btn-secondary px-4" onClick={() => setShowArchived(true)}>
+              Ver arquivados ({archivedCards.length})
+            </button>
             <input
               className="input-control sm:w-64"
               placeholder="Nova coluna"
@@ -1397,23 +1648,25 @@ export const DesktopKanbanView: React.FC = () => {
         </div>
 
         <div className="grid gap-4 overflow-x-auto pb-2 xl:grid-cols-3">
-          {board.columns.map((column) => (
-            <section
-              key={column.id}
-              className={`min-w-[280px] rounded-[24px] border p-3 transition-all ${
-                dragOverColumnId === column.id
-                  ? 'border-brand-300 bg-brand-50/70 ring-2 ring-brand-500/20 dark:border-brand-500/30 dark:bg-brand-500/10'
-                  : 'border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/45'
-              }`}
-              onDragOver={(event) => {
-                event.preventDefault();
-                setDragOverColumnId(column.id);
-              }}
-              onDrop={(event) => {
-                event.preventDefault();
-                void handleCardDrop(column.id);
-              }}
-            >
+          {board.columns.map((column) => {
+            const activeCards = (column.cards || []).filter((card) => !isCardArchived(card));
+            return (
+              <section
+                key={column.id}
+                className={`min-w-[280px] rounded-[24px] border p-3 transition-all ${
+                  dragOverColumnId === column.id
+                    ? 'border-brand-300 bg-brand-50/70 ring-2 ring-brand-500/20 dark:border-brand-500/30 dark:bg-brand-500/10'
+                    : 'border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/45'
+                }`}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  setDragOverColumnId(column.id);
+                }}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  void handleCardDrop(column.id);
+                }}
+              >
               <header className="mb-3 flex items-center gap-2">
                 <input
                   className="min-w-0 flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none dark:text-white"
@@ -1433,7 +1686,7 @@ export const DesktopKanbanView: React.FC = () => {
                   disabled={renamingColumnId === column.id || deletingColumnId === column.id}
                 />
                 <span className="rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-500 dark:bg-slate-900 dark:text-slate-300">
-                  {column.cards.length}
+                  {activeCards.length}
                 </span>
                 <button
                   type="button"
@@ -1447,12 +1700,16 @@ export const DesktopKanbanView: React.FC = () => {
               </header>
 
               <div className="space-y-3">
-                {column.cards.map((card) => {
+                {activeCards.map((card) => {
                   const latest = card.latestPrice?.processed || {};
                   const peopleCount = Array.isArray(card.payload?.pessoas) ? card.payload.pessoas.length : 0;
                   const spouseCount = personHasData(normalizePerson((card.payload?.conjuge as Record<string, any>) || {})) ? 1 : 0;
                   const vehiclesCount = Array.isArray(card.payload?.veiculos) ? card.payload.veiculos.length : 0;
-                  const attachmentsCount = extractQuoteAttachments((card.payload as Record<string, any>) || {}).length;
+                  const attachments = extractQuoteAttachments((card.payload as Record<string, any>) || {});
+                  const imageAttachments = attachments.filter((attachment) => attachment.previewSrc);
+                  const visibleImageAttachments = imageAttachments.slice(0, 3);
+                  const hiddenImageAttachmentsCount = Math.max(imageAttachments.length - visibleImageAttachments.length, 0);
+                  const attachmentsCount = attachments.length;
                   return (
                     <article
                       key={card.id}
@@ -1478,6 +1735,28 @@ export const DesktopKanbanView: React.FC = () => {
                         <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-500 dark:text-slate-400">
                           {card.description || readString(card.payload?.endereco_zipcode, card.payload?.documento, 'Sem resumo')}
                         </p>
+                        {visibleImageAttachments.length ? (
+                          <div className="mt-3 grid grid-cols-3 gap-1.5">
+                            {visibleImageAttachments.map((attachment, index) => (
+                              <div
+                                key={attachment.id}
+                                className={`relative overflow-hidden rounded-xl border border-slate-200 bg-slate-100 dark:border-slate-800 dark:bg-slate-950 ${
+                                  visibleImageAttachments.length === 1 ? 'col-span-3' : ''
+                                }`}
+                              >
+                                <AttachmentPreviewImage
+                                  attachment={attachment}
+                                  className={`${visibleImageAttachments.length === 1 ? 'h-32' : 'h-20'} w-full object-cover`}
+                                />
+                                {index === visibleImageAttachments.length - 1 && hiddenImageAttachmentsCount > 0 ? (
+                                  <span className="absolute inset-0 flex items-center justify-center bg-slate-950/55 text-sm font-semibold text-white">
+                                    +{hiddenImageAttachmentsCount}
+                                  </span>
+                                ) : null}
+                              </div>
+                            ))}
+                          </div>
+                        ) : null}
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.12em] text-slate-400 dark:text-slate-500">
                           {peopleCount + spouseCount} pessoa{peopleCount + spouseCount === 1 ? '' : 's'} • {vehiclesCount} veículo{vehiclesCount === 1 ? '' : 's'}
                         </p>
@@ -1517,7 +1796,7 @@ export const DesktopKanbanView: React.FC = () => {
                   );
                 })}
 
-                {!column.cards.length ? (
+                {!activeCards.length ? (
                   <div className="rounded-[20px] border border-dashed border-slate-300 px-4 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                     Nenhum card nesta coluna.
                   </div>
@@ -1527,8 +1806,9 @@ export const DesktopKanbanView: React.FC = () => {
               <button type="button" className="btn-secondary mt-3 w-full justify-center px-4" onClick={() => openNewCard(column.id)}>
                 Novo card
               </button>
-            </section>
-          ))}
+              </section>
+            );
+          })}
         </div>
       </section>
 
@@ -1538,8 +1818,19 @@ export const DesktopKanbanView: React.FC = () => {
           columns={board.columns}
           initialColumnId={editingColumnId}
           saving={saving}
+          archiving={archivingCardId === editingCard?.id}
           onClose={() => setShowEditor(false)}
           onSave={(draft, columnId) => void saveCard(draft, columnId)}
+          onArchive={() => void archiveEditingCard()}
+        />
+      ) : null}
+
+      {showArchived ? (
+        <ArchivedCardsModal
+          cards={archivedCards}
+          restoringId={restoringCardId}
+          onClose={() => setShowArchived(false)}
+          onRestore={(card) => void restoreCard(card)}
         />
       ) : null}
     </div>

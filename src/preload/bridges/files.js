@@ -3,6 +3,7 @@ function registerFilesBridge({ contextBridge, ipcRenderer }) {
     saveToDownloads: (srcPath, suggestedName) => ipcRenderer.invoke('file:save-to-downloads', srcPath, suggestedName),
     showInFolder: (targetPath) => ipcRenderer.invoke('file:show-in-folder', targetPath),
     openPath: (targetPath) => ipcRenderer.invoke('file:open-path', targetPath),
+    readImageAsDataUrl: (targetPath) => ipcRenderer.invoke('file:read-image-as-data-url', targetPath),
     selectImage: () => ipcRenderer.invoke('file:select-image')
   });
 }

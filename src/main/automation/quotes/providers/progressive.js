@@ -7,6 +7,9 @@ const {
   mapInsuranceDuration,
   mapResidenceDuration,
   mapVehicleOwnership,
+  isMarriedStatus,
+  isMaleGender,
+  isFemaleGender,
   safeLower
 } = require('../quote-defaults');
 const {
@@ -56,6 +59,159 @@ class ProgressiveQuoteAutomation {
     return this.clickWithDelay(locator, options);
   }
 
+  async waitForProgressiveReflow(maxWait = 1800) {
+    const timeout = Math.max(300, Number(maxWait) || 0) || 1800;
+
+    await this.page.waitForTimeout(150).catch(() => {});
+
+    await this.page.evaluate(({ quietMs, maxWaitMs }) => new Promise((resolve) => {
+      if (!document.body) {
+        resolve(false);
+        return;
+      }
+
+      let settled = false;
+      let quietTimer = null;
+      let maxTimer = null;
+      let observer = null;
+
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(quietTimer);
+        clearTimeout(maxTimer);
+        if (observer) observer.disconnect();
+        resolve(value);
+      };
+
+      observer = new MutationObserver(() => {
+        clearTimeout(quietTimer);
+        quietTimer = setTimeout(() => finish(true), quietMs);
+      });
+
+      observer.observe(document.body, {
+        attributes: true,
+        childList: true,
+        subtree: true,
+        characterData: true
+      });
+
+      quietTimer = setTimeout(() => finish(true), quietMs);
+      maxTimer = setTimeout(() => finish(false), maxWaitMs);
+    }), { quietMs: 450, maxWaitMs: timeout }).catch(() => {});
+
+    await this.waitForNetworkSettled(Math.min(timeout, 1200)).catch(() => {});
+  }
+
+  async locatorSelectionMatches(locator, optionsToTry = []) {
+    if (!locator) {
+      return false;
+    }
+
+    const attempts = Array.isArray(optionsToTry) ? optionsToTry : [optionsToTry];
+    return locator.evaluate((element, rawAttempts) => {
+      if (!element || element.tagName !== 'SELECT') {
+        return false;
+      }
+
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+      const selected = element.selectedOptions?.[0] || null;
+      const selectedValue = normalize(element.value);
+      const selectedText = normalize(selected?.textContent);
+      const selectedIndex = element.selectedIndex;
+
+      return rawAttempts.some((attempt) => {
+        if (attempt == null) {
+          return false;
+        }
+
+        if (typeof attempt === 'string') {
+          return selectedValue === attempt || selectedText === attempt;
+        }
+
+        if (typeof attempt === 'number') {
+          return selectedIndex === attempt;
+        }
+
+        if (typeof attempt === 'object') {
+          if (typeof attempt.index === 'number' && selectedIndex === attempt.index) {
+            return true;
+          }
+
+          if (attempt.value != null && selectedValue === normalize(attempt.value)) {
+            return true;
+          }
+
+          if (attempt.label != null && selectedText === normalize(attempt.label)) {
+            return true;
+          }
+        }
+
+        return false;
+      });
+    }, attempts).catch(() => false);
+  }
+
+  async selectFirstVisibleStable(candidates = [], optionsToTry = [], { attempts = 3, settleMs = 1800 } = {}) {
+    for (let attempt = 0; attempt < attempts; attempt += 1) {
+      const locator = await firstVisible(candidates);
+      if (!locator) {
+        return false;
+      }
+
+      if (await this.locatorSelectionMatches(locator, optionsToTry)) {
+        return true;
+      }
+
+      const selected = await selectFirstVisible([() => locator], optionsToTry).catch(() => false);
+      if (!selected) {
+        continue;
+      }
+
+      await this.waitForProgressiveReflow(settleMs);
+
+      if (await this.locatorSelectionMatches(locator, optionsToTry)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async visibleSelectionMatches(candidates = [], optionsToTry = []) {
+    const locator = await firstVisible(candidates);
+    if (!locator) {
+      return false;
+    }
+    return this.locatorSelectionMatches(locator, optionsToTry);
+  }
+
+  async fillFirstVisibleStable(candidates = [], value = '', options = {}) {
+    const expected = String(value ?? '');
+
+    for (let attempt = 0; attempt < (options.attempts || 3); attempt += 1) {
+      const locator = await firstVisible(candidates);
+      if (!locator) {
+        return false;
+      }
+
+      const current = await locator.inputValue({ timeout: 1500 }).catch(() => null);
+      if (current === expected) {
+        return true;
+      }
+
+      await fillFirstVisible([() => locator], expected, options).catch(() => false);
+      await this.waitForProgressiveReflow(options.settleMs || 1200);
+
+      const after = await locator.inputValue({ timeout: 1500 }).catch(() => null);
+      if (after === expected) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   async selectWithPause(locator, values, pauseMs = 1000) {
     if (!locator || typeof locator.selectOption !== 'function') {
       throw new Error('Locator inválido informado para selectWithPause');
@@ -82,35 +238,177 @@ class ProgressiveQuoteAutomation {
   async answerChoiceInGroup(groupPatterns = [], answerText = 'No', { useLast = false } = {}) {
     const patterns = Array.isArray(groupPatterns) ? groupPatterns : [groupPatterns];
 
-    for (const pattern of patterns) {
-      const group = await firstVisible([
-        () => this.pickByPosition(this.page.getByRole('group', { name: pattern }), useLast),
-        () => this.pickByPosition(this.page.getByLabel(pattern), useLast)
-      ]);
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      for (const pattern of patterns) {
+        const group = await firstVisible([
+          () => this.pickByPosition(this.page.getByRole('group', { name: pattern }), useLast),
+          () => this.pickByPosition(this.page.getByLabel(pattern), useLast)
+        ]);
 
-      if (!group) {
-        continue;
-      }
+        if (!group) {
+          continue;
+        }
 
-      const answered = await checkFirstVisible([
-        () => group.getByLabel(answerText, { exact: true }),
-        () => group.getByRole('radio', { name: answerText, exact: true })
-      ], { force: true }).catch(() => false);
+        const radio = await firstVisible([
+          () => group.getByLabel(answerText, { exact: true }),
+          () => group.getByRole('radio', { name: answerText, exact: true })
+        ]);
 
-      if (answered) {
-        return true;
-      }
+        if (radio) {
+          const alreadyChecked = await radio.isChecked({ timeout: 1500 }).catch(() => false);
+          if (alreadyChecked) {
+            return true;
+          }
+        }
 
-      const clicked = await clickFirstVisible([
-        () => group.getByText(new RegExp(`^${answerText}$`, 'i')).first()
-      ], { force: true }).catch(() => false);
+        const answered = radio
+          ? await checkFirstVisible([() => radio], { force: true }).catch(() => false)
+          : false;
 
-      if (clicked) {
-        return true;
+        const clicked = answered
+          ? false
+          : await clickFirstVisible([
+            () => group.getByText(new RegExp(`^${answerText}$`, 'i')).first()
+          ], { force: true }).catch(() => false);
+
+        if (answered || clicked) {
+          await this.waitForProgressiveReflow(1600);
+          const confirmed = await firstVisible([
+            () => group.getByLabel(answerText, { exact: true }),
+            () => group.getByRole('radio', { name: answerText, exact: true })
+          ]);
+
+          if (!confirmed || await confirmed.isChecked({ timeout: 1500 }).catch(() => true)) {
+            return true;
+          }
+        }
       }
     }
 
     return false;
+  }
+
+  async selecionarGenero(genero, { useLast = false } = {}) {
+    const normalized = safeLower(genero);
+    let option = 'Female';
+    let optionValue = 'F';
+
+    if (isMaleGender(normalized)) {
+      option = 'Male';
+      optionValue = 'M';
+    } else if (/non.?binary|nao bin|não bin|^other$|outro/.test(normalized)) {
+      option = 'Nonbinary';
+      optionValue = 'N';
+    } else if (isFemaleGender(normalized)) {
+      option = 'Female';
+      optionValue = 'F';
+    }
+
+    const optionPattern = new RegExp(`^${option}$`, 'i');
+
+    const groupCandidates = [
+      () => this.pickByPosition(this.page.getByRole('group', { name: /Gender/i }), useLast),
+      () => this.pickByPosition(this.page.locator('fieldset').filter({ hasText: /Gender/i }), useLast),
+      () => this.pickByPosition(this.page.locator('div').filter({ hasText: /Gender.*Male.*Female/i }), useLast)
+    ];
+
+    const checkAndConfirm = async (locator) => {
+      if (!locator) {
+        return false;
+      }
+
+      const alreadyChecked = await locator.isChecked({ timeout: 1500 }).catch(() => false);
+      if (alreadyChecked) {
+        return true;
+      }
+
+      try {
+        await locator.check({ force: true, timeout: 5000 });
+      } catch (_) {
+        try {
+          await locator.click({ force: true, timeout: 5000 });
+        } catch (_) {
+          return false;
+        }
+      }
+
+      await this.waitForProgressiveReflow(1600);
+
+      try {
+        return await locator.isChecked({ timeout: 2000 });
+      } catch (_) {
+        return true;
+      }
+    };
+
+    for (const groupCandidate of groupCandidates) {
+      const group = await firstVisible([groupCandidate]);
+      if (!group) {
+        continue;
+      }
+
+      const radio = await firstVisible([
+        () => group.getByRole('radio', { name: optionPattern }),
+        () => group.getByLabel(optionPattern),
+        () => group.locator(`input[type="radio"][value="${optionValue}"]`).first()
+      ]);
+
+      if (await checkAndConfirm(radio)) {
+        return true;
+      }
+    }
+
+    const directRadio = await firstVisible([
+      () => this.pickByPosition(this.page.getByRole('radio', { name: optionPattern }), useLast),
+      () => this.pickByPosition(this.page.getByLabel(optionPattern), useLast),
+      () => this.pickByPosition(this.page.locator(`input[type="radio"][value="${optionValue}"]`), useLast),
+      () => this.pickByPosition(this.page.locator(`input[type="radio"][value="${option}"]`), useLast)
+    ]);
+
+    if (await checkAndConfirm(directRadio)) {
+      return true;
+    }
+
+    return this.page.evaluate(({ optionText, value, useLastSelection }) => {
+      const normalize = (text) => String(text || '').replace(/\s+/g, ' ').trim();
+      const optionPatternInPage = new RegExp(`^${optionText}$`, 'i');
+      const genderPattern = /gender/i;
+
+      const radioMatches = (radio) => {
+        const label = radio.id ? document.querySelector(`label[for="${CSS.escape(radio.id)}"]`) : null;
+        const surroundingLabel = radio.closest('label');
+        const text = normalize([label?.textContent, surroundingLabel?.textContent, radio.getAttribute('aria-label')].filter(Boolean).join(' '));
+        const radioValue = normalize(radio.value);
+        return radioValue === value || optionPatternInPage.test(text);
+      };
+
+      const contextMatches = (radio) => {
+        const context = radio.closest('fieldset, [role="group"], li, div');
+        return genderPattern.test(normalize(context?.textContent)) || genderPattern.test(normalize(radio.name));
+      };
+
+      const radios = Array.from(document.querySelectorAll('input[type="radio"]')).filter((radio) => radioMatches(radio) && contextMatches(radio));
+      const radio = useLastSelection ? radios.at(-1) : radios[0];
+      if (!radio) {
+        return false;
+      }
+
+      radio.click();
+      radio.checked = true;
+      radio.dispatchEvent(new Event('input', { bubbles: true }));
+      radio.dispatchEvent(new Event('change', { bubbles: true }));
+      return radio.checked;
+    }, { optionText: option, value: optionValue, useLastSelection: useLast }).catch(() => false);
+  }
+
+  async selecionarEstadoCivil(estadoCivil, { useLast = false } = {}) {
+    const isMarried = isMarriedStatus(estadoCivil);
+    const value = isMarried ? 'M' : 'S';
+    const label = isMarried ? 'Married' : 'Single';
+
+    return this.selectFirstVisibleStable([
+      () => this.pickByPosition(this.page.getByLabel(/Marital status/i), useLast)
+    ], [value, { label }, { index: isMarried ? 2 : 1 }]);
   }
 
   async preencherOccupationPadrao({ useLast = false } = {}) {
@@ -155,6 +453,55 @@ class ProgressiveQuoteAutomation {
     }
   }
 
+  async selecionarMaiorMonthsLicensed({ useLast = false } = {}) {
+    const label = STANDARD_QUOTE_DEFAULTS.licenseMonthsOptionLabel;
+    const selected = await this.selectFirstVisibleStable([
+      () => this.pickByPosition(this.page.getByLabel('Months licensed*'), useLast),
+      () => this.pickByPosition(this.page.getByLabel(/Months licensed/i), useLast),
+      () => this.pickByPosition(this.page.getByRole('combobox', { name: /Months licensed/i }), useLast)
+    ], [{ label }, label]).catch(() => false);
+
+    if (selected) {
+      return true;
+    }
+
+    return this.page.evaluate(({ useLastSelection, targetLabel }) => {
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+      const monthsPattern = /months\s+licensed/i;
+      const targetPattern = new RegExp(targetLabel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+
+      const selects = Array.from(document.querySelectorAll('select')).filter((select) => {
+        const context = normalize([
+          select.getAttribute('aria-label'),
+          select.getAttribute('name'),
+          select.getAttribute('id'),
+          select.labels ? Array.from(select.labels).map((item) => item.textContent).join(' ') : '',
+          select.closest('fieldset, label, li, .field, .form-group, .questions-list, div')?.textContent
+        ].filter(Boolean).join(' '));
+
+        return monthsPattern.test(context);
+      });
+
+      const select = useLastSelection ? selects.at(-1) : selects[0];
+      if (!select) {
+        return false;
+      }
+
+      const options = Array.from(select.options || []).filter((option) => normalize(option.textContent) || normalize(option.value));
+      const option = options.find((item) => targetPattern.test(normalize(item.textContent))) || options.at(-1);
+      if (!option) {
+        return false;
+      }
+
+      select.value = option.value;
+      option.selected = true;
+      select.dispatchEvent(new Event('input', { bubbles: true }));
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+      select.dispatchEvent(new Event('blur', { bubbles: true }));
+      return true;
+    }, { useLastSelection: useLast, targetLabel: label }).catch(() => false);
+  }
+
   async preencherHistoricoLicencaPadrao({ estadoDocumento, useLast = false, ageFirstLicensed = STANDARD_QUOTE_DEFAULTS.ageFirstLicensed } = {}) {
     const isInternational = safeLower(estadoDocumento) === 'it';
     const licenseTypeCandidates = [
@@ -162,25 +509,27 @@ class ProgressiveQuoteAutomation {
     ];
 
     if (isInternational) {
-      await selectFirstVisible(licenseTypeCandidates, ['F', { index: 1 }]).catch(() => false);
+      await this.selectFirstVisibleStable(licenseTypeCandidates, ['F', { index: 1 }]).catch(() => false);
       return;
     }
 
-    await selectFirstVisible(licenseTypeCandidates, [{ label: 'Personal' }, { index: 1 }]).catch(() => false);
-    await selectFirstVisible([
+    await this.selectFirstVisibleStable(licenseTypeCandidates, [{ label: 'Personal' }, { index: 1 }]).catch(() => false);
+    await this.selectFirstVisibleStable([
       () => this.pickByPosition(this.page.getByLabel('U.S. License status'), useLast)
     ], [{ label: 'Valid' }, { index: 1 }]).catch(() => false);
 
-    await fillFirstVisible([
+    await this.fillFirstVisibleStable([
       () => this.pickByPosition(this.page.getByLabel('Age first licensed*'), useLast),
       () => this.pickByPosition(this.page.getByLabel(/Age first licensed/i), useLast)
     ], ageFirstLicensed, { timeout: 5000 }).catch(() => false);
 
-    await selectFirstVisible([
+    await this.selectFirstVisibleStable([
       () => this.pickByPosition(this.page.getByLabel('Years licensed*'), useLast),
       () => this.pickByPosition(this.page.getByLabel(/Years licensed in the U\.S\. or/i), useLast),
       () => this.pickByPosition(this.page.getByLabel(/Years licensed/i), useLast)
     ], [STANDARD_QUOTE_DEFAULTS.licenseYearsOption, { index: 1 }]).catch(() => false);
+
+    await this.selecionarMaiorMonthsLicensed({ useLast });
 
     await this.answerChoiceInGroup([/Has .*license been valid/i, /Has your license been valid/i], 'Yes', { useLast });
     await this.answerChoiceInGroup([/Any license suspensions/i], 'No', { useLast });
@@ -194,41 +543,337 @@ class ProgressiveQuoteAutomation {
     await this.answerChoiceInGroup([/Tickets or violations/i], 'No', { useLast });
   }
 
-  async preencherCamposVeiculoPadrao(veiculo = {}) {
+  async responderRadioPorPergunta(questionPattern, answerText) {
+    const answeredByGroup = await this.answerChoiceInGroup([questionPattern], answerText).catch(() => false);
+    if (answeredByGroup) {
+      await this.waitForProgressiveReflow(1600);
+      return true;
+    }
+
+    const answeredByDom = await this.page.evaluate(({ questionSource, answer }) => {
+      const question = new RegExp(questionSource, 'i');
+      const answerPattern = new RegExp(`^${answer}$`, 'i');
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+      const roots = Array.from(document.querySelectorAll('fieldset, [role="group"], li, section, div'))
+        .filter((element) => question.test(normalize(element.textContent)) && element.querySelectorAll('input[type="radio"]').length)
+        .sort((a, b) => normalize(a.textContent).length - normalize(b.textContent).length);
+
+      for (const root of roots) {
+        const radios = Array.from(root.querySelectorAll('input[type="radio"]'));
+        for (const radio of radios) {
+          const label = radio.id ? document.querySelector(`label[for="${CSS.escape(radio.id)}"]`) : null;
+          const surroundingLabel = radio.closest('label');
+          const radioText = normalize([
+            label?.textContent,
+            surroundingLabel?.textContent,
+            radio.getAttribute('aria-label'),
+            radio.value
+          ].filter(Boolean).join(' '));
+
+          if (!answerPattern.test(radioText)) {
+            continue;
+          }
+
+          radio.click();
+          radio.checked = true;
+          radio.dispatchEvent(new Event('input', { bubbles: true }));
+          radio.dispatchEvent(new Event('change', { bubbles: true }));
+          return radio.checked;
+        }
+
+        if (radios.length >= 2) {
+          const fallbackRadio = /^no$/i.test(answer) ? radios[1] : radios[0];
+          fallbackRadio.click();
+          fallbackRadio.checked = true;
+          fallbackRadio.dispatchEvent(new Event('input', { bubbles: true }));
+          fallbackRadio.dispatchEvent(new Event('change', { bubbles: true }));
+          return fallbackRadio.checked;
+        }
+      }
+
+      return false;
+    }, { questionSource: questionPattern.source, answer: answerText }).catch(() => false);
+
+    if (answeredByDom) {
+      await this.waitForProgressiveReflow(1600);
+    }
+
+    return answeredByDom;
+  }
+
+  async selecionarTempoSeguroAnterior(labelPatterns = [], option) {
+    if (!option) {
+      return false;
+    }
+
+    const labels = Array.isArray(labelPatterns) ? labelPatterns : [labelPatterns];
+    const selected = await this.selectFirstVisibleStable(labels.map((labelPattern) => (
+      () => this.page.getByLabel(labelPattern)
+    )), [option, { index: 1 }]).catch(() => false);
+
+    if (selected) {
+      await this.waitForProgressiveReflow(1600);
+      return true;
+    }
+
+    const selectedByDom = await this.page.evaluate(({ labelSources, targetValue }) => {
+      const patterns = labelSources.map((source) => new RegExp(source, 'i'));
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+      for (const select of Array.from(document.querySelectorAll('select'))) {
+        const context = normalize([
+          select.getAttribute('aria-label'),
+          select.getAttribute('name'),
+          select.getAttribute('id'),
+          select.labels ? Array.from(select.labels).map((label) => label.textContent).join(' ') : '',
+          select.closest('fieldset, label, li, .field, .form-group, .questions-list, div')?.textContent
+        ].filter(Boolean).join(' '));
+
+        if (!patterns.some((pattern) => pattern.test(context))) {
+          continue;
+        }
+
+        const options = Array.from(select.options || []);
+        const option = options.find((item) => item.value === targetValue) || options[1];
+        if (!option) {
+          continue;
+        }
+
+        select.value = option.value;
+        option.selected = true;
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        select.dispatchEvent(new Event('blur', { bubbles: true }));
+        return true;
+      }
+
+      return false;
+    }, {
+      labelSources: labels.map((label) => label.source || String(label)),
+      targetValue: option
+    }).then(async (done) => {
+      if (done) {
+        await this.waitForProgressiveReflow(1600);
+      }
+      return done;
+    }).catch(() => false);
+
+    return selectedByDom;
+  }
+
+  async selecionarMenorAnnualMileage() {
     const annualMileageText = STANDARD_QUOTE_DEFAULTS.annualMileageText;
     const annualMileageBucket = STANDARD_QUOTE_DEFAULTS.annualMileageBucket;
-    const ownLeaseValue = isFinancedVehicle(veiculo.financiado) ? '2' : '3';
+    const annualMileageBucketPattern = /0\s*[-\u2013]\s*3,?999/i;
 
-    await waitForAnyVisible([
-      () => this.page.getByLabel('Learn more aboutPrimary use*'),
-      () => this.page.getByLabel('Learn more aboutVehicle use*'),
-      () => this.page.getByRole('textbox', { name: /Estimated annual mileage|Number of Miles/i }),
-      () => this.page.getByLabel(/How long have you had this vehicle/i),
-      () => this.page.getByLabel('Own or lease?')
-    ], 6000).catch(() => null);
+    const selectedByKnownLabel = await this.page
+      .getByLabel('Learn more aboutAnnual')
+      .selectOption(annualMileageBucket, { timeout: 5000 })
+      .then(() => true)
+      .catch(() => false);
 
-    await selectFirstVisible([
-      () => this.page.getByLabel('Learn more aboutPrimary use*'),
-      () => this.page.getByLabel('Learn more aboutVehicle use*')
-    ], ['1', { index: 1 }]).catch(() => false);
+    if (selectedByKnownLabel) {
+      await this.waitForProgressiveReflow(1500);
+      return true;
+    }
 
-    await selectFirstVisible([
-      () => this.page.getByLabel('Own or lease?')
-    ], [ownLeaseValue]).catch(() => false);
+    const selectedByDom = await this.page.evaluate(() => {
+      const wantedPattern = /0\s*[-\u2013]\s*3,?999/i;
+      const annualMileagePattern = /annual\s+mileage/i;
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
 
-    await selectFirstVisible([
-      () => this.page.getByLabel(/How long have you had this vehicle/i)
-    ], [mapVehicleOwnership(veiculo.tempo_com_veiculo), { index: 1 }]).catch(() => false);
+      const getSelectContext = (select) => {
+        const parts = [];
+        if (select.id) {
+          const label = document.querySelector(`label[for="${CSS.escape(select.id)}"]`);
+          parts.push(label?.textContent);
+        }
+        parts.push(select.getAttribute('aria-label'));
+        parts.push(select.getAttribute('name'));
+        parts.push(select.getAttribute('id'));
+        parts.push(select.labels ? Array.from(select.labels).map((label) => label.textContent).join(' ') : '');
 
-    await fillFirstVisible([
+        const field = select.closest('fieldset, label, li, .field, .form-group, .questions-list, div');
+        parts.push(field?.textContent);
+
+        return normalize(parts.filter(Boolean).join(' '));
+      };
+
+      for (const select of Array.from(document.querySelectorAll('select'))) {
+        const options = Array.from(select.options || []);
+        const wantedOption = options.find((option) => wantedPattern.test(normalize(option.textContent)));
+        if (!wantedOption) {
+          continue;
+        }
+
+        const context = getSelectContext(select);
+        if (!annualMileagePattern.test(context) && !annualMileagePattern.test(normalize(select.outerHTML))) {
+          continue;
+        }
+
+        select.value = wantedOption.value;
+        wantedOption.selected = true;
+        select.dispatchEvent(new Event('input', { bubbles: true }));
+        select.dispatchEvent(new Event('change', { bubbles: true }));
+        select.dispatchEvent(new Event('blur', { bubbles: true }));
+        return wantedPattern.test(normalize(select.selectedOptions?.[0]?.textContent));
+      }
+
+      return false;
+    }).catch(() => false);
+
+    if (selectedByDom) {
+      await this.waitForProgressiveReflow(1500);
+      return true;
+    }
+
+    const visibleSelectCandidates = [
+      () => this.page.getByRole('combobox', { name: /Annual mileage/i }),
+      () => this.page.getByLabel(/Annual mileage/i),
+      () => this.page.getByLabel('Learn more aboutAnnual')
+    ];
+
+    const selectedByPlaywright = await selectFirstVisible(visibleSelectCandidates, [
+      { label: annualMileageBucket },
+      annualMileageBucket
+    ]).catch(() => false);
+
+    if (selectedByPlaywright) {
+      await this.waitForProgressiveReflow(1500);
+      return true;
+    }
+
+    const typed = await fillFirstVisible([
       () => this.page.getByRole('textbox', { name: 'Estimated annual mileage' }),
-      () => this.page.getByRole('textbox', { name: /Annual mileage|Number of Miles/i })
+      () => this.page.getByRole('textbox', { name: /Annual mileage|Number of Miles/i }),
+      () => this.page.locator("input[name*='AnnualMileage' i]").first(),
+      () => this.page.locator("input[id*='AnnualMileage' i]").first(),
+      () => this.page.locator("input[name*='Mileage' i]").first(),
+      () => this.page.locator("input[id*='Mileage' i]").first()
     ], annualMileageText).catch(() => false);
 
-    await selectFirstVisible([
-      () => this.page.getByLabel('Learn more aboutAnnual'),
-      () => this.page.getByLabel(/Annual mileage/i)
-    ], [annualMileageBucket, { index: 1 }]).catch(() => false);
+    if (typed) {
+      return true;
+    }
+
+    const dropdown = await firstVisible([
+      () => this.page.getByRole('combobox', { name: /Annual mileage/i }),
+      () => this.page.getByLabel(/Annual mileage/i),
+      () => this.page.getByText(/Annual mileage/i).locator('xpath=..').first()
+    ]);
+
+    if (!dropdown) {
+      return false;
+    }
+
+    try {
+      await dropdown.click({ timeout: 3000 });
+    } catch (_) {
+      return false;
+    }
+
+    return clickFirstVisible([
+      () => this.page.getByRole('option', { name: annualMileageBucketPattern }).first(),
+      () => this.page.getByRole('menuitem', { name: annualMileageBucketPattern }).first(),
+      () => this.page.getByText(annualMileageBucketPattern).first()
+    ], { timeout: 3000 }).catch(() => false);
+  }
+
+  async annualMileageEstaPreenchido() {
+    const annualMileageBucketPattern = /0\s*[-\u2013]\s*3,?999/i;
+
+    return this.page.evaluate(() => {
+      const wantedPattern = /0\s*[-\u2013]\s*3,?999/i;
+      const annualMileagePattern = /annual\s+mileage/i;
+      const normalize = (value) => String(value || '').replace(/\s+/g, ' ').trim();
+
+      for (const select of Array.from(document.querySelectorAll('select'))) {
+        const context = normalize([
+          select.getAttribute('aria-label'),
+          select.getAttribute('name'),
+          select.getAttribute('id'),
+          select.labels ? Array.from(select.labels).map((label) => label.textContent).join(' ') : '',
+          select.closest('fieldset, label, li, .field, .form-group, .questions-list, div')?.textContent
+        ].filter(Boolean).join(' '));
+
+        if (!annualMileagePattern.test(context) && !annualMileagePattern.test(normalize(select.outerHTML))) {
+          continue;
+        }
+
+        if (wantedPattern.test(normalize(select.selectedOptions?.[0]?.textContent))) {
+          return true;
+        }
+      }
+
+      return false;
+    }).catch(async () => {
+      const valueText = await this.page
+        .getByLabel('Learn more aboutAnnual')
+        .evaluate((select) => select?.selectedOptions?.[0]?.textContent || '')
+        .catch(() => '');
+
+      return annualMileageBucketPattern.test(String(valueText));
+    });
+  }
+
+  async preencherCamposVeiculoPadrao(veiculo = {}) {
+    const ownLeaseValue = isFinancedVehicle(veiculo.financiado) ? '2' : '3';
+    const ownershipValue = mapVehicleOwnership(veiculo.tempo_com_veiculo);
+    const primaryUseCandidates = [
+      () => this.page.getByLabel('Learn more aboutPrimary use*'),
+      () => this.page.getByLabel('Learn more aboutVehicle use*')
+    ];
+    const ownLeaseCandidates = [
+      () => this.page.getByLabel('Own or lease?')
+    ];
+    const ownershipCandidates = [
+      () => this.page.getByLabel(/How long have you had this vehicle/i)
+    ];
+
+    await waitForAnyVisible([
+      ...primaryUseCandidates,
+      () => this.page.getByRole('textbox', { name: /Estimated annual mileage|Number of Miles/i }),
+      () => this.page.getByLabel(/Annual mileage/i),
+      ...ownershipCandidates,
+      ...ownLeaseCandidates
+    ], 6000).catch(() => null);
+
+    const applyVehicleFields = async () => {
+      await this.selectFirstVisibleStable(primaryUseCandidates, ['1', { index: 1 }]).catch(() => false);
+      await this.selectFirstVisibleStable(ownLeaseCandidates, [ownLeaseValue]).catch(() => false);
+      await this.selectFirstVisibleStable(ownershipCandidates, [ownershipValue, { index: 1 }]).catch(() => false);
+      await this.selecionarMenorAnnualMileage();
+      await this.waitForProgressiveReflow(1500);
+    };
+
+    const vehicleFieldsAreStable = async () => (
+      await this.visibleSelectionMatches(primaryUseCandidates, ['1', { index: 1 }])
+      && await this.visibleSelectionMatches(ownLeaseCandidates, [ownLeaseValue])
+      && await this.visibleSelectionMatches(ownershipCandidates, [ownershipValue, { index: 1 }])
+      && await this.annualMileageEstaPreenchido()
+    );
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await applyVehicleFields();
+      if (await vehicleFieldsAreStable()) {
+        return true;
+      }
+      await this.page.waitForTimeout(800).catch(() => {});
+    }
+
+    return vehicleFieldsAreStable();
+  }
+
+  async aguardarTelaInformacoesPessoais() {
+    await waitForAnyVisible([
+      () => this.page.getByRole('group', { name: /Gender/i }),
+      () => this.page.getByLabel(/Marital status/i),
+      () => this.page.getByLabel(/Highest level of education/i),
+      () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_Gender'),
+      () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_MaritalStatus')
+    ], 20000).catch(() => null);
+    await this.waitForNetworkSettled(1500);
   }
 
   async ensureValidLicenseYes() {
@@ -435,6 +1080,8 @@ class ProgressiveQuoteAutomation {
         estadoCivil: data.estadoCivil,
         nomeConjuge: data.nomeConjuge,
         dataNascimentoConjuge: data.dataNascimentoConjugeUs || formatDateForUs(data.dataNascimentoConjuge),
+        generoConjuge: data.generoConjuge,
+        estadoDocumentoConjuge: data.estadoDocumentoConjuge,
         pessoasExtras,
         titularNome: `${data.firstName} ${data.lastName}`
       });
@@ -676,13 +1323,21 @@ class ProgressiveQuoteAutomation {
       await this.page.waitForTimeout(7000);
       await this.preencherCamposVeiculoPadrao(veiculo);
 
-      // Tenta clicar em "Done" para salvar o veículo atual antes de prosseguir
+      // Tenta salvar o veículo atual antes de prosseguir
       // Isso é crucial para voltar à lista de veículos e permitir adicionar o próximo
       try {
-        const doneBtn = this.page.getByRole('button', { name: 'Done' });
-        if (await doneBtn.isVisible({ timeout: 2000 })) {
-          await doneBtn.click();
-          await this.page.waitForTimeout(1000);
+        const saved = await clickFirstVisible([
+          () => this.page.getByRole('button', { name: /^Save vehicle$/i }),
+          () => this.page.getByRole('button', { name: /^Done$/i })
+        ], { timeout: 8000 }).catch(() => false);
+
+        if (saved) {
+          await this.waitForNetworkSettled(2000);
+          await waitForAnyVisible([
+            () => this.page.getByRole('button', { name: 'Continue' }),
+            () => this.page.getByRole('button', { name: '+Add another vehicle' }),
+            () => this.page.getByText(/vehicle/i)
+          ], 10000).catch(() => null);
         }
       } catch (_) {
       }
@@ -695,6 +1350,7 @@ class ProgressiveQuoteAutomation {
       this.page.getByRole('button', { name: 'Continue' }),
       { timeout: 20000 }
     );
+    await this.aguardarTelaInformacoesPessoais();
   }
 
   preparePessoasExtras(data) {
@@ -708,34 +1364,89 @@ class ProgressiveQuoteAutomation {
     });
   }
 
-  async informacoesPessoais({ genero, estadoDocumento, estadoCivil, nomeConjuge, dataNascimentoConjuge, pessoasExtras }) {
+  async finalizarSecaoDrivers() {
+    const insuranceVisible = await waitForAnyVisible([
+      () => this.page.getByText(/Tell us about your insurance/i),
+      () => this.page.getByText(/Auto insurance history/i),
+      () => this.page.getByRole('group', { name: /Do you have auto insurance/i })
+    ], 1500).catch(() => null);
+
+    if (insuranceVisible) {
+      return true;
+    }
+
+    const clicked = await clickFirstVisible([
+      () => this.page.getByRole('button', { name: /^Continue$/i }),
+      () => this.page.locator("button:has-text('Continue')").last()
+    ], { timeout: 12000 }).catch(() => false);
+
+    if (!clicked) {
+      return false;
+    }
+
+    await waitForAnyVisible([
+      () => this.page.getByText(/Tell us about your insurance/i),
+      () => this.page.getByText(/Auto insurance history/i),
+      () => this.page.getByRole('group', { name: /Do you have auto insurance/i })
+    ], 15000).catch(() => null);
+    await this.waitForProgressiveReflow(1800);
+    return true;
+  }
+
+  async reaplicarDadosPessoaisBasicos({ genero, estadoCivil, estadoDocumento, useLast = false, ageFirstLicensed = STANDARD_QUOTE_DEFAULTS.ageFirstLicensed } = {}) {
+    await this.selecionarGenero(genero, { useLast }).catch(() => false);
+    await this.selecionarEstadoCivil(estadoCivil, { useLast }).catch(() => false);
+
+    const educationCandidates = [
+      !useLast ? () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_HighestLevelOfEducation') : null,
+      () => this.pickByPosition(this.page.getByLabel(/Highest level of education/i), useLast)
+    ].filter(Boolean);
+
+    const employmentCandidates = [
+      !useLast ? () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_EmploymentStatus') : null,
+      () => this.pickByPosition(this.page.getByLabel(/Employment status/i), useLast)
+    ].filter(Boolean);
+
+    const residenceCandidates = [
+      () => this.pickByPosition(this.page.getByLabel('Primary residence*'), useLast),
+      !useLast ? () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence') : null
+    ].filter(Boolean);
+
+    await this.selectFirstVisibleStable(educationCandidates, [STANDARD_QUOTE_DEFAULTS.educationOption, { index: 1 }]).catch(() => false);
+    await this.selectFirstVisibleStable(employmentCandidates, [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]).catch(() => false);
+
+    await this.preencherOccupationPadrao({ useLast }).catch(() => false);
+
+    await this.selectFirstVisibleStable(residenceCandidates, [STANDARD_QUOTE_DEFAULTS.primaryResidenceOption, { index: 1 }]).catch(() => false);
+
+    await this.preencherHistoricoLicencaPadrao({
+      estadoDocumento,
+      useLast,
+      ageFirstLicensed
+    }).catch(() => false);
+    await this.preencherPerguntasPadraoSemHistorico({ useLast }).catch(() => false);
+  }
+
+  async informacoesPessoais({ genero, estadoDocumento, estadoCivil, nomeConjuge, dataNascimentoConjuge, generoConjuge, estadoDocumentoConjuge, pessoasExtras }) {
     try {
-      if (safeLower(genero) === 'masculino') {
-        await this.page.getByLabel('Male', { exact: true }).check();
-      } else {
-        await this.page.getByLabel('Female').check();
-      }
+      await this.selecionarGenero(genero);
     } catch (error) {
       console.warn('[ProgressiveAutomation] Falha ao selecionar gênero titular:', error?.message || error);
     }
 
     try {
-      if (safeLower(estadoCivil).includes('casad')) {
-        await this.page.getByLabel('Marital status').selectOption('M');
-      } else {
-        await this.page.getByLabel('Marital status').selectOption('S');
-      }
+      await this.selecionarEstadoCivil(estadoCivil);
     } catch (error) {
       console.warn('[ProgressiveAutomation] Falha ao selecionar estado civil:', error?.message || error);
     }
 
     try {
-      await selectFirstVisible([
+      await this.selectFirstVisibleStable([
         () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_HighestLevelOfEducation'),
         () => this.page.getByLabel(/Highest level of education/i)
       ], [STANDARD_QUOTE_DEFAULTS.educationOption, { index: 1 }]);
 
-      await selectFirstVisible([
+      await this.selectFirstVisibleStable([
         () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_EmploymentStatus'),
         () => this.page.getByLabel(/Employment status/i)
       ], [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]);
@@ -746,7 +1457,7 @@ class ProgressiveQuoteAutomation {
 
     try {
       this.page.setDefaultTimeout(5000);
-      await selectFirstVisible([
+      await this.selectFirstVisibleStable([
         () => this.page.getByLabel('Primary residence*'),
         () => this.page.locator('#DriversAddPniDetails_embedded_questions_list_PrimaryResidence')
       ], [STANDARD_QUOTE_DEFAULTS.primaryResidenceOption, { index: 1 }]);
@@ -764,6 +1475,13 @@ class ProgressiveQuoteAutomation {
       });
       await this.preencherPerguntasPadraoSemHistorico();
 
+      await this.reaplicarDadosPessoaisBasicos({
+        genero,
+        estadoCivil,
+        estadoDocumento,
+        ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.ageFirstLicensed
+      });
+
       await this.page.waitForTimeout(1000);
       await this.clickButton(
         this.page.getByRole('button', { name: 'Continue' }),
@@ -773,61 +1491,20 @@ class ProgressiveQuoteAutomation {
       console.warn('[ProgressiveAutomation] Falha ao preencher dados de licença do titular:', error?.message || error);
     }
 
-    if (safeLower(estadoCivil).includes('casad') && nomeConjuge && dataNascimentoConjuge) {
+    if (isMarriedStatus(estadoCivil) && nomeConjuge && dataNascimentoConjuge) {
       try {
         const [firstName, lastName] = splitName(nomeConjuge);
         await this.page.getByLabel('First Name').fill(firstName || 'Spouse');
         await this.page.getByLabel('Last Name').fill(lastName || '');
         await this.page.getByLabel('Date of birth').fill(dataNascimentoConjuge || '01/01/1990');
 
-        const titularGenero = safeLower(genero || '');
-        let spouseGenderOption = 'Female';
-        if (titularGenero.includes('fem')) {
-          spouseGenderOption = 'Male';
-        } else if (titularGenero.includes('non') || titularGenero.includes('nb') || titularGenero.includes('não bin')) {
-          spouseGenderOption = 'Nonbinary';
-        }
+        const spouseGender = generoConjuge || (isFemaleGender(genero) ? 'male' : 'female');
 
         // Aguarda um pouco para garantir que a página carregou todos os elementos
         await this.page.waitForTimeout(1500);
 
         try {
-          // Gênero - Usa locator CSS diretamente para o input radio dentro do fieldset/grupo de Gender
-          // Estratégia: encontra todos os radios de gênero e clica no último (que é do cônjuge)
-          
-          if (spouseGenderOption === 'Male') {
-            // Tenta localizar por CSS selector direto
-            const maleInputs = this.page.locator('input[type="radio"][value="M"], input[type="radio"][name*="Gender"][value*="ale"]');
-            const count = await maleInputs.count();
-            if (count > 0) {
-              await maleInputs.last().check({ force: true });
-              await maleInputs.last().check({ force: true });
-            } else {
-              // Fallback: clica no texto "Male" que seja label
-              await this.page.locator('text="Male"').last().click({ force: true });
-              await this.page.locator('text="Male"').last().click({ force: true });
-            }
-          } else if (spouseGenderOption === 'Nonbinary') {
-            const nbInputs = this.page.locator('input[type="radio"][value*="onbinary"], input[type="radio"][value="N"]');
-            const count = await nbInputs.count();
-            if (count > 0) {
-              await nbInputs.last().check({ force: true });
-            } else {
-              await this.page.locator('text="Nonbinary"').last().click({ force: true });
-            }
-          } else {
-            // Female
-            const femaleInputs = this.page.locator('input[type="radio"][value="F"], input[type="radio"][name*="Gender"][value*="emale"]');
-            const count = await femaleInputs.count();
-            if (count > 0) {
-              await femaleInputs.last().check({ force: true });
-              await femaleInputs.last().check({ force: true });
-            } else {
-              await this.page.locator('text="Female"').last().click({ force: true });
-              await this.page.locator('text="Female"').last().click({ force: true });
-            }
-          }
-          
+          await this.selecionarGenero(spouseGender, { useLast: true });
           // Aguarda após selecionar gênero para evitar "unclick"
           await this.page.waitForTimeout(800);
           
@@ -836,11 +1513,11 @@ class ProgressiveQuoteAutomation {
         }
 
         try {
-          await selectFirstVisible([
+          await this.selectFirstVisibleStable([
             () => this.page.getByLabel(/Highest level of education/i).last()
           ], [STANDARD_QUOTE_DEFAULTS.educationOption, { index: 1 }]);
 
-          await selectFirstVisible([
+          await this.selectFirstVisibleStable([
             () => this.page.getByLabel('Employment status*').last(),
             () => this.page.getByLabel(/Employment status/i).last()
           ], [STANDARD_QUOTE_DEFAULTS.employmentOption, { index: 1 }]);
@@ -852,7 +1529,7 @@ class ProgressiveQuoteAutomation {
 
         try {
           await this.preencherHistoricoLicencaPadrao({
-            estadoDocumento,
+            estadoDocumento: estadoDocumentoConjuge || estadoDocumento,
             useLast: true,
             ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed
           });
@@ -884,20 +1561,18 @@ class ProgressiveQuoteAutomation {
           await this.page.getByRole('textbox', { name: 'First name' }).fill(firstName || 'Driver');
           await this.page.getByRole('textbox', { name: 'Last name' }).fill(lastName || '');
 
-          const generoPessoa = safeLower(pessoa.genero);
-          if (generoPessoa === 'masculino') {
-            await this.page.getByRole('radio', { name: 'Male' }).check();
-          } else {
-            await this.page.getByRole('radio', { name: 'Female' }).check();
-          }
+          await this.selecionarGenero(pessoa.genero, { useLast: true });
 
           const nascimento = formatDateForUs(pessoa.data_nascimento) || '01/01/1990';
           await this.page.getByRole('textbox', { name: 'Date of birth' }).fill(nascimento);
-          await this.page.getByLabel('Marital status*').selectOption('S');
-          await this.page.getByLabel('Relationship to', { exact: false }).selectOption('O');
+          await this.selecionarEstadoCivil(pessoa.estado_civil || 'single', { useLast: true });
+          await this.selectFirstVisibleStable([
+            () => this.page.getByLabel('Relationship to', { exact: false }).last()
+          ], ['O', { index: 1 }]);
 
           await this.preencherHistoricoLicencaPadrao({
             estadoDocumento: pessoa.documento_estado,
+            useLast: true,
             ageFirstLicensed: STANDARD_QUOTE_DEFAULTS.spouseAgeFirstLicensed
           }).catch((e) => {
             console.warn('Erro ao marcar histórico do driver extra:', e.message);
@@ -915,33 +1590,95 @@ class ProgressiveQuoteAutomation {
         }
       }
     }
+
+    await this.finalizarSecaoDrivers();
   }
 
   async informacoesSeguroAnterior({ tempoDeSeguro, tempoNoEndereco }) {
-    const { hasInsurance, option } = mapInsuranceDuration(tempoDeSeguro);
+    const insuranceDuration = mapInsuranceDuration(tempoDeSeguro);
+    const hasInsurance = Boolean(safeLower(tempoDeSeguro)) && insuranceDuration.hasInsurance;
+    const option = insuranceDuration.option;
 
     try {
+      await waitForAnyVisible([
+        () => this.page.getByText(/Tell us about your insurance/i),
+        () => this.page.getByText(/Auto insurance history/i),
+        () => this.page.getByRole('group', { name: /auto insurance today/i }),
+        () => this.page.getByRole('group', { name: /auto insurance/i }),
+        () => this.page.getByLabel(/How long have you been with/i),
+        () => this.page.getByLabel(/How long have you been with your current/i),
+        () => this.page.getByLabel(/How long have you been with your most recent/i),
+        () => this.page.getByRole('button', { name: 'Continue' })
+      ], 15000).catch(() => null);
+
       if (!hasInsurance) {
-        await this.answerChoiceInGroup([/Do you have auto insurance/i], 'No');
-        await this.answerChoiceInGroup([/Have you had auto insurance in the last 31 days/i], 'No');
+        await this.page
+          .getByRole('group', { name: 'Do you have auto insurance' })
+          .getByLabel('No')
+          .check({ timeout: 8000 });
+
+        await waitForAnyVisible([
+          () => this.page.getByText(/Have you had auto insurance in the last 31 days/i),
+          () => this.page.getByRole('group', { name: /last 31 days/i })
+        ], 8000).catch(() => null);
+        await this.waitForProgressiveReflow(1600);
+
+        await this.page
+          .getByRole('group', { name: 'Have you had auto insurance in the last 31 days?' })
+          .getByLabel('No')
+          .check({ timeout: 8000 });
+        await this.waitForProgressiveReflow(1600);
+
+        await this.selecionarTempoSeguroAnterior([
+          /How long have you been with your most recent auto insurance company/i,
+          /Learn more aboutHow long have you been with your most recent/i,
+          /most recent auto insurance company/i,
+          /How long have you been with/i
+        ], option).catch(() => false);
       } else {
-        await this.answerChoiceInGroup([/Do you have auto insurance/i], 'Yes');
+        await this.page
+          .getByRole('group', { name: 'Do you have auto insurance' })
+          .getByLabel('Yes')
+          .check({ timeout: 8000 });
+
+        await waitForAnyVisible([
+          () => this.page.getByLabel(/How long have you been with your current/i),
+          () => this.page.getByLabel('How long have you been with'),
+          () => this.page.getByText(/How long have you been with your current auto insurance company/i)
+        ], 8000).catch(() => null);
+        await this.waitForProgressiveReflow(1600);
+
         if (option) {
-          await selectFirstVisible([
-            () => this.page.getByLabel('How long have you been with'),
-            () => this.page.getByLabel(/How long have you been with/i)
-          ], [option, { index: 1 }]);
+          await this.page
+            .getByLabel('How long have you been with')
+            .selectOption(option, { timeout: 8000 });
+          await this.waitForProgressiveReflow(1600);
+
+          if (option === 'A') {
+            await waitForAnyVisible([
+              () => this.page.getByRole('group', { name: /insured for the past 6 months/i }),
+              () => this.page.getByText(/insured for the past 6 months/i)
+            ], 8000).catch(() => null);
+
+            await this.page
+              .getByRole('group', { name: /insured for the past 6 months/i })
+              .getByLabel('Yes')
+              .check({ timeout: 8000 })
+              .catch(() => this.responderRadioPorPergunta(/insured for the past 6 months/i, 'Yes'));
+            await this.waitForProgressiveReflow(1600);
+          }
         }
       }
 
-      await this.answerChoiceInGroup([/Do you have non-auto policies/i], 'No');
-      await this.answerChoiceInGroup([/Have you had auto insurance/i], 'No');
+      await this.answerChoiceInGroup([/Do you have non-auto policies/i, /non-auto policies/i], 'No');
+      await this.answerChoiceInGroup([/Have you had auto insurance/i, /prior auto insurance/i], hasInsurance ? 'Yes' : 'No');
 
       try {
         const residenceOption = mapResidenceDuration(tempoNoEndereco);
-        await selectFirstVisible([
+        await this.selectFirstVisibleStable([
           () => this.page.getByLabel('How long have you lived at'),
-          () => this.page.getByLabel(/How long have you lived at/i)
+          () => this.page.getByLabel(/How long have you lived at/i),
+          () => this.page.getByRole('combobox', { name: /How long.*lived/i })
         ], [residenceOption, { index: 1 }]);
       } catch (error) {
         console.warn('[ProgressiveAutomation] Falha ao selecionar tempo no endereço:', error?.message || error);

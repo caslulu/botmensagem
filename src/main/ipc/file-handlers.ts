@@ -30,6 +30,15 @@ export function registerFileHandlers(getMainWindow: () => BrowserWindow | null):
     }
   });
 
+  ipcMain.handle('file:read-image-as-data-url', async (_event, targetPath: string) => {
+    try {
+      return fileService.readImageAsDataUrl(targetPath);
+    } catch (error) {
+      console.error('Erro ao carregar imagem local:', error);
+      return fileService.readImageAsDataUrl(targetPath);
+    }
+  });
+
   ipcMain.handle('file:select-image', async () => {
     try {
       return await fileService.selectImage(getMainWindow);

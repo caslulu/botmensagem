@@ -76,6 +76,7 @@ interface FilesAPI {
   saveToDownloads: (srcPath: string, suggestedName?: string) => AsyncResult<any>;
   showInFolder: (targetPath: string) => AsyncResult<any>;
   openPath: (targetPath: string) => AsyncResult<any>;
+  readImageAsDataUrl: (targetPath: string) => AsyncResult<IpcResult<{ dataUrl?: string }>>;
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
 }
 

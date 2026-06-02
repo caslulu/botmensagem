@@ -7,6 +7,7 @@ const STANDARD_QUOTE_DEFAULTS = Object.freeze({
   employmentOption: 'EM',
   primaryResidenceOption: 'T',
   licenseYearsOption: '3',
+  licenseMonthsOptionLabel: 'At least 36 months (3 years)',
   ageFirstLicensed: '16',
   spouseAgeFirstLicensed: '18',
   timePeriodMonths: '12'
@@ -36,16 +37,17 @@ function mapInsuranceDuration(value) {
   const normalized = safeLower(value);
   if (!normalized) return { hasInsurance: true, option: 'C' };
   if (includesAny(normalized, ['nunca', 'never'])) return { hasInsurance: false, option: null };
-  if (includesAny(normalized, ['menos', 'less'])) return { hasInsurance: true, option: 'A' };
-  if (normalized.includes('1-3')) return { hasInsurance: true, option: 'B' };
-  if (normalized.includes('3-5')) return { hasInsurance: true, option: 'C' };
+  if (includesAny(normalized, ['lt_6m', '6m_1y', 'menos', 'less', '6 meses', '6 months'])) return { hasInsurance: true, option: 'A' };
+  if (/1[-_ ]?y[-_ ]?3y|1-3|1 a 3|1 to 3/.test(normalized)) return { hasInsurance: true, option: 'B' };
+  if (/3[-_ ]?y[-_ ]?5y|3-5|3 a 5|3 to 5/.test(normalized)) return { hasInsurance: true, option: 'C' };
+  if (/5y[_-]?plus|5\+|mais de 5|5 or more/.test(normalized)) return { hasInsurance: true, option: 'D' };
   return { hasInsurance: true, option: 'D' };
 }
 
 function mapResidenceDuration(value) {
   const normalized = safeLower(value);
   if (!normalized) return 'B';
-  if (normalized.includes('mais')) return 'C';
+  if (/5y[_-]?plus|mais|5 or more|5\+/.test(normalized)) return 'C';
   return 'B';
 }
 
@@ -57,6 +59,12 @@ function isFinancedVehicle(value) {
 function isMarriedStatus(value) {
   const normalized = safeLower(value);
   return /married|casad/.test(normalized) && !/single|solteir/.test(normalized);
+}
+
+function isMaleGender(value) {
+  const normalized = safeLower(value);
+  if (!normalized || /female|femin|woman|mulher/.test(normalized)) return false;
+  return /\bmale\b|^m$|mascul|homem|\bman\b/.test(normalized);
 }
 
 function isFemaleGender(value) {
@@ -81,6 +89,7 @@ module.exports = {
   mapResidenceDuration,
   isFinancedVehicle,
   isMarriedStatus,
+  isMaleGender,
   isFemaleGender,
   derivePurchaseYear
 };

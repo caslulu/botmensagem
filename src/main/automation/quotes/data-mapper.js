@@ -157,7 +157,9 @@ function normalizePeople(rawPeople) {
       documento: normalizeString(person?.documento),
       data_nascimento: normalizeString(person?.data_nascimento),
       parentesco: normalizeString(person?.parentesco),
-      genero: normalizeString(person?.genero)
+      genero: normalizeString(person?.genero),
+      estado_civil: normalizeString(person?.estado_civil),
+      documento_estado: normalizeString(person?.documento_estado)
     }))
     .filter((person) => person.nome);
 }
@@ -184,6 +186,7 @@ function mapQuoteToProgressive(quote) {
   }
 
   const pessoasExtras = normalizePeople(payload.pessoas);
+  const conjuge = typeof payload.conjuge === 'object' && payload.conjuge !== null ? payload.conjuge : {};
 
   const data = {
     firstName,
@@ -202,10 +205,12 @@ function mapQuoteToProgressive(quote) {
     tempoDeSeguro: normalizeString(payload.tempo_de_seguro),
     tempoNoEndereco: normalizeString(payload.tempo_no_endereco),
     estadoCivil: normalizeString(payload.estado_civil),
-    nomeConjuge: normalizeString(payload.nome_conjuge),
-  dataNascimentoConjuge: normalizeString(payload.data_nascimento_conjuge),
-  dataNascimentoConjugeUs: formatDateForUs(payload.data_nascimento_conjuge),
-    documentoConjuge: normalizeString(payload.documento_conjuge),
+    nomeConjuge: normalizeString(payload.nome_conjuge || conjuge.nome),
+  dataNascimentoConjuge: normalizeString(payload.data_nascimento_conjuge || conjuge.data_nascimento),
+  dataNascimentoConjugeUs: formatDateForUs(payload.data_nascimento_conjuge || conjuge.data_nascimento),
+    documentoConjuge: normalizeString(payload.documento_conjuge || conjuge.documento),
+    generoConjuge: normalizeString(payload.genero_conjuge || conjuge.genero),
+    estadoDocumentoConjuge: normalizeString(payload.documento_estado_conjuge || conjuge.documento_estado),
     veiculos,
     pessoasExtras,
     bruto: payload

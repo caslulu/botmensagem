@@ -1,7 +1,30 @@
 const { app, dialog, shell } = require('electron');
 const fs = require('fs');
 const path = require('path');
+const { fileURLToPath } = require('url');
 const { createSuccess, createError } = require('../../utils/result');
+
+const imageMimeTypes = new Map([
+  ['.avif', 'image/avif'],
+  ['.bmp', 'image/bmp'],
+  ['.gif', 'image/gif'],
+  ['.heic', 'image/heic'],
+  ['.heif', 'image/heif'],
+  ['.jpg', 'image/jpeg'],
+  ['.jpeg', 'image/jpeg'],
+  ['.png', 'image/png'],
+  ['.svg', 'image/svg+xml'],
+  ['.webp', 'image/webp']
+]);
+
+function normalizeLocalPath(targetPath) {
+  const value = String(targetPath || '').trim();
+  if (!value) return '';
+  if (/^file:\/\//i.test(value)) {
+    return fileURLToPath(value);
+  }
+  return value;
+}
 
 function saveToDownloads(srcPath, suggestedName) {
   if (!srcPath || !fs.existsSync(srcPath)) {
@@ -34,12 +57,31 @@ function showInFolder(targetPath) {
 }
 
 async function openPath(targetPath) {
-  if (targetPath && fs.existsSync(targetPath)) {
-    const res = await shell.openPath(targetPath);
+  const normalizedPath = normalizeLocalPath(targetPath);
+  if (normalizedPath && fs.existsSync(normalizedPath)) {
+    const res = await shell.openPath(normalizedPath);
     if (res) return createError(res);
     return createSuccess();
   }
   return createError('Caminho inválido');
+}
+
+function readImageAsDataUrl(targetPath) {
+  const normalizedPath = normalizeLocalPath(targetPath);
+  if (!normalizedPath || !fs.existsSync(normalizedPath)) {
+    return createError('Imagem não encontrada.');
+  }
+
+  const ext = path.extname(normalizedPath).toLowerCase();
+  const mimeType = imageMimeTypes.get(ext);
+  if (!mimeType) {
+    return createError('Formato de imagem não suportado.');
+  }
+
+  const buffer = fs.readFileSync(normalizedPath);
+  return createSuccess({
+    dataUrl: `data:${mimeType};base64,${buffer.toString('base64')}`
+  });
 }
 
 async function selectImage(getMainWindow) {
@@ -61,5 +103,6 @@ module.exports = {
   saveToDownloads,
   showInFolder,
   openPath,
+  readImageAsDataUrl,
   selectImage
 };
