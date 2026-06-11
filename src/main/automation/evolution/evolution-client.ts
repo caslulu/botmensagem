@@ -174,6 +174,26 @@ export default class EvolutionClient {
     };
   }
 
+  async restartInstance(instanceName: string): Promise<any> {
+    return this.request(`/instance/restart/${encodeURIComponent(instanceName)}`, {
+      method: 'PUT'
+    }, 90000);
+  }
+
+  async ensureConnected(instanceName: string, timeoutMs = 60000, intervalMs = 3000): Promise<boolean> {
+    const startedAt = Date.now();
+
+    while (Date.now() - startedAt < timeoutMs) {
+      const state = await this.getConnectionState(instanceName);
+      if (state.connected) return true;
+
+      await this.connectInstance(instanceName).catch(() => undefined);
+      await this.sleep(intervalMs);
+    }
+
+    return false;
+  }
+
   async fetchGroups(instanceName: string): Promise<EvolutionGroup[]> {
     const encoded = encodeURIComponent(instanceName);
     const attempts: Array<{ endpoint: string; method: 'GET' | 'POST'; body?: Record<string, unknown> }> = [
@@ -299,13 +319,17 @@ export default class EvolutionClient {
   }
 
   async sendText(instanceName: string, number: string, text: string): Promise<any> {
-    return this.request(`/message/sendText/${encodeURIComponent(instanceName)}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        number,
-        text
-      })
-    });
+    return this.sendWithConnectionRecovery(instanceName, () =>
+      this.request(`/message/sendText/${encodeURIComponent(instanceName)}`, {
+        method: 'POST',
+        body: JSON.stringify({
+          number,
+          text,
+          delay: Math.max(config.MESSAGE_DELAY_MS || 0, 1200),
+          linkPreview: false
+        })
+      }, 90000)
+    );
   }
 
   async sendImage(instanceName: string, number: string, imagePath: string, caption: string): Promise<any> {
@@ -336,10 +360,15 @@ export default class EvolutionClient {
     const errors: string[] = [];
     for (const attempt of attempts) {
       try {
-        return await this.request(attempt.endpoint, {
-          method: 'POST',
-          body: JSON.stringify(attempt.body)
-        }, 90000);
+        return await this.sendWithConnectionRecovery(instanceName, () =>
+          this.request(attempt.endpoint, {
+            method: 'POST',
+            body: JSON.stringify({
+              delay: Math.max(config.MESSAGE_DELAY_MS || 0, 1200),
+              ...attempt.body
+            })
+          }, 90000)
+        );
       } catch (error: any) {
         errors.push(`${attempt.endpoint}: ${(error as Error)?.message || String(error)}`);
       }
@@ -384,6 +413,38 @@ export default class EvolutionClient {
       default:
         return 'application/octet-stream';
     }
+  }
+
+  private async sendWithConnectionRecovery<T>(instanceName: string, operation: () => Promise<T>): Promise<T> {
+    try {
+      return await operation();
+    } catch (error) {
+      if (!this.isConnectionClosedError(error)) {
+        throw error;
+      }
+    }
+
+    await this.recoverConnection(instanceName);
+    return operation();
+  }
+
+  private async recoverConnection(instanceName: string): Promise<void> {
+    await this.restartInstance(instanceName).catch(() => this.connectInstance(instanceName));
+    await this.sleep(3000);
+
+    const connected = await this.ensureConnected(instanceName, 60000, 3000);
+    if (!connected) {
+      throw new Error('A Evolution API fechou a conexão do WhatsApp e não reconectou a instância automaticamente. Abra o login/QR novamente.');
+    }
+  }
+
+  private isConnectionClosedError(error: unknown): boolean {
+    const message = error instanceof Error ? error.message : String(error || '');
+    return /connection\s*closed|stream\s*errored|socket\s*closed|connection\s*terminated/i.test(message);
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }
 
