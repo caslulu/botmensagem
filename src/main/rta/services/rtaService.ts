@@ -3,6 +3,8 @@ import fs from 'fs';
 import { PDFDocument } from 'pdf-lib';
 import { app } from 'electron';
 
+type InsuranceCompanyKey = 'allstate' | 'progressive' | 'geico' | 'liberty';
+
 type RtaInput = Record<string, unknown> & {
     insurance_company?: string;
     seguradora?: string;
@@ -39,6 +41,38 @@ type RtaInput = Record<string, unknown> & {
     lienholder_address?: string;
     color?: string;
     transaction_type?: string;
+};
+
+const INSURANCE_STAMP_DATA: Record<InsuranceCompanyKey, {
+    companyName: string;
+    commercialName: string;
+    code: string;
+    signature: string;
+}> = {
+    allstate: {
+        companyName: 'ALLSTATE INSURANCE COMPANY',
+        commercialName: 'ALLSTATE INSURANCE COMPANY #033',
+        code: '033',
+        signature: 'Danid Tenser'
+    },
+    progressive: {
+        companyName: 'Progressive Direct Insurance Company',
+        commercialName: 'Progressive Direct Insurance Company #785',
+        code: '785',
+        signature: 'Senortra Linton'
+    },
+    geico: {
+        companyName: 'Government Employees Insurance Company',
+        commercialName: 'Government Employees Insurance Company #429',
+        code: '429',
+        signature: 'Danid Tenser'
+    },
+    liberty: {
+        companyName: 'Liberty Mutual Fire Insurance Company',
+        commercialName: 'Liberty Mutual Fire Insurance Company #512',
+        code: '512',
+        signature: 'Darly Sarling'
+    }
 };
 
 function ensureFolder(dirPath: string) {
@@ -82,8 +116,50 @@ class RtaService {
     }
 
     getTemplatePath(insuranceCompany?: string): string {
-        const key = (insuranceCompany || 'allstate').toLowerCase();
+        const key = this._normalizeInsuranceCompany(insuranceCompany);
         return this.templates[key] || this.templates.allstate;
+    }
+
+    private _normalizeInsuranceCompany(insuranceCompany?: unknown): InsuranceCompanyKey {
+        const key = String(insuranceCompany || 'allstate').trim().toLowerCase();
+        if (key === 'progressive' || key === 'geico' || key === 'liberty' || key === 'allstate') {
+            return key;
+        }
+        return 'allstate';
+    }
+
+    private _setTextField(form: ReturnType<PDFDocument['getForm']>, fieldName: string, value: string) {
+        try {
+            const field = (form as any).getFieldMaybe?.(fieldName) || form.getTextField(fieldName);
+            if (field && field.setText) {
+                field.setText(value);
+            }
+        } catch (e) {
+            try {
+                const anyField = form.getField(fieldName);
+                if ((anyField as any).setText) (anyField as any).setText(value);
+            } catch {}
+        }
+    }
+
+    private _setDropdown(form: ReturnType<PDFDocument['getForm']>, fieldName: string, value: string) {
+        try {
+            const dropdown = form.getDropdown(fieldName);
+            const options = dropdown.getOptions();
+            if (!options.includes(value)) {
+                dropdown.addOptions([value]);
+            }
+            dropdown.select(value);
+            try { dropdown.setFontSize(8); } catch {}
+        } catch {}
+    }
+
+    private _fillInsuranceStamp(form: ReturnType<PDFDocument['getForm']>, insuranceCompany: InsuranceCompanyKey) {
+        const stamp = INSURANCE_STAMP_DATA[insuranceCompany];
+        this._setDropdown(form, '(K1) Insurance Company Commercial', stamp.commercialName);
+        this._setTextField(form, 'CoNameShort', stamp.companyName);
+        this._setTextField(form, 'Insurance Code', stamp.code);
+        this._setTextField(form, "Insurance Company's Authorized Representatives Signature", stamp.signature);
     }
 
     private _formatDate(dateValue: unknown): string {
@@ -137,7 +213,7 @@ class RtaService {
         let outBytes: Uint8Array | null = null;
 
         try {
-            const insuranceCompany = data?.insurance_company || data?.seguradora || 'allstate';
+            const insuranceCompany = this._normalizeInsuranceCompany(data?.insurance_company || data?.seguradora || 'allstate');
             const templatePath = this.getTemplatePath(insuranceCompany);
             if (!fs.existsSync(templatePath)) {
                 console.error('[RtaService] Template não encontrado:', templatePath);
@@ -194,18 +270,10 @@ class RtaService {
             };
 
             for (const [fieldName, value] of Object.entries(campos)) {
-                try {
-                    const field = (form as any).getFieldMaybe?.(fieldName) || (() => { try { return form.getTextField(fieldName);} catch {return null;} })();
-                    if (field && field.setText) {
-                        field.setText(String(value ?? ''));
-                    }
-                } catch (e) {
-                    try {
-                        const anyField = form.getField(fieldName);
-                        if ((anyField as any).setText) (anyField as any).setText(String(value ?? ''));
-                    } catch {}
-                }
+                this._setTextField(form, fieldName, String(value ?? ''));
             }
+
+            this._fillInsuranceStamp(form, insuranceCompany);
 
             const colors = ['Black','White','Brown','Blue','Yellow','Gray','Purple','Green','Orange','Red','Silver','Gold'];
             const chosen = String(data.color || '').trim();
