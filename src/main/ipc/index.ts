@@ -9,6 +9,7 @@ import { registerRtaHandlers } from './rta-handlers';
 import { registerAppHandlers } from './app-handlers';
 import { registerAuthHandlers } from './auth-handlers';
 import { registerWebApiHandlers } from './web-api-handlers';
+import { registerSchedulerHandlers } from './scheduler-handlers';
 
 export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): void {
   registerAppHandlers(getMainWindow);
@@ -21,4 +22,5 @@ export function registerIpcHandlers(getMainWindow: () => BrowserWindow | null): 
   registerQuoteHandlers();
   registerRtaHandlers();
   registerFileHandlers(getMainWindow);
+  registerSchedulerHandlers();
 }

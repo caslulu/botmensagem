@@ -78,6 +78,38 @@ interface FilesAPI {
   openPath: (targetPath: string) => AsyncResult<any>;
   readImageAsDataUrl: (targetPath: string) => AsyncResult<IpcResult<{ dataUrl?: string }>>;
   selectImage: () => AsyncResult<{ success: boolean; path?: string; error?: string }>;
+  selectImages: () => AsyncResult<{ success: boolean; paths?: string[]; error?: string }>;
+}
+
+interface SchedulerStatus {
+  times: string[];
+  instance: string;
+  instance_state: string;
+  image_path: string;
+  image_exists: boolean;
+  caption_preview: string;
+  caption_length: number;
+  log_tail: string;
+  updated_at: string;
+}
+
+interface SchedulerImage {
+  base64: string;
+  mimetype: string;
+  size: number;
+}
+
+interface SchedulerAPI {
+  health: () => AsyncResult<IpcResult<{ ok: boolean }>>;
+  getStatus: () => AsyncResult<IpcResult<{ status: SchedulerStatus }>>;
+  getConfig: () => AsyncResult<IpcResult<{ config: { times: string[] } }>>;
+  saveConfig: (times: string[]) => AsyncResult<IpcResult<{ result: { ok: boolean; times: string[] } }>>;
+  getCaption: () => AsyncResult<IpcResult<{ caption: { text: string } }>>;
+  saveCaption: (text: string) => AsyncResult<IpcResult<{ result: { ok: boolean; length: number } }>>;
+  getImage: () => AsyncResult<IpcResult<{ image: SchedulerImage | null }>>;
+  saveImage: (base64: string, mimetype: string) => AsyncResult<IpcResult<{ result: { ok: boolean; path: string; size: number } }>>;
+  sendNow: () => AsyncResult<IpcResult<{ result: { ok: boolean; message?: string; error?: string } }>>;
+  getLog: (lines?: number) => AsyncResult<IpcResult<{ log: string }>>;
 }
 
 declare global {
@@ -92,6 +124,7 @@ declare global {
     files?: FilesAPI;
     desktopAuth?: DesktopAuthAPI;
     desktopWebApi?: DesktopWebApi;
+    schedulerApi?: SchedulerAPI;
     lastGeneratedPricePath?: string;
   }
 }

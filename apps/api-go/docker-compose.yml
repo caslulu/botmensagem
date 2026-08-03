@@ -1,0 +1,40 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: botmensagem-postgres-1
+    restart: always
+    environment:
+      POSTGRES_DB: botmensagem
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+    volumes:
+      - botmensagem_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d botmensagem"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: botmensagem-api-go:latest
+    container_name: botmensagem-api-1
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/botmensagem
+      AUTH_SECRET: ${AUTH_SECRET:?AUTH_SECRET required}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:?ADMIN_EMAIL required}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?ADMIN_PASSWORD required}
+      AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+      WEB_ORIGIN: ${WEB_ORIGIN:-http://localhost:8088}
+      PORT: ${PORT:-3000}
+
+volumes:
+  botmensagem_postgres_data:

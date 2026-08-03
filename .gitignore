@@ -33,6 +33,18 @@ blob-report/
 .npmrc
 src/main/config/trello-config.js
 
+# Private keys / credentials (never commit)
+*.key
+*.key.pub
+*.pem
+*.p12
+*.pfx
+*.keystore
+automacaoWhatsapp/
+aplicacoes.key
+aplicacoes.key.pub
+evolution_api.key
+
 # Runtime data
 data/
 apps/api/storage/

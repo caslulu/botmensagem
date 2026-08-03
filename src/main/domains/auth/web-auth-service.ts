@@ -48,6 +48,7 @@ function isRouteNotFoundMessage(message: string): boolean {
 const SESSION_FILE = 'web-auth-session.json';
 const SESSION_COOKIE_NAME = 'botmensagem_session';
 const REQUEST_TIMEOUT_MS = 10000;
+const OCR_TIMEOUT_MS = 120000; // OCR multimodal no Ollama Cloud e lento; backend tem 90s por modelo + fallback
 
 let currentSession: StoredDesktopSession | null = null;
 
@@ -79,6 +80,7 @@ function resolveApiUrls(): string[] {
     }
   }
 
+  urls.push('http://136.248.123.233:3000');
   urls.push('http://64.181.188.115:3000');
   urls.push('http://64.181.188.115/api');
   urls.push('http://localhost:3000');
@@ -134,12 +136,12 @@ function cookieFromHeaders(headers: Headers): string {
   return sessionCookie.split(';')[0];
 }
 
-async function apiRequest<T>(pathName: string, init: RequestInit = {}): Promise<{ payload: T; cookie?: string }> {
+async function apiRequest<T>(pathName: string, init: RequestInit = {}, timeoutMs = REQUEST_TIMEOUT_MS): Promise<{ payload: T; cookie?: string }> {
   const failures: string[] = [];
 
   for (const apiUrl of resolveApiUrls()) {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
     try {
       const response = await fetch(`${apiUrl}${pathName}`, {
@@ -190,10 +192,12 @@ export async function requestWebApi<T>(pathName: string, init: RequestInit = {})
     ...(init.headers || {})
   };
 
+  // OCR multimodal no Ollama Cloud e lento (pode passar de 60s com fallback de modelos).
+  const isOcr = pathName.startsWith('/kanban/ocr');
   const { payload } = await apiRequest<T>(pathName, {
     ...init,
     headers
-  });
+  }, isOcr ? OCR_TIMEOUT_MS : REQUEST_TIMEOUT_MS);
   return payload;
 }
 

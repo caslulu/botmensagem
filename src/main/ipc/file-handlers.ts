@@ -47,4 +47,13 @@ export function registerFileHandlers(getMainWindow: () => BrowserWindow | null):
       throw error;
     }
   });
+
+  ipcMain.handle('file:select-images', async () => {
+    try {
+      return await fileService.selectImages(getMainWindow);
+    } catch (error) {
+      console.error('Erro ao selecionar imagens:', error);
+      throw error;
+    }
+  });
 }

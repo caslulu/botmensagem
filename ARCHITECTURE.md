@@ -154,17 +154,12 @@ Bridge IPC por domínio: `automation`, `messages`, `quotes`, `rta`, `price`, `fi
 Pipeline de envio em massa via Evolution API:
 
 ```
-ProfileValidator → ChatProcessor → MessageSender
-                                      ↓
-                             Evolution API (Docker, :8080)
-                                      ↓
-                                 WhatsApp Web
+ProfileValidator → EvolutionClient → Evolution API (Docker, :8080) → WhatsApp
 ```
 
 - **`evolution/`**: cliente HTTP para Evolution API (QR-login, listar grupos, enviar texto/imagem).
 - **`automation-controller.ts`**: orquestra o fluxo, emite eventos para o renderer (`events.ts`).
-- **`browser-manager.ts`**: usa Playwright — código legado, **não é chamado pelo controller atual**.
-- **`config.ts`**: timeouts, viewport, delays — configuração toda hardcoded.
+- **`config.ts`**: delays e credenciais da Evolution API (restante lido de `process.env`).
 
 ### 4.6 Kanban (renderer + proxy `web-api`)
 

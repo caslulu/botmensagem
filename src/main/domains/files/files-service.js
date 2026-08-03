@@ -99,10 +99,26 @@ async function selectImage(getMainWindow) {
   return createSuccess({ path: result.filePaths[0] });
 }
 
+async function selectImages(getMainWindow) {
+  const mainWindow = getMainWindow?.();
+  const result = await dialog.showOpenDialog(mainWindow, {
+    properties: ['openFile', 'multiSelections'],
+    filters: [{ name: 'Imagens', extensions: ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] }],
+    title: 'Selecione uma ou mais imagens'
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return createError('Operação cancelada pelo usuário', { paths: null });
+  }
+
+  return createSuccess({ paths: result.filePaths });
+}
+
 module.exports = {
   saveToDownloads,
   showInFolder,
   openPath,
   readImageAsDataUrl,
-  selectImage
+  selectImage,
+  selectImages
 };

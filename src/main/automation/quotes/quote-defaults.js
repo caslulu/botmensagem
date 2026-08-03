@@ -36,7 +36,7 @@ function mapVehicleOwnership(value) {
 function mapInsuranceDuration(value) {
   const normalized = safeLower(value);
   if (!normalized) return { hasInsurance: true, option: 'C' };
-  if (includesAny(normalized, ['nunca', 'never'])) return { hasInsurance: false, option: null };
+  if (includesAny(normalized, ['no_prior_insurance', 'nao teve', 'não teve', 'sem seguro', 'nunca', 'never'])) return { hasInsurance: false, option: null };
   if (includesAny(normalized, ['lt_6m', '6m_1y', 'menos', 'less', '6 meses', '6 months'])) return { hasInsurance: true, option: 'A' };
   if (/1[-_ ]?y[-_ ]?3y|1-3|1 a 3|1 to 3/.test(normalized)) return { hasInsurance: true, option: 'B' };
   if (/3[-_ ]?y[-_ ]?5y|3-5|3 a 5|3 to 5/.test(normalized)) return { hasInsurance: true, option: 'C' };

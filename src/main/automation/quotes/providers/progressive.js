@@ -1087,6 +1087,7 @@ class ProgressiveQuoteAutomation {
       });
 
       await this.informacoesSeguroAnterior({
+        hasInsurance: data.hasInsurance,
         tempoDeSeguro: data.tempoDeSeguro,
         tempoNoEndereco: data.tempoNoEndereco
       });
@@ -1594,9 +1595,11 @@ class ProgressiveQuoteAutomation {
     await this.finalizarSecaoDrivers();
   }
 
-  async informacoesSeguroAnterior({ tempoDeSeguro, tempoNoEndereco }) {
+  async informacoesSeguroAnterior({ hasInsurance: explicitHasInsurance, tempoDeSeguro, tempoNoEndereco }) {
     const insuranceDuration = mapInsuranceDuration(tempoDeSeguro);
-    const hasInsurance = Boolean(safeLower(tempoDeSeguro)) && insuranceDuration.hasInsurance;
+    const hasInsurance = typeof explicitHasInsurance === 'boolean'
+      ? explicitHasInsurance
+      : Boolean(safeLower(tempoDeSeguro)) && insuranceDuration.hasInsurance;
     const option = insuranceDuration.option;
 
     try {

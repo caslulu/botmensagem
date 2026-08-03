@@ -34,6 +34,7 @@ type PersonDraft = {
   email: string;
   genero: string;
   estado_civil: string;
+  teve_seguro_anterior: string;
   tempo_de_seguro: string;
   tempo_no_endereco: string;
 };
@@ -46,6 +47,53 @@ type VehicleDraft = {
   modelo: string;
   financiado: string;
   tempo_com_veiculo: string;
+};
+
+type OcrVehicle = {
+  vin: string;
+  placa: string;
+  ano: string;
+  marca: string;
+  modelo: string;
+  financiado: string;
+  tempo_com_veiculo: string;
+};
+
+type OcrResult = {
+  tipo_documento?: string;
+  nome?: string;
+  documento?: string;
+  documento_estado?: string;
+  data_nascimento?: string;
+  email?: string;
+  endereco_rua?: string;
+  endereco_apt?: string;
+  endereco_cidade?: string;
+  endereco_estado?: string;
+  endereco_zipcode?: string;
+  genero?: string;
+  estado_civil?: string;
+  teve_seguro_anterior?: string;
+  tempo_de_seguro?: string;
+  tempo_no_endereco?: string;
+  observacoes?: string;
+  veiculos?: OcrVehicle[];
+};
+
+type OcrSlot =
+  | 'driver'
+  | 'spouse'
+  | 'person'
+  | 'vehicle';
+
+type OcrQueueItem = {
+  id: string;
+  path: string;
+  filename: string;
+  slot: OcrSlot;
+  vehicleIndex: number;
+  status: 'pending' | 'processing' | 'done' | 'error';
+  message?: string;
 };
 
 type CardDraft = {
@@ -61,6 +109,7 @@ type CardDraft = {
   endereco_zipcode: string;
   genero: string;
   estado_civil: string;
+  teve_seguro_anterior: string;
   tempo_de_seguro: string;
   tempo_no_endereco: string;
   observacoes: string;
@@ -88,6 +137,7 @@ const emptyPerson: PersonDraft = {
   email: '',
   genero: '',
   estado_civil: '',
+  teve_seguro_anterior: '',
   tempo_de_seguro: '',
   tempo_no_endereco: ''
 };
@@ -115,6 +165,7 @@ const emptyDraft: CardDraft = {
   endereco_zipcode: '',
   genero: '',
   estado_civil: '',
+  teve_seguro_anterior: '',
   tempo_de_seguro: '',
   tempo_no_endereco: '',
   observacoes: '',
@@ -136,6 +187,8 @@ const documentStates = [
   'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY', 'IT'
 ];
 
+const addressStates = documentStates.filter((state) => state !== 'IT');
+
 const genderOptions = [
   { value: 'male', label: 'Masculino' },
   { value: 'female', label: 'Feminino' },
@@ -155,6 +208,11 @@ const insuranceDurationOptions = [
   { value: '1y_3y', label: '1 a 3 anos' },
   { value: '3y_5y', label: '3 a 5 anos' },
   { value: '5y_plus', label: 'Mais de 5 anos' }
+];
+
+const priorInsuranceOptions = [
+  { value: 'yes', label: 'Sim' },
+  { value: 'no', label: 'Não teve' }
 ];
 
 const addressDurationOptions = [
@@ -332,6 +390,17 @@ function normalizeToInputDate(value: string): string {
   return `${year}-${part1}-${part2}`;
 }
 
+function tipoDocumentoLabel(tipo: string): string {
+  const map: Record<string, string> = {
+    driver_license: 'Carteira de motorista',
+    vehicle_registration: 'Registro de veículo',
+    insurance_form: 'Formulário de seguro',
+    title_application: 'RTA',
+    outro: 'Documento'
+  };
+  return map[tipo] || 'Documento';
+}
+
 function normalizeToStorageDate(value: string): string {
   const raw = readString(value);
   if (!raw) return '';
@@ -371,6 +440,18 @@ function normalizeText(value: string): string {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase();
+}
+
+function normalizePriorInsurance(value: unknown, tempoDeSeguro = ''): string {
+  const raw = readString(value).toLowerCase();
+  if (raw === 'false' || raw === 'no' || raw === 'nao' || raw === 'não' || raw === 'n') return 'no';
+  if (raw === 'true' || raw === 'yes' || raw === 'sim' || raw === 's') return 'yes';
+
+  const normalizedDuration = normalizeText(tempoDeSeguro);
+  if (normalizedDuration.includes('no_prior_insurance') || normalizedDuration.includes('nunca') || normalizedDuration.includes('never')) {
+    return 'no';
+  }
+  return tempoDeSeguro ? 'yes' : '';
 }
 
 function inferKanbanStatus(columnId: string, columns: KanbanColumn[]): KanbanStatus {
@@ -418,6 +499,8 @@ function withArchiveState(payload: Record<string, any>, archived: boolean): Reco
 }
 
 function normalizePerson(raw: Record<string, any>): PersonDraft {
+  const tempoDeSeguro = readString(raw.tempo_de_seguro);
+  const teveSeguroAnterior = normalizePriorInsurance(readString(raw.teve_seguro_anterior, raw.has_prior_insurance), tempoDeSeguro);
   return {
     nome: readString(raw.nome),
     documento: readString(raw.documento),
@@ -426,7 +509,8 @@ function normalizePerson(raw: Record<string, any>): PersonDraft {
     email: readString(raw.email),
     genero: readString(raw.genero),
     estado_civil: readString(raw.estado_civil),
-    tempo_de_seguro: readString(raw.tempo_de_seguro),
+    teve_seguro_anterior: teveSeguroAnterior,
+    tempo_de_seguro: tempoDeSeguro,
     tempo_no_endereco: readString(raw.tempo_no_endereco)
   };
 }
@@ -451,6 +535,7 @@ function personHasData(person: PersonDraft): boolean {
     person.data_nascimento.trim() ||
     person.genero.trim() ||
     person.estado_civil.trim() ||
+    person.teve_seguro_anterior.trim() ||
     person.tempo_de_seguro.trim() ||
     person.tempo_no_endereco.trim()
   );
@@ -497,6 +582,8 @@ function vehiclesFromPayload(payload: Record<string, any>): VehicleDraft[] {
 function draftFromCard(card: KanbanCard | null): CardDraft {
   if (!card) return { ...emptyDraft };
   const payload = card.payload || {};
+  const tempoDeSeguro = readString(payload.tempo_de_seguro);
+  const teveSeguroAnterior = normalizePriorInsurance(readString(payload.teve_seguro_anterior, payload.has_prior_insurance), tempoDeSeguro);
 
   return {
     nome: readString(payload.nome, card.title),
@@ -511,7 +598,8 @@ function draftFromCard(card: KanbanCard | null): CardDraft {
     endereco_zipcode: readString(payload.endereco_zipcode),
     genero: readString(payload.genero),
     estado_civil: readString(payload.estado_civil),
-    tempo_de_seguro: readString(payload.tempo_de_seguro),
+    teve_seguro_anterior: teveSeguroAnterior,
+    tempo_de_seguro: tempoDeSeguro,
     tempo_no_endereco: readString(payload.tempo_no_endereco),
     observacoes: readString(payload.observacoes),
     conjuge: normalizePerson((payload.conjuge as Record<string, any>) || {}),
@@ -529,9 +617,11 @@ function payloadFromDraft(draft: CardDraft, existingPayload: Record<string, any>
     email: '',
     genero: draft.conjuge.genero.trim(),
     estado_civil: '',
+    teve_seguro_anterior: '',
     tempo_de_seguro: '',
     tempo_no_endereco: ''
   };
+  const tempoDeSeguro = draft.teve_seguro_anterior === 'no' ? 'no_prior_insurance' : draft.tempo_de_seguro;
 
   return {
     ...existingPayload,
@@ -547,7 +637,9 @@ function payloadFromDraft(draft: CardDraft, existingPayload: Record<string, any>
     endereco_zipcode: draft.endereco_zipcode,
     genero: draft.genero,
     estado_civil: draft.estado_civil,
-    tempo_de_seguro: draft.tempo_de_seguro,
+    teve_seguro_anterior: draft.teve_seguro_anterior,
+    has_prior_insurance: draft.teve_seguro_anterior === 'no' ? false : draft.teve_seguro_anterior === 'yes' ? true : null,
+    tempo_de_seguro: tempoDeSeguro,
     tempo_no_endereco: draft.tempo_no_endereco,
     observacoes: draft.observacoes,
     conjuge: draft.estado_civil === 'married' && personHasData(conjuge) ? conjuge : null,
@@ -571,6 +663,7 @@ function payloadFromDraft(draft: CardDraft, existingPayload: Record<string, any>
         email: '',
         genero: person.genero.trim(),
         estado_civil: person.estado_civil.trim(),
+        teve_seguro_anterior: '',
         tempo_de_seguro: '',
         tempo_no_endereco: ''
       }))
@@ -727,6 +820,9 @@ function CardEditor({
   const [columnId, setColumnId] = useState(card?.columnId || initialColumnId || columns[0]?.id || '');
   const [vinLoadingKey, setVinLoadingKey] = useState('');
   const [vinNotice, setVinNotice] = useState('');
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrNotice, setOcrNotice] = useState('');
+  const [ocrQueue, setOcrQueue] = useState<OcrQueueItem[]>([]);
   const attachments = useMemo(() => extractQuoteAttachments(card?.payload || {}), [card]);
 
   useEffect(() => {
@@ -745,7 +841,11 @@ function CardEditor({
   }, [onClose, saving]);
 
   const update = (key: keyof CardDraft, value: string) => {
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => ({
+      ...current,
+      [key]: value,
+      ...(key === 'teve_seguro_anterior' && value === 'no' ? { tempo_de_seguro: '' } : {})
+    }));
   };
 
   const updatePerson = (index: number, key: keyof PersonDraft, value: string) => {
@@ -825,6 +925,177 @@ function CardEditor({
     }
   };
 
+  const scanDocument = async () => {
+    if (!window.files?.selectImages || !window.files?.readImageAsDataUrl) {
+      setOcrNotice('Seletor de imagens indisponível nesta versão.');
+      return;
+    }
+    setOcrNotice('');
+    try {
+      const picked = await window.files.selectImages();
+      if (!picked?.success || !picked.paths || picked.paths.length === 0) {
+        return;
+      }
+      const isMarried = draft.estado_civil === 'married';
+      const items: OcrQueueItem[] = picked.paths.map((filePath, index) => {
+        const filename = filePath.split(/[/\\]/).pop() || `imagem-${index + 1}`;
+        return {
+          id: `${Date.now()}-${index}-${Math.random().toString(36).slice(2, 8)}`,
+          path: filePath,
+          filename,
+          slot: 'driver',
+          vehicleIndex: 0,
+          status: 'pending'
+        };
+      });
+      setOcrQueue((current) => [...current, ...items]);
+      setOcrNotice(
+        `${items.length} imagem(s) adicionada(s). Classifique cada uma antes de processar.${
+          !isMarried ? ' Cônjuge disponível apenas se estado civil = Casado(a).' : ''
+        }`
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Falha ao selecionar imagens.';
+      setOcrNotice(message);
+    }
+  };
+
+  const updateOcrItem = (id: string, patch: Partial<OcrQueueItem>) => {
+    setOcrQueue((current) => current.map((item) => (item.id === id ? { ...item, ...patch } : item)));
+  };
+
+  const removeOcrItem = (id: string) => {
+    setOcrQueue((current) => current.filter((item) => item.id !== id));
+  };
+
+  const slotLabel = (slot: OcrSlot, vehicleIndex: number): string => {
+    switch (slot) {
+      case 'driver':
+        return '1º Motorista';
+      case 'spouse':
+        return 'Cônjuge';
+      case 'person':
+        return 'Pessoa adicional';
+      case 'vehicle':
+        return `Veículo ${vehicleIndex + 1}`;
+    }
+  };
+
+  const applyOcrResultToSlot = (result: OcrResult, slot: OcrSlot, vehicleIndex: number) => {
+    setDraft((current) => {
+      const next: CardDraft = { ...current };
+      if (slot === 'driver') {
+        if (result.nome) next.nome = result.nome;
+        if (result.documento) next.documento = result.documento;
+        if (result.documento_estado) next.documento_estado = result.documento_estado;
+        if (result.data_nascimento) next.data_nascimento = normalizeToInputDate(result.data_nascimento);
+        if (result.email) next.email = result.email;
+        if (result.endereco_rua) next.endereco_rua = result.endereco_rua;
+        if (result.endereco_apt) next.endereco_apt = result.endereco_apt;
+        if (result.endereco_cidade) next.endereco_cidade = result.endereco_cidade;
+        if (result.endereco_estado) next.endereco_estado = result.endereco_estado;
+        if (result.endereco_zipcode) next.endereco_zipcode = result.endereco_zipcode;
+        if (result.genero) next.genero = result.genero;
+        if (result.estado_civil) next.estado_civil = result.estado_civil;
+        if (result.teve_seguro_anterior) next.teve_seguro_anterior = result.teve_seguro_anterior;
+        if (result.tempo_de_seguro) next.tempo_de_seguro = result.tempo_de_seguro;
+        if (result.tempo_no_endereco) next.tempo_no_endereco = result.tempo_no_endereco;
+        if (result.observacoes) next.observacoes = result.observacoes;
+      } else if (slot === 'spouse') {
+        const spouse: PersonDraft = { ...current.conjuge };
+        if (result.nome) spouse.nome = result.nome;
+        if (result.documento) spouse.documento = result.documento;
+        if (result.documento_estado) spouse.documento_estado = result.documento_estado;
+        if (result.data_nascimento) spouse.data_nascimento = normalizeToInputDate(result.data_nascimento);
+        if (result.email) spouse.email = result.email;
+        if (result.genero) spouse.genero = result.genero;
+        if (result.teve_seguro_anterior) spouse.teve_seguro_anterior = result.teve_seguro_anterior;
+        if (result.tempo_de_seguro) spouse.tempo_de_seguro = result.tempo_de_seguro;
+        if (result.tempo_no_endereco) spouse.tempo_no_endereco = result.tempo_no_endereco;
+        next.conjuge = spouse;
+        if (next.estado_civil !== 'married') next.estado_civil = 'married';
+      } else if (slot === 'person') {
+        const person: PersonDraft = {
+          nome: result.nome || '',
+          documento: result.documento || '',
+          documento_estado: result.documento_estado || '',
+          data_nascimento: normalizeToInputDate(result.data_nascimento || ''),
+          email: result.email || '',
+          genero: result.genero || '',
+          estado_civil: result.estado_civil || '',
+          teve_seguro_anterior: result.teve_seguro_anterior || '',
+          tempo_de_seguro: result.tempo_de_seguro || '',
+          tempo_no_endereco: result.tempo_no_endereco || ''
+        };
+        next.pessoas = [...current.pessoas, person];
+      } else if (slot === 'vehicle') {
+        const vehicles = [...current.veiculos];
+        const fromOcr = Array.isArray(result.veiculos) && result.veiculos.length > 0 ? result.veiculos[0] : undefined;
+        const newVehicle: VehicleDraft = {
+          vin: (fromOcr?.vin || '').toUpperCase(),
+          placa: (fromOcr?.placa || '').toUpperCase(),
+          ano: fromOcr?.ano || '',
+          marca: fromOcr?.marca || '',
+          modelo: fromOcr?.modelo || '',
+          financiado: fromOcr?.financiado || '',
+          tempo_com_veiculo: fromOcr?.tempo_com_veiculo || ''
+        };
+        if (vehicleIndex < vehicles.length) {
+          vehicles[vehicleIndex] = { ...vehicles[vehicleIndex], ...newVehicle };
+        } else {
+          while (vehicles.length < vehicleIndex) vehicles.push({ ...emptyVehicle });
+          vehicles.push(newVehicle);
+        }
+        next.veiculos = vehicles;
+      }
+      return next;
+    });
+  };
+
+  const processOcrQueue = async () => {
+    if (ocrQueue.length === 0) return;
+    setOcrLoading(true);
+    setOcrNotice('Processando documentos…');
+    let success = 0;
+    let failed = 0;
+    let quotaHit = false;
+    let quotaMessage = '';
+    await Promise.all(
+      ocrQueue.map(async (item) => {
+        updateOcrItem(item.id, { status: 'processing' });
+        try {
+          const imageResp = await window.files?.readImageAsDataUrl(item.path);
+          if (!imageResp?.success || !imageResp.dataUrl) {
+            updateOcrItem(item.id, { status: 'error', message: 'Não foi possível ler a imagem.' });
+            failed += 1;
+            return;
+          }
+          const extracted = await apiRequest<OcrResult>('POST', '/kanban/ocr-json', { image: imageResp.dataUrl });
+          applyOcrResultToSlot(extracted || {}, item.slot, item.vehicleIndex);
+          const tipo = extracted?.tipo_documento ? tipoDocumentoLabel(extracted.tipo_documento) : 'documento';
+          updateOcrItem(item.id, { status: 'done', message: `${tipo} processado.` });
+          success += 1;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Falha no OCR.';
+          updateOcrItem(item.id, { status: 'error', message });
+          failed += 1;
+          if (/limite|upgrade/i.test(message)) {
+            quotaHit = true;
+            quotaMessage = message;
+          }
+        }
+      })
+    );
+    setOcrLoading(false);
+    if (quotaHit) {
+      setOcrNotice(quotaMessage);
+    } else {
+      setOcrNotice(
+        `Concluído: ${success} documento(s) processado(s)${failed ? `, ${failed} com erro` : ''}. Revise os campos antes de salvar.`
+      );
+    }
+  };
+
   const modal = (
     <div
       className="modal-overlay opacity-100"
@@ -859,9 +1130,109 @@ function CardEditor({
           <div className="grid gap-6 lg:grid-cols-3">
             <div className="space-y-6 lg:col-span-2">
               <section className="surface-subtle">
-                <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
-                  Dados principais
-                </h4>
+                <div className="flex items-center justify-between gap-3">
+                  <h4 className="text-sm font-semibold uppercase tracking-[0.16em] text-slate-400 dark:text-slate-500">
+                    Dados principais
+                  </h4>
+                  <button
+                    type="button"
+                    className="btn-secondary px-3 py-1.5 text-xs"
+                    onClick={scanDocument}
+                    disabled={ocrLoading || saving}
+                    title="Selecionar uma ou mais imagens de documentos e preencher os campos automaticamente via OCR"
+                  >
+                    {ocrLoading ? 'Processando…' : 'Escanear documentos'}
+                  </button>
+                </div>
+                {ocrNotice && (
+                  <p className={`mt-2 text-xs ${ocrLoading ? 'text-slate-500' : 'text-brand-600 dark:text-brand-300'}`}>
+                    {ocrNotice}
+                  </p>
+                )}
+                {ocrQueue.length > 0 && (
+                  <div className="mt-3 space-y-2 rounded-lg border border-slate-200 p-3 dark:border-slate-700">
+                    {ocrQueue.map((item, queueIdx) => {
+                      const existingVehicleCount = draft.veiculos.length;
+                      const newVehicleCountBefore = ocrQueue
+                        .slice(0, queueIdx)
+                        .filter((it) => it.slot === 'vehicle' && it.vehicleIndex >= existingVehicleCount)
+                        .length;
+                      const isNewVehicle = item.slot === 'vehicle' && item.vehicleIndex >= existingVehicleCount;
+                      const newVehicleOrdinal = isNewVehicle
+                        ? newVehicleCountBefore + 1
+                        : newVehicleCountBefore;
+                      const newVehicleOptions = newVehicleCountBefore + 1;
+                      return (
+                      <div key={item.id} className="flex items-center gap-2 text-xs">
+                        <span className="flex-1 truncate text-slate-700 dark:text-slate-200" title={item.path}>
+                          {item.filename}
+                        </span>
+                        <select
+                          className="rounded border border-slate-300 bg-white px-2 py-1 text-xs dark:border-slate-600 dark:bg-slate-800"
+                          value={item.slot === 'vehicle' ? `vehicle:${item.vehicleIndex}` : item.slot}
+                          disabled={ocrLoading || item.status === 'processing'}
+                          onChange={(event) => {
+                            const value = event.target.value;
+                            if (value === 'driver' || value === 'spouse' || value === 'person') {
+                              updateOcrItem(item.id, { slot: value, vehicleIndex: 0 });
+                            } else if (value.startsWith('vehicle:')) {
+                              const idx = Number(value.split(':')[1]) || 0;
+                              updateOcrItem(item.id, { slot: 'vehicle', vehicleIndex: idx });
+                            }
+                          }}
+                        >
+                          <option value="driver">1º Motorista</option>
+                          {draft.estado_civil === 'married' && <option value="spouse">Cônjuge</option>}
+                          <option value="person">Pessoa adicional</option>
+                          {draft.veiculos.map((_, vIdx) => (
+                            <option key={`vehicle:${vIdx}`} value={`vehicle:${vIdx}`}>
+                              Veículo {vIdx + 1} (existente)
+                            </option>
+                          ))}
+                          {Array.from({ length: newVehicleOptions }).map((_, nIdx) => (
+                            <option key={`vehicle:new:${nIdx}`} value={`vehicle:${existingVehicleCount + nIdx}`}>
+                              Novo veículo {nIdx + 1}
+                            </option>
+                          ))}
+                        </select>
+                        {item.status === 'done' && (
+                          <span className="text-emerald-600 dark:text-emerald-400" title={item.message}>OK</span>
+                        )}
+                        {item.status === 'error' && (
+                          <span className="text-red-600 dark:text-red-400" title={item.message}>!</span>
+                        )}
+                        {item.status === 'processing' && (
+                          <span className="text-slate-400">…</span>
+                        )}
+                        {isNewVehicle && (
+                          <span className="text-slate-400" title={`Novo veículo ${newVehicleOrdinal}`}>
+                            #{newVehicleOrdinal}
+                          </span>
+                        )}
+                        {!ocrLoading && (
+                          <button
+                            type="button"
+                            className="text-slate-400 hover:text-red-500"
+                            onClick={() => removeOcrItem(item.id)}
+                            title="Remover"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                      );
+                    })}
+                    {!ocrLoading && (
+                      <button
+                        type="button"
+                        className="btn-primary mt-1 px-3 py-1.5 text-xs"
+                        onClick={processOcrQueue}
+                      >
+                        Processar {ocrQueue.length} documento(s)
+                      </button>
+                    )}
+                  </div>
+                )}
                 <div className="mt-4 grid gap-4 md:grid-cols-2">
                   <Field label="Nome completo" value={draft.nome} onChange={(value) => update('nome', value)} required />
                   <Field label="Documento" value={draft.documento} onChange={(value) => update('documento', value)} />
@@ -911,13 +1282,21 @@ function CardEditor({
                       </div>
                     </div>
                   ) : null}
-                  <SelectField
-                    label="Tempo de seguro"
-                    value={draft.tempo_de_seguro}
-                    onChange={(value) => update('tempo_de_seguro', value)}
-                    options={insuranceDurationOptions}
-                    placeholder="Selecione"
+                  <ChoiceField
+                    label="Seguro anterior"
+                    value={draft.teve_seguro_anterior}
+                    onChange={(value) => update('teve_seguro_anterior', value)}
+                    options={priorInsuranceOptions}
                   />
+                  {draft.teve_seguro_anterior === 'yes' ? (
+                    <SelectField
+                      label="Tempo de seguro"
+                      value={draft.tempo_de_seguro}
+                      onChange={(value) => update('tempo_de_seguro', value)}
+                      options={insuranceDurationOptions}
+                      placeholder="Selecione"
+                    />
+                  ) : null}
                   <SelectField
                     label="Tempo no endereço"
                     value={draft.tempo_no_endereco}
@@ -936,7 +1315,13 @@ function CardEditor({
                   <Field label="Rua" value={draft.endereco_rua} onChange={(value) => update('endereco_rua', value)} />
                   <Field label="Apt" value={draft.endereco_apt} onChange={(value) => update('endereco_apt', value)} />
                   <Field label="Cidade" value={draft.endereco_cidade} onChange={(value) => update('endereco_cidade', value)} />
-                  <Field label="Estado" value={draft.endereco_estado} onChange={(value) => update('endereco_estado', value)} />
+                  <SelectField
+                    label="Estado"
+                    value={draft.endereco_estado}
+                    onChange={(value) => update('endereco_estado', value)}
+                    options={addressStates.map((state) => ({ value: state, label: state }))}
+                    placeholder="Selecione"
+                  />
                   <Field label="ZIP" value={draft.endereco_zipcode} onChange={(value) => update('endereco_zipcode', value)} />
                 </div>
               </section>

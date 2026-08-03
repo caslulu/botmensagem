@@ -4,7 +4,8 @@ function registerFilesBridge({ contextBridge, ipcRenderer }) {
     showInFolder: (targetPath) => ipcRenderer.invoke('file:show-in-folder', targetPath),
     openPath: (targetPath) => ipcRenderer.invoke('file:open-path', targetPath),
     readImageAsDataUrl: (targetPath) => ipcRenderer.invoke('file:read-image-as-data-url', targetPath),
-    selectImage: () => ipcRenderer.invoke('file:select-image')
+    selectImage: () => ipcRenderer.invoke('file:select-image'),
+    selectImages: () => ipcRenderer.invoke('file:select-images')
   });
 }
 

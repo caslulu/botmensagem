@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { MessageManager } from './components/MessageManager';
+import { SchedulerPanel } from './components/SchedulerPanel';
 
 interface LogEntry {
   timestamp: string;
@@ -194,6 +195,8 @@ export const WhatsAppAutomationControl: React.FC<WhatsAppAutomationControlProps>
           <MessageManager profileId={profileId} />
         </section>
       </section>
+
+      <SchedulerPanel isAdmin={isAdmin} />
     </div>
   );
 };

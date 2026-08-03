@@ -40,6 +40,14 @@ type CardPersonOption = {
 
 const OTHER_PERSON_KEY = '__other_person__';
 
+const insurerOptions = ['Allstate', 'Progressive', 'Geico', 'Direct', 'StateFarm', 'Liberty'];
+
+const languageOptions = [
+  { value: 'pt', label: 'Português' },
+  { value: 'en', label: 'Inglês' },
+  { value: 'es', label: 'Espanhol' }
+];
+
 const initialForm: PriceFormData = {
   formType: 'quitado',
   seguradora: 'Allstate',
@@ -121,10 +129,17 @@ function pickFileName(filePath: string): string {
   return parts[parts.length - 1] || `preco-${Date.now()}.png`;
 }
 
+function getCardLabel(card: KanbanCard): string {
+  return readString(card.payload?.nome, card.title, card.id);
+}
+
 export const PriceForm: React.FC = () => {
   const [form, setForm] = useState<PriceFormData>(initialForm);
   const [cards, setCards] = useState<KanbanCard[]>([]);
+  const [attachToKanban, setAttachToKanban] = useState(true);
   const [selectedCardId, setSelectedCardId] = useState('');
+  const [cardSearch, setCardSearch] = useState('');
+  const [cardComboboxOpen, setCardComboboxOpen] = useState(false);
   const [selectedPersonKey, setSelectedPersonKey] = useState<string>(OTHER_PERSON_KEY);
   const [loadingCards, setLoadingCards] = useState(false);
   const [cardsError, setCardsError] = useState<string | null>(null);
@@ -141,6 +156,14 @@ export const PriceForm: React.FC = () => {
     () => extractPeopleFromCard(selectedCard),
     [selectedCard]
   );
+
+  const filteredCards = useMemo(() => {
+    const query = cardSearch.trim().toLowerCase();
+    if (!query) return cards.slice(0, 12);
+    return cards
+      .filter((card) => getCardLabel(card).toLowerCase().includes(query))
+      .slice(0, 12);
+  }, [cards, cardSearch]);
 
   const customNameMode = selectedPersonKey === OTHER_PERSON_KEY;
 
@@ -174,6 +197,12 @@ export const PriceForm: React.FC = () => {
   }, []);
 
   useEffect(() => {
+    if (selectedCard) {
+      setCardSearch(getCardLabel(selectedCard));
+    }
+  }, [selectedCard]);
+
+  useEffect(() => {
     if (!selectedCard) {
       setSelectedPersonKey(OTHER_PERSON_KEY);
       setForm((prev) => ({ ...prev, nome: '' }));
@@ -195,11 +224,68 @@ export const PriceForm: React.FC = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCardChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const nextCardId = e.target.value;
+  const selectCard = (nextCardId: string) => {
+    const nextCard = cards.find((card) => card.id === nextCardId);
+    setAttachToKanban(true);
     setSelectedCardId(nextCardId);
+    setCardSearch(nextCard ? getCardLabel(nextCard) : '');
+    setCardComboboxOpen(false);
     setSelectedPersonKey(OTHER_PERSON_KEY);
     setForm((prev) => ({ ...prev, nome: '' }));
+  };
+
+  const handleCardSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setAttachToKanban(true);
+    setCardSearch(value);
+    setCardComboboxOpen(true);
+
+    const exactCard = cards.find((card) => getCardLabel(card).toLowerCase() === value.trim().toLowerCase());
+    setSelectedCardId(exactCard?.id || '');
+    if (!exactCard) {
+      setSelectedPersonKey(OTHER_PERSON_KEY);
+      setForm((prev) => ({ ...prev, nome: '' }));
+    }
+  };
+
+  const handleCardComboboxBlur = (event: React.FocusEvent<HTMLDivElement>) => {
+    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      setCardComboboxOpen(false);
+      if (selectedCard) {
+        setCardSearch(getCardLabel(selectedCard));
+      }
+    }
+  };
+
+  const handleCardSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Escape') {
+      setCardComboboxOpen(false);
+      return;
+    }
+
+    if (event.key === 'Enter' && cardComboboxOpen && filteredCards[0]) {
+      event.preventDefault();
+      selectCard(filteredCards[0].id);
+    }
+  };
+
+  const handleAttachToKanbanChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const shouldAttach = e.target.checked;
+    setAttachToKanban(shouldAttach);
+    setCardComboboxOpen(false);
+
+    if (!shouldAttach) {
+      setSelectedCardId('');
+      setCardSearch('');
+      setSelectedPersonKey(OTHER_PERSON_KEY);
+      setForm((prev) => ({ ...prev, nome: '' }));
+      return;
+    }
+
+    const fallbackCard = selectedCard || cards[0];
+    if (fallbackCard) {
+      selectCard(fallbackCard.id);
+    }
   };
 
   const handlePersonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -276,7 +362,7 @@ export const PriceForm: React.FC = () => {
     setError(null);
     setResult(null);
 
-    if (!selectedCardId) {
+    if (attachToKanban && !selectedCardId) {
       setError('Selecione um card do Kanban.');
       setLoading(false);
       return;
@@ -316,10 +402,16 @@ export const PriceForm: React.FC = () => {
         const generatedPath = res.result?.outputPath || res.output?.outputPath;
         if (generatedPath) {
           window.lastGeneratedPricePath = generatedPath;
-          await attachImageToKanbanCard(selectedCardId, generatedPath);
-          setResult(`Imagem gerada e anexada ao card: ${generatedPath}`);
+          if (attachToKanban && selectedCardId) {
+            await attachImageToKanbanCard(selectedCardId, generatedPath);
+            setResult(`Imagem gerada e anexada ao card: ${generatedPath}`);
+          } else {
+            setResult(`Imagem gerada: ${generatedPath}`);
+          }
         } else {
-          setResult('Imagem gerada, mas sem caminho de arquivo retornado para anexar no card.');
+          setResult(attachToKanban
+            ? 'Imagem gerada, mas sem caminho de arquivo retornado para anexar no card.'
+            : 'Imagem gerada, mas sem caminho de arquivo retornado.');
         }
       } else {
         setError((res as any)?.error || 'Erro ao gerar imagem.');
@@ -346,22 +438,86 @@ export const PriceForm: React.FC = () => {
           <span className="rta-section-icon">💵</span>
           <div>
             <h2 className="rta-section-title">Gerar Imagem de Preço</h2>
-            <p className="rta-section-description">Selecione o card e a pessoa para gerar e anexar a imagem no Kanban.</p>
+            <p className="rta-section-description">Gere a imagem e, se quiser, anexe em um card do Kanban.</p>
           </div>
         </div>
 
         <div className="rta-grid rta-grid-auto gap-4">
           <div className="input-group">
-            <label>Card do Kanban</label>
-            <select value={selectedCardId} onChange={handleCardChange} className="input-control" disabled={loadingCards}>
-              <option value="">Selecione um card</option>
-              {cards.map((card) => (
-                <option key={card.id} value={card.id}>
-                  {readString(card.payload?.nome, card.title, card.id)}
-                </option>
-              ))}
-            </select>
+            <label className="flex items-center justify-between gap-3">
+              <span>Card do Kanban</span>
+              <span className="flex items-center gap-2 text-xs font-semibold text-slate-400">
+                <input
+                  type="checkbox"
+                  checked={attachToKanban}
+                  onChange={handleAttachToKanbanChange}
+                  className="accent-brand-500"
+                />
+                Anexar
+              </span>
+            </label>
+            <div className="relative" onBlur={handleCardComboboxBlur}>
+              <input
+                value={cardSearch}
+                onChange={handleCardSearchChange}
+                onKeyDown={handleCardSearchKeyDown}
+                onFocus={() => setCardComboboxOpen(true)}
+                className="input-control pr-10"
+                placeholder={attachToKanban ? 'Digite para buscar um card' : 'Geração sem vínculo com Kanban'}
+                disabled={loadingCards || !attachToKanban}
+                role="combobox"
+                aria-expanded={cardComboboxOpen}
+                aria-controls="price-card-options"
+                aria-autocomplete="list"
+              />
+              <button
+                type="button"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-xl leading-none text-slate-400 transition hover:text-slate-200 disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => setCardComboboxOpen((current) => !current)}
+                disabled={loadingCards || !attachToKanban}
+                aria-label="Abrir lista de cards"
+              >
+                ˅
+              </button>
+              {cardComboboxOpen && !loadingCards && attachToKanban ? (
+                <div
+                  id="price-card-options"
+                  role="listbox"
+                  className="absolute z-30 mt-2 max-h-72 w-full overflow-y-auto rounded-2xl border border-slate-700/80 bg-slate-950/95 p-2 shadow-2xl shadow-black/30 backdrop-blur"
+                >
+                  {filteredCards.map((card) => {
+                    const label = getCardLabel(card);
+                    return (
+                      <button
+                        key={card.id}
+                        type="button"
+                        role="option"
+                        aria-selected={card.id === selectedCardId}
+                        className={`block w-full rounded-xl px-3 py-2 text-left text-sm transition ${
+                          card.id === selectedCardId
+                            ? 'bg-brand-500/20 text-brand-100'
+                            : 'text-slate-200 hover:bg-slate-800/90'
+                        }`}
+                        onMouseDown={(event) => event.preventDefault()}
+                        onClick={() => selectCard(card.id)}
+                      >
+                        <span className="block truncate font-semibold">{label}</span>
+                        {card.title && card.title !== label ? (
+                          <span className="mt-0.5 block truncate text-xs text-slate-500">{card.title}</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                  {!filteredCards.length ? (
+                    <div className="px-3 py-4 text-sm text-slate-500">
+                      Nenhum card encontrado.
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
+            </div>
             {loadingCards ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">Carregando cards...</p> : null}
+            {!attachToKanban ? <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">A imagem será gerada sem anexar ao Kanban.</p> : null}
             {cardsError ? <p className="mt-2 text-xs text-rose-500 dark:text-rose-300">{cardsError}</p> : null}
           </div>
 
@@ -381,32 +537,24 @@ export const PriceForm: React.FC = () => {
 
           <div className="input-group">
             <label>Seguradora</label>
-            <div className="flex gap-4 flex-wrap">
-              {['Allstate', 'Progressive', 'Geico', 'Direct', 'StateFarm', 'Liberty'].map((ins) => (
-                <label key={ins} className="flex items-center gap-2 cursor-pointer">
-                  <input type="radio" name="seguradora" value={ins} checked={form.seguradora === ins} onChange={handleChange} className="accent-brand-500" />
-                  {ins}
-                </label>
+            <select name="seguradora" value={form.seguradora} onChange={handleChange} className="input-control">
+              {insurerOptions.map((insurer) => (
+                <option key={insurer} value={insurer}>
+                  {insurer}
+                </option>
               ))}
-            </div>
+            </select>
           </div>
 
           <div className="input-group">
             <label>Idioma</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="idioma" value="pt" checked={form.idioma === 'pt'} onChange={handleChange} className="accent-brand-500" />
-                Português
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="idioma" value="en" checked={form.idioma === 'en'} onChange={handleChange} className="accent-brand-500" />
-                Inglês
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="idioma" value="es" checked={form.idioma === 'es'} onChange={handleChange} className="accent-brand-500" />
-                Espanhol
-              </label>
-            </div>
+            <select name="idioma" value={form.idioma} onChange={handleChange} className="input-control">
+              {languageOptions.map((language) => (
+                <option key={language.value} value={language.value}>
+                  {language.label}
+                </option>
+              ))}
+            </select>
           </div>
 
           <div className="input-group">
@@ -434,22 +582,24 @@ export const PriceForm: React.FC = () => {
             </div>
           </div>
 
-          <div className="input-group">
-            <label>Pessoa do Card</label>
-            <select
-              value={selectedPersonKey}
-              onChange={handlePersonChange}
-              className="input-control"
-              disabled={!selectedCardId}
-            >
-              {peopleOptions.map((person) => (
-                <option key={person.key} value={person.key}>
-                  {person.label}
-                </option>
-              ))}
-              <option value={OTHER_PERSON_KEY}>Outro</option>
-            </select>
-          </div>
+          {attachToKanban ? (
+            <div className="input-group">
+              <label>Pessoa do Card</label>
+              <select
+                value={selectedPersonKey}
+                onChange={handlePersonChange}
+                className="input-control"
+                disabled={!selectedCardId}
+              >
+                {peopleOptions.map((person) => (
+                  <option key={person.key} value={person.key}>
+                    {person.label}
+                  </option>
+                ))}
+                <option value={OTHER_PERSON_KEY}>Outro</option>
+              </select>
+            </div>
+          ) : null}
 
           {customNameMode ? (
             <div className="input-group">

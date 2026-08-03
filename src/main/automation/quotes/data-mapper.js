@@ -20,6 +20,22 @@ function normalizeString(value, fallback = '') {
   return typeof value === 'string' && value.trim() ? value.trim() : fallback;
 }
 
+function normalizePriorInsurance(value) {
+  if (value === false) return 'no';
+  if (value === true) return 'yes';
+
+  const normalized = normalizeString(value).toLowerCase();
+  if (['false', 'no', 'nao', 'não', 'n'].includes(normalized)) return 'no';
+  if (['true', 'yes', 'sim', 's'].includes(normalized)) return 'yes';
+  return '';
+}
+
+function resolveInsuranceDuration(payload) {
+  const priorInsurance = normalizePriorInsurance(payload.teve_seguro_anterior ?? payload.has_prior_insurance);
+  if (priorInsurance === 'no') return 'no_prior_insurance';
+  return normalizeString(payload.tempo_de_seguro);
+}
+
 function normalizeZip(zip = '') {
   return normalizeString(zip, '').replace(/[^0-9]/g, '').slice(0, 10);
 }
@@ -188,6 +204,9 @@ function mapQuoteToProgressive(quote) {
   const pessoasExtras = normalizePeople(payload.pessoas);
   const conjuge = typeof payload.conjuge === 'object' && payload.conjuge !== null ? payload.conjuge : {};
 
+  const priorInsurance = normalizePriorInsurance(payload.teve_seguro_anterior ?? payload.has_prior_insurance);
+  const tempoDeSeguro = resolveInsuranceDuration(payload);
+
   const data = {
     firstName,
     lastName,
@@ -202,7 +221,9 @@ function mapQuoteToProgressive(quote) {
     genero: normalizeString(payload.genero, 'Masculino'),
     documento: document,
     estadoDocumento: normalizeString(payload.documento_estado),
-    tempoDeSeguro: normalizeString(payload.tempo_de_seguro),
+    hasInsurance: priorInsurance === 'no' ? false : priorInsurance === 'yes' ? true : undefined,
+    hasPriorInsurance: priorInsurance === 'no' ? false : priorInsurance === 'yes' ? true : undefined,
+    tempoDeSeguro,
     tempoNoEndereco: normalizeString(payload.tempo_no_endereco),
     estadoCivil: normalizeString(payload.estado_civil),
     nomeConjuge: normalizeString(payload.nome_conjuge || conjuge.nome),

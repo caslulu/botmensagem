@@ -1,0 +1,21 @@
+[Unit]
+Description=Evolution Scheduler HTTP API (botmensagem)
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/evolution/scripts
+Environment=SCHEDULER_HOST=0.0.0.0
+Environment=SCHEDULER_PORT=8091
+EnvironmentFile=-/etc/evolution/scheduler.env
+ExecStart=/usr/bin/python3 /opt/evolution/scripts/scheduler.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=append:/var/log/evolution_daily.log
+StandardError=append:/var/log/evolution_daily.log
+
+[Install]
+WantedBy=multi-user.target
